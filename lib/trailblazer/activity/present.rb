@@ -28,7 +28,7 @@ module Trailblazer
         def render_tree(tree:, level:)
           tree.map { |level, step|
             indentation = INDENTATION * (level -1)
-            indentation = indentation[0...-1] + "`" if level == 1 || /End./.match?(step) # start or end step
+            indentation = indentation[0...-1] + "`" if level == 1 || /End./.match(step) # start or end step
             indentation + STEP_PREFIX + step
           }.join("\n")
         end

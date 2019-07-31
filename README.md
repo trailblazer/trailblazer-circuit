@@ -79,3 +79,9 @@ With Activity, modeling business processes turns out to be ridiculously simple: 
 ## Operation
 
 Trailblazer's [`Operation`](http://trailblazer.to/2.1/operation) internally uses an activity to model the processes.
+
+## License
+
+© Copyright 2018, Trailblazer GmbH
+
+Licensed under the LGPLv3 license. We also offer a [commercial-friendly license](http://trailblazer.to/pro).

@@ -1,3 +1,15 @@
+# 0.8.3
+
+* Use `Context.for` to create contexts.
+
+# 0.8.2
+
+* Fix `Present` so it works with Ruby <= 2.3.
+
+# 0.8.1
+
+* Remove `hirb` gem dependency.
+
 # 0.8.0
 
 * Separate the [DSL](https://github.com/trailblazer/trailblazer-activity-dsl-linear) from the runtime code. The latter sits in this gem.

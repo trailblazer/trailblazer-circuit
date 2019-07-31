@@ -11,7 +11,9 @@ class Trailblazer::Activity
           input  = ->(original_ctx) do
             defaulted_options = defaults_for(defaults, original_ctx)
 
-            Trailblazer.Context(original_ctx.merge(defaulted_options))
+            ctx = original_ctx.merge(defaulted_options)
+
+            Trailblazer::Context.for(ctx, [original_ctx, {}], {})
           end
 
           output = ->(original_ctx, new_ctx) { # FIXME: use Unscope

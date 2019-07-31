@@ -1,111 +1,61 @@
 require "test_helper"
 
 class DocsActivityTest < Minitest::Spec
-  Memo = Struct.new(:body) do
-    def self.find_by(*)
-      Memo.new
-    end
-
-    def update_attributes(*)
-
-    end
-  end
-
-  describe "#what" do
-    it do
-      #:overview
-      module Memo::Update
-        extend Trailblazer::Activity::Railway()
-
-        module_function
-        #
-        # here goes your business logic
-        #
-        def find_model(ctx, id:, **)
-          ctx[:model] = Memo.find_by(id: id)
-        end
-
-        def validate(ctx, params:, **)
-          return true if params[:body].is_a?(String) && params[:body].size > 10
-          ctx[:errors] = "body not long enough"
-          false
-        end
-
-        def save(ctx, model:, params:, **)
-          model.update_attributes(params)
-        end
-
-        def log_error(ctx, params:, **)
-          ctx[:log] = "Some idiot wrote #{params.inspect}"
-        end
-        #
-        # here comes the DSL describing the layout of the activity
-        #
-        step method(:find_model)
-        step method(:validate), Output(:failure) => End(:validation_error)
-        step method(:save)
-        fail method(:log_error)
-      end
-      #:overview end
-
-      #:overview-call
-      ctx = { id: 1, params: { body: "Awesome!" } }
-
-      event, (ctx, *) = Memo::Update.( [ctx, {}] )
-      #:overview-call end
-=begin
-      #:overview-result
-      pp ctx #=>
-      {:id=>1,
-       :params=>{:body=>"Awesome!"},
-       :model=>#<struct DocsActivityTest::Memo body=nil>,
-       :errors=>"body not long enough"}
-
-      puts signal #=> #<Trailblazer::Activity::End semantic=:validation_error>
-      #:overview-result end
-=end
-      ctx.inspect.must_equal %{{:id=>1, :params=>{:body=>\"Awesome!\"}, :model=>#<struct DocsActivityTest::Memo body=nil>, :errors=>\"body not long enough\"}}
-
-      pp ctx
-      pp event
-    end
-  end
-
-  # circuit interface
   it do
-    #:circuit-interface-create
-    module Create
-      extend Trailblazer::Activity::Railway()
+    #:int
+    Intermediate = Trailblazer::Activity::Schema::Intermediate # shortcut alias.
+
+    intermediate = Intermediate.new(
+      {
+        Intermediate::TaskRef(:"Start")  => [Intermediate::Out(:success, :A)],
+        Intermediate::TaskRef(:A)        => [Intermediate::Out(:success, :B),
+                                             Intermediate::Out(:failure, :C)],
+        Intermediate::TaskRef(:B)        => [Intermediate::Out(:success, :"End")],
+        Intermediate::TaskRef(:C)        => [Intermediate::Out(:success, :B)],
+        Intermediate::TaskRef(:"End", stop_event: true) => [Intermediate::Out(:success, nil)] # :)
+      },
+      [:"End"],   # end events
+      [:"Start"], # start
+    )
+    #:int end
+
+
+    #:impl-mod
+    module Upsert
       module_function
 
-      #:circuit-interface-validate
-      def validate((ctx, flow_options), **circuit_options)
-        #~method
-        is_valid = ctx[:name].nil? ? false : true
-
-        ctx    = ctx.merge(validate_outcome: is_valid) # you can change ctx
-        signal = is_valid ? Trailblazer::Activity::Right : Trailblazer::Activity::Left
-
-        #~method end
-        return signal, [ctx, flow_options]
+      def a((ctx, flow_options), *)
+        ctx[:seq] << :a
+        return Trailblazer::Activity::Right, [ctx, flow_options]
       end
-      #:circuit-interface-validate end
 
-      step task: method(:validate)
+      #~mod
+      extend T.def_tasks(:b, :c)
+      #~mod end
     end
-    #:circuit-interface-create end
 
-    #:circuit-interface-call
-    ctx          = {name: "Face to Face"}
-    flow_options = {}
+    start = Activity::Start.new(semantic: :default)
+    _end  = Activity::End.new(semantic: :success)
+    #:impl-mod end
 
-    signal, (ctx, flow_options) = Create.([ctx, flow_options], {})
+    #:impl
+    Activity = Trailblazer::Activity # shortcut alias.
+    Implementation = Trailblazer::Activity::Schema::Implementation
 
-    signal #=> #<Trailblazer::Activity::End semantic=:success>
-    ctx    #=> {:name=>\"Face to Face\", :validate_outcome=>true}
-    #:circuit-interface-call end
+    implementation = {
+      :"Start"  => Implementation::Task(start,             [Activity::Output(Activity::Right, :success)], []),
+      :A        => Implementation::Task(Upsert.method(:c), [Activity::Output(Activity::Right, :success),
+                                                            Activity::Output(Activity::Left, :failure)],  []),
+      :B        => Implementation::Task(Upsert.method(:c), [Activity::Output(Activity::Right, :success)], []),
+      :C        => Implementation::Task(Upsert.method(:c), [Activity::Output(Activity::Right, :success)], []),
+      :"End"    => Implementation::Task(_end, [Activity::Output(_end, :success)],                         []), # :)
+    }
+    #:impl end
 
-    signal.inspect.must_equal %{#<Trailblazer::Activity::End semantic=:success>}
-    ctx.inspect.must_equal %{{:name=>\"Face to Face\", :validate_outcome=>true}}
+    #:comp
+    schema = Intermediate.(intermediate, implementation)
+
+    activity = Activity.new(schema)
+    #:comp end
   end
 end

@@ -1,7 +1,8 @@
 module Trailblazer
   class Activity
-    # The Introspect API abstracts internals about circuits and provides a convenient API
-    # to third-parties such as tracing, rendering activities, etc.
+    # The Introspect API provides inflections for `Activity` instances.
+    # It abstracts internals about circuits and provides a convenient API to third-parties such as
+    # tracing, rendering an activity, or finding particular tasks.
     module Introspect
       def self.Graph(*args)
         Graph.new(*args)

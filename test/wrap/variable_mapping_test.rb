@@ -157,7 +157,7 @@ class VariableMappingTest < Minitest::Spec
       ctx.must_equal({:seq=>[], :seq_from_model=>[:model_in_2, :model_in, "model", :model_out, :model_out_2], :c=>nil, :seq_from_uuid=>[:model_in_2, :model_in, "model", :model_out, :model_out_2, :uuid_in, "uuid", :uuid_out]})
     end
 
-    it "added via {wrap_runtime}" do
+    it "added via {:wrap_runtime}" do
       model_input, model_output = model_io
       uuid_input, uuid_output   = uuid_io
 
@@ -338,58 +338,6 @@ class VariableMappingTest < Minitest::Spec
 
       signal.must_equal activity.outputs[:success].signal
       options.must_equal({:a=>1, :model_a=>4, :c=>1, :uuid_a=>5 })
-    end
-  end
-
-  describe "via DSL" do
-    it "allows array and hash" do
-      skip "move me to DSL"
-
-      _nested = nested
-
-      activity = Module.new do
-        extend Activity::Path()
-
-        # a => a, ctx[:model].id => id
-        task task: Model,     input: [:a], output: { :a=>:model_a }
-        task task: _nested,    _nested.outputs[:success] => Track(:success)
-        task task: Uuid,      input: [:a, :model_a], output: { :a=>:uuid_a }
-      end
-
-      signal, (options, flow_options) = Activity::TaskWrap.invoke(activity,
-        [
-          options = { :a => 1 },
-          {},
-        ],
-      )
-
-      signal.must_equal activity.outputs[:success].signal
-      options.must_equal({:a=>1, :model_a=>2, :c=>1, :uuid_a => 3 })
-    end
-
-    it "allows procs, too" do
-      skip "move me to DSL"
-
-      _nested = nested
-
-      activity = Module.new do
-        extend Activity::Path()
-
-        # a => a, ctx[:model].id => id
-        task task: Model,     input: ->(ctx, a:, **) { { :a => a+1 } }, output: ->(ctx, a:, **) { { model_a: a } }
-        task task: _nested,    _nested.outputs[:success] => Track(:success)
-        task task: Uuid,      input: [:a, :model_a], output: { :a=>:uuid_a }
-      end
-
-      signal, (options, flow_options) = Activity::TaskWrap.invoke(activity,
-        [
-          options = { :a => 1 },
-          {},
-        ],
-      )
-
-      signal.must_equal activity.outputs[:success].signal
-      options.must_equal({:a=>1, :model_a=>4, :c=>1, :uuid_a => 5 })
     end
   end
 end
