@@ -8,6 +8,13 @@ module Trailblazer
 
       # @private This API is still under construction.
       class Graph
+        class NodeNotFound < RuntimeError
+          def initialize(id = nil)
+            return super("Cannot find node with id=#{id.inspect}") if id
+            super("Cannot find node for given block")
+          end
+        end
+
         def initialize(activity)
           @activity = activity
           @schema   = activity.to_h or raise
@@ -20,6 +27,10 @@ module Trailblazer
           return find_by_id(id) unless block_given?
 
           find_with_block(&block)
+        end
+
+        def find!(id = nil, &block)
+          find(id, &block) or raise NodeNotFound.new(id)
         end
 
         def collect(strategy: :circuit)

@@ -28,6 +28,28 @@ class IntrospectionTest < Minitest::Spec
       end
     end
 
+    describe "#find!" do
+      let(:node) { graph.find!(:B) }
+      it { expect(node.class).must_equal Activity::Introspect::Graph::Node }
+      it { expect(node[:id]).must_equal :B }
+
+      it "raises exception when {:id} is invalid" do
+        exception = assert_raises Activity::Introspect::Graph::NodeNotFound do
+          graph.find!(:Z)
+        end
+
+        expect(exception.message).must_equal "Cannot find node with id=:Z"
+      end
+
+      it "raises exception when node is not selected via block" do
+        exception = assert_raises Activity::Introspect::Graph::NodeNotFound do
+          graph.find!{ |node| nil }
+        end
+
+        expect(exception.message).must_equal "Cannot find node for given block"
+      end
+    end
+
     describe "#collect" do
       it "provides 1-arg {node}" do
         nodes = graph.collect { |node| node }
