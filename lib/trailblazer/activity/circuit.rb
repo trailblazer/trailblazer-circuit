@@ -76,13 +76,10 @@ module Trailblazer
         outputs[signal]
       end
 
-      # Common reasons to raise IllegalSignalError are
-      #   * Returning invalid signal from custom Macros
-      #   * Returning invalid signal from steps which are not taskWrapped, for example: `step task: method(:validate)`
-      #
-      # Rest assured, it won't be raised in case of below scenarios where they can return any value,
-      #   * Steps with instance method signature, for example, `step :load_user`
-      #   * Steps with proc signature, for example `step ->(ctx, **){}`
+      # Common reasons to raise IllegalSignalError are when returning signals from
+      #   * macros which are not registered
+      #   * subprocesses where parent process have not registered that signal
+      #   * ciruit interface steps, for example: `step task: method(:validate)`
       class IllegalSignalError < RuntimeError
         attr_reader :task, :signal
 
@@ -90,9 +87,9 @@ module Trailblazer
           @task = task
           @signal = signal
 
-          message = "#{exec_context.class}: \n\t" \
-            "\sUnrecognized Signal `#{signal.inspect}` returned from #{task.inspect}. Registered signals are, \n" \
-            "- #{outputs.keys.join("\n- ")}"
+          message = "#{exec_context.class}: \n" \
+            "\e[31mUnrecognized Signal `#{signal.inspect}` returned from #{task.inspect}. Registered signals are, \e[0m\n" \
+            "\e[32m#{outputs.keys.map(&:inspect).join("\n")}\e[0m"
 
           super(message)
         end

@@ -116,9 +116,9 @@ class CircuitTest < Minitest::Spec
       wicked_circuit.([ctx, flow_options], **circuit_options)
     end
 
-    message = "CircuitTest::DummyActivity: \n\t" \
-      "\sUnrecognized Signal `\"to a\"` returned from #{Start}. Registered signals are, \n" \
-      "- eureka"
+    message = "CircuitTest::DummyActivity: \n" \
+      "\e[31mUnrecognized Signal `\"to a\"` returned from #{Start}. Registered signals are, \e[0m\n" \
+      "\e[32m:eureka\e[0m"
 
     assert_equal message, exception.message
 
