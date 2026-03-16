@@ -8,7 +8,7 @@ Gem::Specification.new do |spec|
   spec.authors = ["Nick Sutterer"]
   spec.email = ["apotonick@gmail.com"]
 
-  spec.summary = "Write a short summary, because RubyGems requires one."
+  spec.summary = "Low-level runtime code for Trailblazer's circuits and pipelines. "
   spec.homepage = "https://trailblazer.to/2.2"
   spec.required_ruby_version = ">= 2.1.0"
 
