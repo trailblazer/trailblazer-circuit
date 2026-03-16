@@ -1,0 +1,4 @@
+source "https://rubygems.org"
+
+gem "benchmark-ips"
+gem "trailblazer-activity", path: "../trailblazer-activity"

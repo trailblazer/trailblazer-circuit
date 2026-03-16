@@ -1,0 +1,37 @@
+PATH
+  remote: ../trailblazer-core-utils
+  specs:
+    trailblazer-core-utils (0.1.0)
+
+PATH
+  remote: .
+  specs:
+    trailblazer-circuit (0.1.0)
+      minitest-line
+
+GEM
+  remote: https://rubygems.org/
+  specs:
+    base64 (0.3.0)
+    minitest (5.26.2)
+    minitest-line (0.6.5)
+      minitest (~> 5.0)
+    ostruct (0.6.3)
+    rake (13.3.1)
+    ruby-prof (2.0.3)
+      base64
+      ostruct
+
+PLATFORMS
+  ruby
+  x86_64-linux
+
+DEPENDENCIES
+  minitest (~> 5.16)
+  rake (~> 13.0)
+  ruby-prof
+  trailblazer-circuit!
+  trailblazer-core-utils!
+
+BUNDLED WITH
+   2.6.2
