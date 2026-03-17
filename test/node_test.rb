@@ -1,7 +1,25 @@
 require "test_helper"
 
+class NodeTest < Minitest::Spec
+  it "#initialize requires and raises" do
+    assert_raises ArgumentError do
+      my_node = Trailblazer::Circuit::Node[]
+    end
+  end
+
+  it "#initialize requires " do
+    my_node = Trailblazer::Circuit::Node[id: :a, task: :method_a, interface: Object]
+
+    assert_equal my_node.to_h, {
+      :id=>:a,
+      :task=>:method_a,
+      :interface=>Object
+    }
+  end
+end
+
 class NodeScopedTest < Minitest::Spec
-  it "{#initialize} defaults" do
+  it "#initialize defaults" do
     # DISCUSS: we shouldn't create Node instances without a Builder.
     my_node = _A::Circuit::Node::Scoped[id: :"a", task: :a, interface: _A::Circuit::Processor]
 

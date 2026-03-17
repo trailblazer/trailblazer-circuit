@@ -1,11 +1,13 @@
 module Trailblazer
   class Circuit
     class Node
-      class Scoped < Node
+      class Scoped < Struct.new(:id, :task, :interface, :merge_to_lib_ctx, :copy_from_outer_ctx, :copy_to_outer_ctx, :return_outer_signal)
         # TODO: test defaulting.
-        def initialize(merge_to_lib_ctx: {}, copy_from_outer_ctx: nil, copy_to_outer_ctx: [], return_outer_signal: false, **attributes)
-          super
+        def initialize(id:, task:, interface:, merge_to_lib_ctx: {}, copy_from_outer_ctx: nil, copy_to_outer_ctx: [], return_outer_signal: false)
+          super(id, task, interface, merge_to_lib_ctx, copy_from_outer_ctx, copy_to_outer_ctx, return_outer_signal)
         end
+
+        include Node::Call
 
         # raise "do we need local_circuit_options, e.g. for :start_task?"
 
