@@ -1,5 +1,8 @@
 require "test_helper"
 
+# FIXME: add test for a non Node node :D
+# add test for specific tasks
+
 class WrapRuntimeTest < Minitest::Spec
   def assert_stack(actual, expected)
     assert_equal actual.size, expected.size
@@ -9,160 +12,165 @@ class WrapRuntimeTest < Minitest::Spec
     end
   end
 
-  it "wrap_runtime prototyping" do
-    create_circuit, create_outputs, _, _, validate_outputs, save_tw_pipe = Fixtures.fixtures
+  Record = Struct.new(:id, :title)
+  def Create_fixture
+    my_io = Class.new do
+      def self.model_input(lib_ctx, flow_options, signal, **)
+        lib_ctx[:original_application_ctx] = app_ctx = flow_options.fetch(:application_ctx)
 
-    ctx = {params: {song: nil}, slug: 666}
+        flow_options = flow_options.merge(application_ctx: app_ctx.fetch(:params))
 
-    class MyTrace
-      def self.capture_before(lib_ctx, flow_options, signal, task:, **) # FIXME: we need circuit_options for the {:task}.
-        stack = flow_options.fetch(:stack)
-
-        stack += [[:before, task, flow_options[:application_ctx].to_h.inspect]] # treat stack as an immutable object
-# puts "         ~~~ trace in #{task.inspect}: #{}"
-
-        return lib_ctx, flow_options.merge(stack: stack), signal
+        return lib_ctx, flow_options, signal
       end
 
-      def self.capture_after(lib_ctx, flow_options, signal, task:, **) # FIXME: we need circuit_options for the {:task}.
-        stack = flow_options.fetch(:stack)
+      def self.model_output(lib_ctx, flow_options, signal, **)
+        flow_options = flow_options.merge(application_ctx: lib_ctx[:original_application_ctx])
 
-        stack += [[:after, task, flow_options[:application_ctx].to_h.inspect, signal]]
-
-        # puts "@@@@@ CA, #{task} #{signal.inspect}"
-
-        return lib_ctx, flow_options.merge(stack: stack), signal
+        return lib_ctx, flow_options, signal
       end
     end
 
-    # DISCUSS: how to merge multiple runtime extensions? canonical invoke!
-    my_tw_extension = _A::Circuit::WrapRuntime::Extension.new(
-      [
-        [Trailblazer::Circuit::Node::Scoped[id: :capture_before, task: :capture_before, interface: Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod, merge_to_lib_ctx: {exec_context: MyTrace},
-          copy_to_outer_ctx: [:stack]], :before],
-        [Trailblazer::Circuit::Node::Scoped[id: :capture_after, task: :capture_after, interface: Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod, merge_to_lib_ctx: {exec_context: MyTrace},
-          copy_to_outer_ctx: [:stack]], :after],
-      ]
+    my_activity = Class.new do
+      def compute_signal(lib_ctx, flow_options, signal, **)
+        return lib_ctx, flow_options, Right
+      end
+
+      def success(lib_ctx, flow_options, signal, **)
+        return lib_ctx, flow_options, :Success
+      end
+
+      def failure(lib_ctx, flow_options, signal, **)
+        return lib_ctx, flow_options, :Failure
+      end
+    end.new
+
+    create_instance = Class.new do
+      def find(ctx, id:, **)
+        ctx[:model] = Record.new(id)
+      end
+
+      def save(ctx, model:, params:, **)
+        model.title(params[:title])
+      end
+    end.new
+
+    model_call_pipe = Trailblazer::Circuit::Builder.Pipeline(
+      [:find, :find, Trailblazer::Circuit::Task::Adapter::StepInterface::InstanceMethod],
+      [:compute_signal, my_activity.method(:compute_signal), Trailblazer::Circuit::Task::Adapter::LibInterface],
     )
 
-    my_wrap_runtime_runner = _A::Circuit::WrapRuntime::Runner
+    model_tw = Trailblazer::Circuit::Builder.Pipeline(
+      [:input, my_io.method(:model_input), Trailblazer::Circuit::Task::Adapter::LibInterface],
+      [:call_task, model_call_pipe, Trailblazer::Circuit::Processor],
+      [:output, my_io.method(:model_output), Trailblazer::Circuit::Task::Adapter::LibInterface],
+    )
 
-# DEBUGGING
+    success_pipe = Trailblazer::Circuit::Builder::Pipeline(
+      [:call_task, my_activity.method(:success), Trailblazer::Circuit::Task::Adapter::LibInterface],
+    )
 
-# call save's taskWrap:
-save_call_task_node = save_tw_pipe.config[:"task_wrap.call_task"]
+    failure_pipe = Trailblazer::Circuit::Builder::Pipeline(
+      [:call_task, my_activity.method(:failure), Trailblazer::Circuit::Task::Adapter::LibInterface],
+    )
 
-    ctx, lib_ctx, signal = my_wrap_runtime_runner.(
-      save_call_task_node,
-      {},
+    create_circuit, _ = Trailblazer::Circuit::Builder.Circuit(
+      [[:Model, model_tw, Trailblazer::Circuit::Processor], {Right => :success, Left => :failure}],
+      # [[:Validate, validate_circuit, Trailblazer::Circuit::Processor], {Right => :Validate, Left => :failure}]
+      # [[:Save, :save], {Right => :Validate, Left => :failure}]
+      [[:success, success_pipe, Trailblazer::Circuit::Processor], {}],
+      [[:failure, failure_pipe, Trailblazer::Circuit::Processor], {}],
+      termini: [:success, :failure]
+    )
+
+    create_tw = Trailblazer::Circuit::Builder.Pipeline(
+      [:call_task, create_circuit, Trailblazer::Circuit::Processor]
+    )
+
+    canonical_node = Trailblazer::Circuit::Node[id: :Create, task: create_tw, interface: Trailblazer::Circuit::Processor]
+
+    return canonical_node, create_instance
+  end
+
+  it "test Create fixture" do
+    my_create_node, create_instance = Create_fixture()
+
+    lib_ctx, flow_options, signal = Trailblazer::Circuit::Node::Runner.(
+      my_create_node,
+      {exec_context: create_instance},
       {
-        application_ctx: {model: Object},
-        stack: [].freeze,
+        application_ctx: {params: {id: 1, title: "Rancid"}},
       },
       nil,
-      runner: my_wrap_runtime_runner,
-      wrap_runtime: Hash.new(my_tw_extension),
+      runner: Trailblazer::Circuit::Node::Runner,
       context_implementation: Trailblazer::Circuit::Context,
     )
 
-    assert_equal lib_ctx[:stack],
-      [[:before, :"task_wrap.call_task", "{:model=>Object}"], [:after, :"task_wrap.call_task", "{:model=>Object, :save=>Object}", Trailblazer::Activity::Right]]
+    assert_equal signal, :Success
+    assert_equal flow_options[:application_ctx], {:params=>{:id=>1, title: "Rancid"}, :model=>Record.new(1, "Rancid")}
+  end
 
-# call Model's taskWrap:
-    model_tw_node = create_circuit.config[:"model.task_wrap"]
-
-    lib_ctx, flow_options, signal = my_wrap_runtime_runner.(
-      model_tw_node,
-      {},
-      {
-        application_ctx: {params: {}, slug: "0x999"},
-        stack: [].freeze,
-      },
-      nil,
-      runner: my_wrap_runtime_runner,
-      wrap_runtime: Hash.new(my_tw_extension),
-      context_implementation: Trailblazer::Circuit::Context,
-    )
-
-
-    assert_equal flow_options[:stack][8], [:after, :"task_wrap.call_task", "{:params=>{:slug=>\"0x999\"}, :more=>\"0x999\", :spam=>false, :model=>\"Object  / {:more=>\\\"0x999\\\"}\"}", Trailblazer::Activity::Right]
-
-    assert_equal flow_options[:stack], [
-      [:before, :"model.task_wrap", "{:params=>{}, :slug=>\"0x999\"}"],
-      [:before, :input, "{:params=>{}, :slug=>\"0x999\"}"],
-      [:before, :my_model_input, "{:params=>{}, :slug=>\"0x999\"}"],
-      [:after, :my_model_input, "{:params=>{}, :slug=>\"0x999\"}", nil],
-      [:before, :more_model_input, "{:params=>{}, :slug=>\"0x999\"}"],
-      [:after, :more_model_input, "{:params=>{}, :slug=>\"0x999\"}", nil],
-      [:after, :input, "{:params=>{:slug=>\"0x999\"}, :more=>\"0x999\"}", nil],
-      [:before, :"task_wrap.call_task", "{:params=>{:slug=>\"0x999\"}, :more=>\"0x999\"}"],
-      [:after, :"task_wrap.call_task", "{:params=>{:slug=>\"0x999\"}, :more=>\"0x999\", :spam=>false, :model=>\"Object  / {:more=>\\\"0x999\\\"}\"}", Trailblazer::Activity::Right],
-      [:before, :output, "{:params=>{:slug=>\"0x999\"}, :more=>\"0x999\", :spam=>false, :model=>\"Object  / {:more=>\\\"0x999\\\"}\"}"],
-      [:before, :my_model_output, "{:params=>{:slug=>\"0x999\"}, :more=>\"0x999\", :spam=>false, :model=>\"Object  / {:more=>\\\"0x999\\\"}\"}"],
-      [:after, :my_model_output, "{:params=>{:slug=>\"0x999\"}, :more=>\"0x999\", :spam=>false, :model=>\"Object  / {:more=>\\\"0x999\\\"}\"}", nil],
-      [:after, :output, "{:params=>{}, :slug=>\"0x999\", :model=>\"Object  / {:more=>\\\"0x999\\\"}\"}", nil],
-      [:after, :"model.task_wrap", "{:params=>{}, :slug=>\"0x999\", :model=>\"Object  / {:more=>\\\"0x999\\\"}\"}", Trailblazer::Activity::Right]
-    ]
-
-
-# raise "wooohoo"
-tw_create_pipe = Trailblazer::Circuit::Builder.TaskWrap(
-      [:"task_wrap.call_task", create_circuit, Trailblazer::Circuit::Processor, {}, Trailblazer::Circuit::Node::Scoped]
-    )
-
-    canonical_node = Trailblazer::Circuit::Node::Scoped[id: :Create, task: tw_create_pipe, interface: Trailblazer::Circuit::Processor]
-puts "yo"
+  it "wrap_runtime prototyping" do
     ctx = {params: {song: nil}, slug: 666}
 
-    # validation error:
-    lib_ctx, flow_options, signal = my_wrap_runtime_runner.( # we don't need another circuit around the OP tw, do we?
-      canonical_node,
-      {},
+    class MyTrace
+      class Capture < Struct.new(:captured_task, :position)
+        def call(lib_ctx, flow_options, signal, **) # FIXME: we need circuit_options for the {:task}.
+          stack = flow_options.fetch(:stack)
+
+          stack += [[position, captured_task, flow_options[:application_ctx].to_h.inspect]] # treat stack as an immutable object
+
+          return lib_ctx, flow_options.merge(stack: stack), signal
+        end
+      end
+
+      class Extension # TODO: name it Node::Extension?
+        # Called through WrapRuntime::Runner.
+        def self.call(id:, **attrs)
+          my_tw_extension = Trailblazer::Circuit::WrapRuntime::Extension::AddsInstructions.new(
+            [
+              [Trailblazer::Circuit::Node[id: :capture_before, task: Capture.new(id, :before), interface: Trailblazer::Circuit::Task::Adapter::LibInterface], :before],
+              [Trailblazer::Circuit::Node[id: :capture_after, task: Capture.new(id, :after), interface: Trailblazer::Circuit::Task::Adapter::LibInterface], :after],
+            ]
+          ) # DISCUSS: we could run Adds.() ourselves here?
+
+          my_tw_extension.(id: id, **attrs)
+        end
+      end
+    end
+
+
+    # DISCUSS: how to merge multiple runtime extensions? canonical invoke!
+
+    my_extensions = Trailblazer::Circuit::WrapRuntime::Extensions.new(
+      [MyTrace::Extension]
+    )
+
+    my_create_node, create_instance = Create_fixture()
+
+    lib_ctx, flow_options, signal = Trailblazer::Circuit::WrapRuntime::Runner.(
+      my_create_node,
+      {exec_context: create_instance},
       {
-        application_ctx: ctx,
+        application_ctx: {params: {id: 1, title: "Uwe"}},
         stack: [].freeze,
       },
       nil,
-      runner: my_wrap_runtime_runner,
-      wrap_runtime: Hash.new(my_tw_extension),
+      runner: Trailblazer::Circuit::WrapRuntime::Runner,
+      wrap_runtime: Hash.new(my_extensions),
       context_implementation: Trailblazer::Circuit::Context,
     )
 
-    assert_equal flow_options[:application_ctx], {:params=>{:song=>nil}, slug: 666, :model=>"Object  / {:more=>666}", :errors=>["Object  / {:more=>666}", :song]}
-    assert_equal lib_ctx.keys, []
-    assert_equal flow_options.keys, [:application_ctx, :stack]
-    assert_equal signal, create_outputs[:failure]
-
+    assert_equal signal, :Success
     pp flow_options[:stack]
-
-    # raise ":task in failure is wrong "
-    assert_stack flow_options[:stack], [
-      [:before, :Create, "{:params=>{:song=>nil}, :slug=>666}"],
-      [:before, :"model.task_wrap", "{:params=>{:song=>nil}, :slug=>666}"],
-      [:before, :input, "{:params=>{:song=>nil}, :slug=>666}"],
-      [:before, :my_model_input, "{:params=>{:song=>nil}, :slug=>666}"],
-      [:after, :my_model_input, "{:params=>{:song=>nil}, :slug=>666}", nil],
-      [:before, :more_model_input, "{:params=>{:song=>nil}, :slug=>666}"],
-      [:after, :more_model_input, "{:params=>{:song=>nil}, :slug=>666}", nil],
-      [:after, :input, "{:params=>{:song=>nil, :slug=>666}, :more=>666}", nil],
-      [:before, :"task_wrap.call_task", "{:params=>{:song=>nil, :slug=>666}, :more=>666}"],
-      [:after, :"task_wrap.call_task", "{:params=>{:song=>nil, :slug=>666}, :more=>666, :spam=>false, :model=>\"Object  / {:more=>666}\"}", Trailblazer::Activity::Right],
-
-       [:before, :output, "{:params=>{:song=>nil, :slug=>666}, :more=>666, :spam=>false, :model=>\"Object  / {:more=>666}\"}"],
-       [:before, :my_model_output, "{:params=>{:song=>nil, :slug=>666}, :more=>666, :spam=>false, :model=>\"Object  / {:more=>666}\"}"],
-       [:after, :my_model_output, "{:params=>{:song=>nil, :slug=>666}, :more=>666, :spam=>false, :model=>\"Object  / {:more=>666}\"}", nil],
-       [:after, :output, "{:params=>{:song=>nil}, :slug=>666, :model=>\"Object  / {:more=>666}\"}", nil],
-       [:after, :"model.task_wrap", "{:params=>{:song=>nil}, :slug=>666, :model=>\"Object  / {:more=>666}\"}", Trailblazer::Activity::Right],
-       [:before, :"validate.task_wrap", "{:params=>{:song=>nil}, :slug=>666, :model=>\"Object  / {:more=>666}\"}"],
-        [:before, :run_checks, "{:params=>{:song=>nil}, :slug=>666, :model=>\"Object  / {:more=>666}\"}"],
-        [:after, :run_checks, "{:params=>{:song=>nil}, :slug=>666, :model=>\"Object  / {:more=>666}\", :errors=>[\"Object  / {:more=>666}\", :song]}", Trailblazer::Activity::Left],
-        [:before, :failure, "{:params=>{:song=>nil}, :slug=>666, :model=>\"Object  / {:more=>666}\", :errors=>[\"Object  / {:more=>666}\", :song]}"],
-        [:after, :failure, "{:params=>{:song=>nil}, :slug=>666, :model=>\"Object  / {:more=>666}\", :errors=>[\"Object  / {:more=>666}\", :song]}", validate_outputs[:failure]],
-        [:after, :"validate.task_wrap", "{:params=>{:song=>nil}, :slug=>666, :model=>\"Object  / {:more=>666}\", :errors=>[\"Object  / {:more=>666}\", :song]}", validate_outputs[:failure]],
-        [:before, :failure, "{:params=>{:song=>nil}, :slug=>666, :model=>\"Object  / {:more=>666}\", :errors=>[\"Object  / {:more=>666}\", :song]}"],
-        [:after, :failure, "{:params=>{:song=>nil}, :slug=>666, :model=>\"Object  / {:more=>666}\", :errors=>[\"Object  / {:more=>666}\", :song]}", validate_outputs[:failure]],
-        [:after, :Create, "{:params=>{:song=>nil}, :slug=>666, :model=>\"Object  / {:more=>666}\", :errors=>[\"Object  / {:more=>666}\", :song]}", validate_outputs[:failure]]
-    ]
-
+    assert_equal flow_options[:stack], [
+     [:before, :Create, "{:params=>{:id=>1, :title=>\"Uwe\"}}"],
+     [:before, :Model, "{:params=>{:id=>1, :title=>\"Uwe\"}}"],
+     [:before, :call_task, "{:id=>1, :title=>\"Uwe\"}"],
+     [:after, :call_task, "{:id=>1, :title=>\"Uwe\", :model=>#<struct WrapRuntimeTest::Record id=1, title=nil>}"],
+     [:after, :Model, "{:params=>{:id=>1, :title=>\"Uwe\", :model=>#<struct WrapRuntimeTest::Record id=1, title=nil>}}"],
+     [:before, :success, "{:params=>{:id=>1, :title=>\"Uwe\", :model=>#<struct WrapRuntimeTest::Record id=1, title=nil>}}"],
+     [:after, :success, "{:params=>{:id=>1, :title=>\"Uwe\", :model=>#<struct WrapRuntimeTest::Record id=1, title=nil>}}"],
+     [:after, :Create, "{:params=>{:id=>1, :title=>\"Uwe\", :model=>#<struct WrapRuntimeTest::Record id=1, title=nil>}}"]]
   end
 end
+

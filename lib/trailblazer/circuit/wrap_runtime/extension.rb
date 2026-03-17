@@ -3,15 +3,24 @@ module Trailblazer
   class Circuit
     module WrapRuntime
       # Extension for a particular node in Processor#call.
-      class Extension < Struct.new(:adds_instructions) # "taskWrap" extension.
-        def call(task:, **node_attrs)
-          # puts "~~~ @@@@@ #{id.inspect} #{args}"/
-          # NOTE: here, we create an extended circuit for the "task".
-          extended_task = Trailblazer::Activity::Circuit::Adds.(task, *adds_instructions)
-
-          return( {task: extended_task, **node_attrs})
+      class Extensions < Struct.new(:extensions)
+        def call(**node_attrs)
+          extensions.inject(node_attrs) { |attrs, ext| ext.(**attrs) }
         end
       end
+
+      class Extension
+        class AddsInstructions < Struct.new(:adds_instructions) # "taskWrap" extension.
+          # Apply the ADDS instructions to the current task to extend it (eg adding
+          # tracing steps).
+          def call(task:, **node_attrs)
+            extended_task = Trailblazer::Circuit::Adds.(task, *adds_instructions)
+
+            return({task: extended_task, **node_attrs})
+          end
+        end
+      end
+
     end # WrapRuntime
   end
 end
