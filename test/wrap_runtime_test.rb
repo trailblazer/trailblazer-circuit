@@ -8,7 +8,7 @@ class WrapRuntimeTest < Minitest::Spec
     assert_equal actual.size, expected.size
 
     actual.each_with_index do |capture, i|
-      assert_equal capture, expected[i]
+      assert_equal capture, expected[i], "index #{i} mismatch"
     end
   end
 
@@ -18,7 +18,7 @@ class WrapRuntimeTest < Minitest::Spec
       def self.model_input(lib_ctx, flow_options, signal, **)
         lib_ctx[:original_application_ctx] = app_ctx = flow_options.fetch(:application_ctx)
 
-        flow_options = flow_options.merge(application_ctx: app_ctx.fetch(:params))
+        flow_options = flow_options.merge(application_ctx: app_ctx.fetch(:params)) # "effective" ctx
 
         return lib_ctx, flow_options, signal
       end
@@ -49,8 +49,8 @@ class WrapRuntimeTest < Minitest::Spec
         ctx[:model] = Record.new(id)
       end
 
-      def save(ctx, model:, params:, **)
-        model.title(params[:title])
+      def save(ctx, params:, **)
+        params[:model].title = params[:title]
       end
     end.new
 
@@ -65,6 +65,13 @@ class WrapRuntimeTest < Minitest::Spec
       [:output, my_io.method(:model_output), Trailblazer::Circuit::Task::Adapter::LibInterface],
     )
 
+    save_tw = Trailblazer::Circuit::Builder.Pipeline(
+      # [:input, my_io.method(:model_input), Trailblazer::Circuit::Task::Adapter::LibInterface],
+      [:call_task, :save , Trailblazer::Circuit::Task::Adapter::StepInterface::InstanceMethod],
+      [:compute_signal, my_activity.method(:compute_signal), Trailblazer::Circuit::Task::Adapter::LibInterface],
+      # [:output, my_io.method(:model_output), Trailblazer::Circuit::Task::Adapter::LibInterface],
+    )
+
     success_pipe = Trailblazer::Circuit::Builder::Pipeline(
       [:call_task, my_activity.method(:success), Trailblazer::Circuit::Task::Adapter::LibInterface],
     )
@@ -74,9 +81,9 @@ class WrapRuntimeTest < Minitest::Spec
     )
 
     create_circuit, _ = Trailblazer::Circuit::Builder.Circuit(
-      [[:Model, model_tw, Trailblazer::Circuit::Processor], {Right => :success, Left => :failure}],
+      [[:Model, model_tw, Trailblazer::Circuit::Processor], {Right => :Save, Left => :failure}],
       # [[:Validate, validate_circuit, Trailblazer::Circuit::Processor], {Right => :Validate, Left => :failure}]
-      # [[:Save, :save], {Right => :Validate, Left => :failure}]
+      [[:Save, save_tw, Trailblazer::Circuit::Processor], {Right => :success, Left => :failure}],
       [[:success, success_pipe, Trailblazer::Circuit::Processor], {}],
       [[:failure, failure_pipe, Trailblazer::Circuit::Processor], {}],
       termini: [:success, :failure]
@@ -106,7 +113,7 @@ class WrapRuntimeTest < Minitest::Spec
     )
 
     assert_equal signal, :Success
-    assert_equal flow_options[:application_ctx], {:params=>{:id=>1, title: "Rancid"}, :model=>Record.new(1, "Rancid")}
+    assert_equal flow_options[:application_ctx], {:params=>{:id=>1, title: "Rancid", :model=>Record.new(1, "Rancid")}}
   end
 
   it "wrap_runtime prototyping" do
@@ -161,16 +168,21 @@ class WrapRuntimeTest < Minitest::Spec
     )
 
     assert_equal signal, :Success
+    assert_equal flow_options[:application_ctx], {:params=>{:id=>1, title: "Uwe", :model=>Record.new(1, "Uwe")}}
+
     pp flow_options[:stack]
-    assert_equal flow_options[:stack], [
+
+    assert_stack flow_options[:stack], [
      [:before, :Create, "{:params=>{:id=>1, :title=>\"Uwe\"}}"],
      [:before, :Model, "{:params=>{:id=>1, :title=>\"Uwe\"}}"],
      [:before, :call_task, "{:id=>1, :title=>\"Uwe\"}"],
      [:after, :call_task, "{:id=>1, :title=>\"Uwe\", :model=>#<struct WrapRuntimeTest::Record id=1, title=nil>}"],
      [:after, :Model, "{:params=>{:id=>1, :title=>\"Uwe\", :model=>#<struct WrapRuntimeTest::Record id=1, title=nil>}}"],
-     [:before, :success, "{:params=>{:id=>1, :title=>\"Uwe\", :model=>#<struct WrapRuntimeTest::Record id=1, title=nil>}}"],
-     [:after, :success, "{:params=>{:id=>1, :title=>\"Uwe\", :model=>#<struct WrapRuntimeTest::Record id=1, title=nil>}}"],
-     [:after, :Create, "{:params=>{:id=>1, :title=>\"Uwe\", :model=>#<struct WrapRuntimeTest::Record id=1, title=nil>}}"]]
+     [:before, :Save, "{:params=>{:id=>1, :title=>\"Uwe\", :model=>#<struct WrapRuntimeTest::Record id=1, title=nil>}}"],
+     [:after, :Save, "{:params=>{:id=>1, :title=>\"Uwe\", :model=>#<struct WrapRuntimeTest::Record id=1, title=\"Uwe\">}}"],
+     [:before, :success, "{:params=>{:id=>1, :title=>\"Uwe\", :model=>#<struct WrapRuntimeTest::Record id=1, title=\"Uwe\">}}"],
+     [:after, :success, "{:params=>{:id=>1, :title=>\"Uwe\", :model=>#<struct WrapRuntimeTest::Record id=1, title=\"Uwe\">}}"],
+     [:after, :Create, "{:params=>{:id=>1, :title=>\"Uwe\", :model=>#<struct WrapRuntimeTest::Record id=1, title=\"Uwe\">}}"]]
   end
 end
 
