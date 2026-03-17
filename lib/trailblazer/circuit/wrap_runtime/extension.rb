@@ -2,14 +2,14 @@
 module Trailblazer
   class Circuit
     module WrapRuntime
-      # Extension for a particular node in Processor#call.
-      class Extensions < Struct.new(:extensions)
-        def call(**node_attrs)
-          extensions.inject(node_attrs) { |attrs, ext| ext.(**attrs) }
-        end
-      end
-
       class Extension
+        # Extension for a particular node in Processor#call.
+        class Set < Struct.new(:extensions)
+          def call(**node_attrs)
+            extensions.inject(node_attrs) { |attrs, ext| ext.(**attrs) }
+          end
+        end
+
         class AddsInstructions < Struct.new(:adds_instructions) # "taskWrap" extension.
           # Apply the ADDS instructions to the current task to extend it (eg adding
           # tracing steps).

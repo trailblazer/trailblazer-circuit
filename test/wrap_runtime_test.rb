@@ -116,7 +116,7 @@ class WrapRuntimeTest < Minitest::Spec
     assert_equal flow_options[:application_ctx], {:params=>{:id=>1, title: "Rancid", :model=>Record.new(1, "Rancid")}}
   end
 
-  it "wrap_runtime prototyping" do
+  it "wrap_runtime can implement tracing" do
     ctx = {params: {song: nil}, slug: 666}
 
     class MyTrace
@@ -148,7 +148,7 @@ class WrapRuntimeTest < Minitest::Spec
 
     # DISCUSS: how to merge multiple runtime extensions? canonical invoke!
 
-    my_extensions = Trailblazer::Circuit::WrapRuntime::Extensions.new(
+    my_extensions = Trailblazer::Circuit::WrapRuntime::Extension::Set.new(
       [MyTrace::Extension]
     )
 
@@ -173,7 +173,7 @@ class WrapRuntimeTest < Minitest::Spec
     pp flow_options[:stack]
 
     assert_stack flow_options[:stack], [
-     [:before, :Create, "{:params=>{:id=>1, :title=>\"Uwe\"}}"],
+     [:before, :Create, "{:params=>{:id=>1, :title=>\"Uwe\"}}"], # this is the Create.tw pipe
      [:before, :Model, "{:params=>{:id=>1, :title=>\"Uwe\"}}"],
      [:before, :call_task, "{:id=>1, :title=>\"Uwe\"}"],
      [:after, :call_task, "{:id=>1, :title=>\"Uwe\", :model=>#<struct WrapRuntimeTest::Record id=1, title=nil>}"],
