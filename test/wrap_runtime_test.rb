@@ -133,23 +133,22 @@ class WrapRuntimeTest < Minitest::Spec
       class Extension # TODO: name it Node::Extension?
         # Called through WrapRuntime::Runner.
         def self.call(id:, **attrs)
-          my_tw_extension = Trailblazer::Circuit::WrapRuntime::Extension::AddsInstructions.new(
-            [
-              [Trailblazer::Circuit::Node[id: :capture_before, task: Capture.new(id, :before), interface: Trailblazer::Circuit::Task::Adapter::LibInterface], :before],
-              [Trailblazer::Circuit::Node[id: :capture_after, task: Capture.new(id, :after), interface: Trailblazer::Circuit::Task::Adapter::LibInterface], :after],
-            ]
-          ) # DISCUSS: we could run Adds.() ourselves here?
-
-          my_tw_extension.(id: id, **attrs)
+          [
+            [Trailblazer::Circuit::Node[id: :capture_before, task: Capture.new(id, :before), interface: Trailblazer::Circuit::Task::Adapter::LibInterface], :before],
+            [Trailblazer::Circuit::Node[id: :capture_after, task: Capture.new(id, :after), interface: Trailblazer::Circuit::Task::Adapter::LibInterface], :after],
+          ]
         end
       end
     end
 
 
     # DISCUSS: how to merge multiple runtime extensions? canonical invoke!
+    my_tracing_ext = Trailblazer::Circuit::WrapRuntime.Extension(adds: MyTrace::Extension)
 
     my_extensions = Trailblazer::Circuit::WrapRuntime::Extension::Set.new(
-      [MyTrace::Extension]
+      [
+        my_tracing_ext
+      ]
     )
 
     my_create_node, create_instance = Create_fixture()

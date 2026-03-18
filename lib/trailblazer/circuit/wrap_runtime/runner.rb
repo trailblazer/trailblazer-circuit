@@ -1,6 +1,12 @@
 # This is an optional feature.
 module Trailblazer
   class Circuit
+    # WrapRuntime is a historical term. This feature allows to, at run-time,
+    # alter the currently processed node, meaning you can extend a pipeline/circuit
+    # (for example to add tracing steps), or change other node attributes like the
+    # processor.
+    #
+    # NOTE: currently, only the Adds interface is public (see Extension).
     module WrapRuntime
       # This Runner is passed via circuit_options's :runner kwarg. It extends the original
       # runner and extends pipelines throuh the configured {Extension}s.
