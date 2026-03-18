@@ -50,4 +50,15 @@ class PipelineTest < Minitest::Spec
       :b=> b = [{:pollute=>true}, {:application_ctx=>{:seq=>[]}, a: a}, nil, {:pollute=>true}],
     }
   end
+
+  it "#eql?: Pipelines with the same order and nodes are ==" do
+    my_original_pipe = Pipeline([:a, :a], [:b, :b])
+
+    my_other_pipe = Pipeline([:b, :b])
+    my_other_pipe = Trailblazer::Circuit::Adds.(my_other_pipe,
+      [Trailblazer::Circuit::Node[id: :a, task: :a, interface: Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod], :before, :b]
+    )
+
+    assert_equal my_original_pipe, my_other_pipe
+  end
 end
