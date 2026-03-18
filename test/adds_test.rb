@@ -5,13 +5,14 @@ class CircuitAddsTest < Minitest::Spec
 
   let(:model_tw_pipe) do
     Trailblazer::Circuit::Builder.Pipeline(
-      [:a, :a, _A::Circuit::Task::Adapter::LibInterface::InstanceMethod, exec_context: my_exec_context],
-      [:b, :b, _A::Circuit::Task::Adapter::LibInterface::InstanceMethod, exec_context: my_exec_context],
-      [:c, :c, _A::Circuit::Task::Adapter::LibInterface::InstanceMethod, exec_context: my_exec_context],
+      [:a, :a, _A::Circuit::Task::Adapter::LibInterface::InstanceMethod, {exec_context: my_exec_context}],
+      [:b, :b, _A::Circuit::Task::Adapter::LibInterface::InstanceMethod, {exec_context: my_exec_context}],
+      [:c, :c, _A::Circuit::Task::Adapter::LibInterface::InstanceMethod, {exec_context: my_exec_context}],
     )
   end
 
-  let(:node_options) { {interface: Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod, merge_to_lib_ctx: {exec_context: my_exec_context}} }
+  let(:interface) { Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod }
+  let(:node_options) { {merge_to_lib_ctx: {exec_context: my_exec_context}} }
 
   after do
     # No mutation on original circuit.
@@ -41,8 +42,8 @@ class CircuitAddsTest < Minitest::Spec
   it "{before, nil, before, nil} adds to the beginning, the last becomes the first" do
     extended_tw_pipe = Trailblazer::Circuit::Adds.(
       model_tw_pipe,
-      [_A::Circuit::Node::Scoped[id: :z, task: :z, **node_options], :before],
-      [_A::Circuit::Node::Scoped[id: :y, task: :y, **node_options], :before],
+      [_A::Circuit::Node::Scoped[:z, :z, interface, **node_options], :before],
+      [_A::Circuit::Node::Scoped[:y, :y, interface, **node_options], :before],
     )
 
     assert_run extended_tw_pipe, seq: [:y, :z, :a, :b, :c], terminus: Right
@@ -51,7 +52,7 @@ class CircuitAddsTest < Minitest::Spec
   it "{before, :b}" do
     extended_tw_pipe = Trailblazer::Circuit::Adds.(
       model_tw_pipe,
-      [_A::Circuit::Node::Scoped[id: :z, task: :z, **node_options], :before, :b],
+      [_A::Circuit::Node::Scoped[:z, :z, interface, **node_options], :before, :b],
     )
 
     assert_run extended_tw_pipe, seq: [:a, :z, :b, :c], terminus: Right
@@ -60,7 +61,7 @@ class CircuitAddsTest < Minitest::Spec
   it "{after, :b}" do
     extended_tw_pipe = Trailblazer::Circuit::Adds.(
       model_tw_pipe,
-      [_A::Circuit::Node::Scoped[id: :z, task: :z, **node_options], :after, :b],
+      [_A::Circuit::Node::Scoped[:z, :z, interface, **node_options], :after, :b],
     )
 
     assert_run extended_tw_pipe, seq: [:a, :b, :z, :c], terminus: Right
@@ -69,8 +70,8 @@ class CircuitAddsTest < Minitest::Spec
   it "{after, :b}, {after: :b}" do
     extended_tw_pipe = Trailblazer::Circuit::Adds.(
       model_tw_pipe,
-      [_A::Circuit::Node::Scoped[id: :z, task: :z, **node_options], :after, :b],
-      [_A::Circuit::Node::Scoped[id: :y, task: :y, **node_options], :after, :b],
+      [_A::Circuit::Node::Scoped[:z, :z, interface, **node_options], :after, :b],
+      [_A::Circuit::Node::Scoped[:y, :y, interface, **node_options], :after, :b],
     )
 
     assert_run extended_tw_pipe, seq: [:a, :b, :y, :z, :c], terminus: Right
@@ -79,8 +80,8 @@ class CircuitAddsTest < Minitest::Spec
   it "{after, nil}, {after: nil}" do
     extended_tw_pipe = Trailblazer::Circuit::Adds.(
       model_tw_pipe,
-      [_A::Circuit::Node::Scoped[id: :z, task: :z, **node_options], :after],
-      [_A::Circuit::Node::Scoped[id: :y, task: :y, **node_options], :after],
+      [_A::Circuit::Node::Scoped[:z, :z, interface, **node_options], :after],
+      [_A::Circuit::Node::Scoped[:y, :y, interface, **node_options], :after],
     )
 
     assert_run extended_tw_pipe, seq: [:a, :b, :c, :z, :y], terminus: Right
@@ -89,7 +90,7 @@ class CircuitAddsTest < Minitest::Spec
   it ":delete, first node" do
     extended_tw_pipe = Trailblazer::Circuit::Adds.(
       model_tw_pipe,
-      [_A::Circuit::Node::Scoped[id: :z, task: :z, **node_options], :delete, :a],
+      [_A::Circuit::Node::Scoped[:z, :z, interface, **node_options], :delete, :a],
     )
 
     assert_run extended_tw_pipe, seq: [:b, :c], terminus: Right
@@ -98,7 +99,7 @@ class CircuitAddsTest < Minitest::Spec
   it ":delete middle" do
     extended_tw_pipe = Trailblazer::Circuit::Adds.(
       model_tw_pipe,
-      [_A::Circuit::Node::Scoped[id: :z, task: :z, **node_options], :delete, :b],
+      [_A::Circuit::Node::Scoped[:z, :z, interface, **node_options], :delete, :b],
     )
 
     assert_run extended_tw_pipe, seq: [:a, :c], terminus: Right
@@ -107,7 +108,7 @@ class CircuitAddsTest < Minitest::Spec
   it ":delete, last" do
     extended_tw_pipe = Trailblazer::Circuit::Adds.(
       model_tw_pipe,
-      [_A::Circuit::Node::Scoped[id: :z, task: :z, **node_options], :delete, :c],
+      [_A::Circuit::Node::Scoped[:z, :z, interface, **node_options], :delete, :c],
     )
 
     assert_run extended_tw_pipe, seq: [:a, :b], terminus: Right
@@ -116,7 +117,7 @@ class CircuitAddsTest < Minitest::Spec
   it ":replace first" do
     extended_tw_pipe = Trailblazer::Circuit::Adds.(
       model_tw_pipe,
-      [_A::Circuit::Node::Scoped[id: :z, task: :z, **node_options], :replace, :a],
+      [_A::Circuit::Node::Scoped[:z, :z, interface, **node_options], :replace, :a],
     )
 
     assert_run extended_tw_pipe, seq: [:z, :b, :c], terminus: Right
@@ -127,7 +128,7 @@ class CircuitAddsTest < Minitest::Spec
   it ":replace middle" do
     extended_tw_pipe = Trailblazer::Circuit::Adds.(
       model_tw_pipe,
-      [_A::Circuit::Node::Scoped[id: :z, task: :z, **node_options], :replace, :b],
+      [_A::Circuit::Node::Scoped[:z, :z, interface, **node_options], :replace, :b],
     )
 
     assert_run extended_tw_pipe, seq: [:a, :z, :c], terminus: Right
@@ -138,7 +139,7 @@ class CircuitAddsTest < Minitest::Spec
   it ":replace last" do
     extended_tw_pipe = Trailblazer::Circuit::Adds.(
       model_tw_pipe,
-      [_A::Circuit::Node::Scoped[id: :z, task: :z, **node_options], :replace, :c],
+      [_A::Circuit::Node::Scoped[:z, :z, interface, **node_options], :replace, :c],
     )
 
     assert_run extended_tw_pipe, seq: [:a, :b, :z], terminus: Right

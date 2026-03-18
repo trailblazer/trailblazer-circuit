@@ -14,7 +14,7 @@ class IntrospectionTest < Minitest::Spec
         [:c, :c],
       )
 
-      top_node = _A::Circuit::Node[id: :Create, task: my_pipe, interface: _A::Circuit::Processor]
+      top_node = _A::Circuit::Node[:Create, my_pipe, _A::Circuit::Processor]
 
       return top_node, my_pipe, my_nested_pipe
     end

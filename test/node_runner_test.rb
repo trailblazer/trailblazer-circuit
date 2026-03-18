@@ -8,7 +8,7 @@ class NodeRunnerTest < Minitest::Spec
       [:c, :c, _A::Circuit::Task::Adapter::StepInterface::InstanceMethod],
     )
 
-    my_pipe_node = _A::Circuit::Node::Scoped[id: :my_pipe_node, task: my_pipe, interface: _A::Circuit::Processor]
+    my_pipe_node = _A::Circuit::Node::Scoped[:my_pipe_node, my_pipe, _A::Circuit::Processor]
     runner = _A::Circuit::Node::Runner
 
     my_exec_context = T.def_steps(:a, :b, :c)
@@ -28,7 +28,7 @@ class NodeRunnerTest < Minitest::Spec
       [:c, :c, _A::Circuit::Task::Adapter::StepInterface::InstanceMethod],
     )
 
-    my_pipe_node = _A::Circuit::Node::Scoped[id: :my_pipe_node, task: my_pipe, interface: _A::Circuit::Processor]
+    my_pipe_node = _A::Circuit::Node::Scoped[:my_pipe_node, my_pipe, _A::Circuit::Processor]
     runner = _A::Circuit::Node::Runner
 
     my_exec_context = T.def_steps(:a, :b, :c)

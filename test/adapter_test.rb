@@ -95,25 +95,25 @@ class AdapterTest < Minitest::Spec
   end
 
   it "StepInterface::InstanceMethod" do
-    node = _A::Circuit::Node::Scoped[id: :my_model, task: :my_model, interface: _A::Circuit::Task::Adapter::StepInterface::InstanceMethod, merge_to_lib_ctx: {exec_context: my_step_interface_exec_context}]
+    node = _A::Circuit::Node::Scoped[:my_model, :my_model, _A::Circuit::Task::Adapter::StepInterface::InstanceMethod, merge_to_lib_ctx: {exec_context: my_step_interface_exec_context}]
 
     assert_step_interface(node)
   end
 
   it "StepInterface" do
-    node = _A::Circuit::Node::Scoped[id: :my_model, task: my_step_interface_exec_context.method(:my_model), interface: _A::Circuit::Task::Adapter::StepInterface]
+    node = _A::Circuit::Node::Scoped[:my_model, my_step_interface_exec_context.method(:my_model), _A::Circuit::Task::Adapter::StepInterface]
 
     assert_step_interface(node)
   end
 
   it "LibInterface::InstanceMethod" do
-    node = _A::Circuit::Node::Scoped[id: :my_model_input, task: :my_model_input, interface: _A::Circuit::Task::Adapter::LibInterface::InstanceMethod, merge_to_lib_ctx: {exec_context: my_lib_interface_exec_context}, copy_to_outer_ctx: [:captured]]
+    node = _A::Circuit::Node::Scoped[:my_model_input, :my_model_input, _A::Circuit::Task::Adapter::LibInterface::InstanceMethod, merge_to_lib_ctx: {exec_context: my_lib_interface_exec_context}, copy_to_outer_ctx: [:captured]]
 
     assert_lib_interface(node, original_ctx: {aggregate: [], exec_context: my_lib_interface_exec_context})
   end
 
   it "LibInterface" do
-    node = _A::Circuit::Node::Scoped[id: :my_model_input, task: my_lib_interface_exec_context.method(:my_model_input), interface: _A::Circuit::Task::Adapter::LibInterface, copy_to_outer_ctx: [:captured]]
+    node = _A::Circuit::Node::Scoped[:my_model_input, my_lib_interface_exec_context.method(:my_model_input), _A::Circuit::Task::Adapter::LibInterface, copy_to_outer_ctx: [:captured]]
 
     assert_lib_interface(node, original_ctx: ctx = {aggregate: []})
   end

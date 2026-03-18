@@ -1,5 +1,13 @@
 require "test_helper"
 
+class NodeBuilderTest < Minitest::Spec
+  # Builder.Node
+  #
+  it "what" do
+
+  end
+end
+
 class PipelineBuilderTest < Minitest::Spec
   let(:exec_context_for_d) do
     Class.new do
@@ -13,6 +21,10 @@ class PipelineBuilderTest < Minitest::Spec
 
   let(:exec_context_for_a) do
     T.def_steps(:a)
+  end
+
+  it "scope: true" do
+    raise
   end
 
   it "provides defaulting" do
@@ -81,8 +93,8 @@ class CircuitBuilderTest < Minitest::Spec
 
 
     c_circuit, termini = Trailblazer::Circuit::Builder.Circuit(
-      [[:c, my_tasks.method(:c), Trailblazer::Circuit::Task::Adapter::LibInterface, {}], {Right => :d, Left => :failure}],
-      [[:d, my_tasks.method(:d), Trailblazer::Circuit::Task::Adapter::LibInterface, {}], {Right => :success, Left => :failure}],
+      [[:c, my_tasks.method(:c), Trailblazer::Circuit::Task::Adapter::LibInterface], {Right => :d, Left => :failure}],
+      [[:d, my_tasks.method(:d), Trailblazer::Circuit::Task::Adapter::LibInterface], {Right => :success, Left => :failure}],
       [[:failure, failure = my_tasks.method(:failure), _A::Circuit::Task::Adapter::LibInterface]],
       [[:success, success = my_tasks.method(:success), _A::Circuit::Task::Adapter::LibInterface]],
 

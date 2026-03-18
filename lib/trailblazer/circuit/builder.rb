@@ -29,31 +29,21 @@ module Trailblazer
 
         # Produces a set of {Node}s, currently called "config".
         def build_config_from_dsl(task_cfgs)
-          task_cfgs.collect do |id, task, invoker = Task::Adapter::LibInterface::InstanceMethod, merge_to_lib_ctx = {}, node_class = nil, options_for_node = {}|
+          task_cfgs.collect do |id, task, interface = Task::Adapter::LibInterface::InstanceMethod, merge_to_lib_ctx = nil, scoped: false, **options_for_node|
             node =
               if task.is_a?(Hash)
                 task.fetch(:node)
               else
-                Pipeline.build_node_for(
-                  id: id,
-                  node_class: node_class,
-                  task: task,
-                  interface: invoker,
-                  merge_to_lib_ctx: merge_to_lib_ctx,
-                  options_for_node: options_for_node,
-                )
+                node_class = Node
+                node_class = Node::Scoped if scoped || merge_to_lib_ctx
+
+                options_for_node = options_for_node.merge(merge_to_lib_ctx: merge_to_lib_ctx) if merge_to_lib_ctx
+
+                node_class[id, task, interface, **options_for_node]
               end
 
             [id, node]
           end.to_h
-        end
-
-        def build_node_for(node_class:, id:, task:, interface:, merge_to_lib_ctx:, options_for_node:)
-          if node_class.nil?
-            node_class = merge_to_lib_ctx.any? ? Node::Scoped : Node # FIXME: test me
-          end
-
-          node_class[id: id, task: task, interface: interface, merge_to_lib_ctx: merge_to_lib_ctx, **options_for_node]
         end
       end
 
@@ -84,7 +74,7 @@ module Trailblazer
           outputs
       end
 
-      # TODO: location, should that be Activity?
+      # FIXME: MOVE TO Activity?
       # A taskWrap is just a Pipeline with a mandatory element {call_task}.
       # @private
       def self.TaskWrap(*nodes_options)

@@ -7,6 +7,10 @@ module Trailblazer
           super(id, task, interface, merge_to_lib_ctx, copy_from_outer_ctx, copy_to_outer_ctx, return_outer_signal)
         end
 
+        def self.[](id, task, interface, **options)
+          new(id: id, task: task, interface: interface, **options)
+        end
+
         include Node::Call
 
         # raise "do we need local_circuit_options, e.g. for :start_task?"
