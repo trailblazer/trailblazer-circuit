@@ -19,17 +19,22 @@ Minitest::Spec.class_eval do
 end
 
 # TODO: move me to core-utils. test me.
+# DISCUSS: do we need :processor?
 module AssertRun
-  def assert_run(circuit, processor: Trailblazer::Circuit::Processor, exec_context: nil, terminus: nil, seq:, flow_options: {}, **application_ctx)
+  def assert_run(circuit, node: false, processor: Trailblazer::Circuit::Processor, exec_context: nil, terminus: nil, seq:, flow_options: {}, **application_ctx)
+    runner = Trailblazer::Circuit::Node::Runner
+
+    canonical_node = node ? circuit : Trailblazer::Circuit::Node[:my_canonical, circuit, processor]
+
     lib_ctx = {}
     lib_ctx = exec_context ? lib_ctx.merge(exec_context: exec_context) : lib_ctx
     circuit_options = {}
-    circuit_options = circuit_options.merge(runner: Trailblazer::Circuit::Node::Runner)
+    circuit_options = circuit_options.merge(runner: runner)
     circuit_options = circuit_options.merge(context_implementation: Trailblazer::Circuit::Context) # FIXME: remove
 
     flow_options = {application_ctx: {seq: [], **application_ctx}, **flow_options}
 
-    lib_ctx, flow_options, signal = processor.(circuit, lib_ctx, flow_options, nil, **circuit_options)
+    lib_ctx, flow_options, signal = runner.(canonical_node, lib_ctx, flow_options, nil, **circuit_options)
 
     assert_equal signal, terminus
     assert_equal flow_options[:application_ctx][:seq], seq # FIXME: test all ctx variables.
