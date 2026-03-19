@@ -5,7 +5,7 @@
     # keyed by a signal.
     class Processor
       # TODO: this can still be optimized for runtime speed, even though I spent days on it already.
-      def self.call(circuit, ctx, lib_ctx, signal, runner:, start_node: circuit.to_a_FIXME, **circuit_options) # FIXME: allow {:start_task}.
+      def self.call(circuit, lib_ctx, flow_options, signal, runner:, start_node: circuit.to_a_FIXME, **circuit_options) # FIXME: allow {:start_task}.
         # puts "@@@@@??? #{circuit.inspect}"
         # id, task, invoker, circuit_options_to_merge = circuit.to_a_FIXME # we absolutely safely know that we want the start_task here.
         # node = circuit.to_a_FIXME # we absolutely safely know that we want the start_task here.
@@ -19,11 +19,11 @@
             node:   node # NOTE: you can access the current node in a task via the CircuitInterface.
           }
 
-          ctx, lib_ctx, signal = runner.(node, ctx, lib_ctx, signal, **circuit_options)
+          lib_ctx, flow_options, signal = runner.(node, lib_ctx, flow_options, signal, **circuit_options)
 
           id, node = circuit.resolve(id, signal) # DISCUSS: pass id and node?
 
-          return ctx, lib_ctx, signal unless node
+          return lib_ctx, flow_options, signal unless node
           # unless ()
 
             # raise_illegal_signal_error!(task, signal, @map[task], **circuit_options)
