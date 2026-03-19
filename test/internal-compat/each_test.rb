@@ -58,14 +58,6 @@ class EachTest < Minitest::Spec
       termini: [:finished]
     )
 
-    # lib_ctx, flow_options, signal = Trailblazer::Activity::Circuit::Processor.(
-    #   circuit,
-    #   {exec_context: MyEach}, # applies to all the pipeline's steps
-    #   {application_ctx: {seq: [], dataset: [1,2,3]}},
-    #   nil,
-    #   runner: Trailblazer::Activity::Circuit::Node::Runner,
-    #   context_implementation: Trailblazer::MyContext,
-    # )
     assert_run circuit, exec_context: MyEach, dataset: [1,2,3],
       seq: [[0, 1], [1, 2], [2, 3]],
       terminus: "done"
