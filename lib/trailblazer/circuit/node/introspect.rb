@@ -6,7 +6,7 @@ module Trailblazer
         def self.find_path(parent_node, segments)
           local_id, *segments = segments
 
-          node = parent_node.task.config[local_id]
+          node = parent_node.task.nodes[local_id]
 
           return node if segments.empty?
 

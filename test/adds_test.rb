@@ -17,25 +17,25 @@ class CircuitAddsTest < Minitest::Spec
   after do
     # No mutation on original circuit.
     assert_run model_tw_pipe, seq: [:a, :b, :c], terminus: Right # def_tasks return Right.
-    # TODO: maybe we should test internal properties here, to make sure config isn't altered etc.
+    # TODO: maybe we should test internal properties here, to make sure nodes isn't altered etc.
   end
 
   # FIXME: private test
   it "prepare_insertion" do
-    flow_map, _, _, config = model_tw_pipe.to_a
+    flow_map, _, _, nodes = model_tw_pipe.to_a
 
-    _, target_id, target_index = Trailblazer::Circuit::Adds.prepare_insertion([:z, :z], flow_map, config, nil, index_for_nil: 0)# before: nil
+    _, target_id, target_index = Trailblazer::Circuit::Adds.prepare_insertion([:z, :z], flow_map, nodes, nil, index_for_nil: 0)# before: nil
     assert_equal [target_id, target_index], [:a, 0]
-    _, target_id, target_index = Trailblazer::Circuit::Adds.prepare_insertion([:z, :z], flow_map, config, :a, index_for_nil: 0)# before: :a
+    _, target_id, target_index = Trailblazer::Circuit::Adds.prepare_insertion([:z, :z], flow_map, nodes, :a, index_for_nil: 0)# before: :a
     assert_equal [target_id, target_index], [:a, 0]
-    _, target_id, target_index = Trailblazer::Circuit::Adds.prepare_insertion([:z, :z], flow_map, config, :b, index_for_nil: 0)# before: :b
+    _, target_id, target_index = Trailblazer::Circuit::Adds.prepare_insertion([:z, :z], flow_map, nodes, :b, index_for_nil: 0)# before: :b
     assert_equal [target_id, target_index], [:b, 1]
 
-    _, target_id, target_index = Trailblazer::Circuit::Adds.prepare_insertion([:z, :z], flow_map, config, nil, index_for_nil: -1, offset: 1)# after: nil
+    _, target_id, target_index = Trailblazer::Circuit::Adds.prepare_insertion([:z, :z], flow_map, nodes, nil, index_for_nil: -1, offset: 1)# after: nil
     assert_equal [target_id, target_index], [:c, -1]
-    _, target_id, target_index = Trailblazer::Circuit::Adds.prepare_insertion([:z, :z], flow_map, config, :c, index_for_nil: -1, offset: 1)# after: :c
+    _, target_id, target_index = Trailblazer::Circuit::Adds.prepare_insertion([:z, :z], flow_map, nodes, :c, index_for_nil: -1, offset: 1)# after: :c
     assert_equal [target_id, target_index], [:c, 3]
-    _, target_id, target_index = Trailblazer::Circuit::Adds.prepare_insertion([:z, :z], flow_map, config, :a, index_for_nil: -1, offset: 1)# after: :a
+    _, target_id, target_index = Trailblazer::Circuit::Adds.prepare_insertion([:z, :z], flow_map, nodes, :a, index_for_nil: -1, offset: 1)# after: :a
     assert_equal [target_id, target_index], [:a, 1]
   end
 

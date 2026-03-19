@@ -6,7 +6,7 @@ module Trailblazer
       def self.Pipeline(*task_cfgs, **default_circuit_options)
         raise if default_circuit_options.any?
 
-        config = Pipeline.build_node_from_dsl(task_cfgs)
+        nodes = Pipeline.build_node_from_dsl(task_cfgs)
 
         map = task_cfgs.collect.with_index do |(id, _), i|
           next_task = task_cfgs[i + 1]
@@ -20,14 +20,14 @@ module Trailblazer
 
         Circuit::Pipeline.build(
           flow_map: map,
-          config:   config,
+          nodes:   nodes,
         )
       end
 
       module Pipeline
         module_function
 
-        # Produces a set of {Node}s, currently called "config".
+        # Produces a set of {Node}s, currently called "nodes".
         def build_node_from_dsl(task_cfgs)
           # Disect the incoming DSL bogus into input for #build_node_from_dsl.
           task_cfgs.collect do |id, task, *args|
@@ -64,15 +64,15 @@ module Trailblazer
         task_cfgs         = task_rows.collect { |(task_cfg, connections)| task_cfg }
         id_to_connections = task_rows.collect { |(task_cfg, connections)| [task_cfg[0], connections] }.to_h
 
-        config = Pipeline.build_node_from_dsl(task_cfgs)
+        nodes = Pipeline.build_node_from_dsl(task_cfgs)
 
         outputs = termini.collect do |semantic|
-          terminus_task = config[semantic]
+          terminus_task = nodes[semantic]
 
           [semantic, terminus_task]
         end.to_h
 
-        map = config.collect do |id, node|
+        map = nodes.collect do |id, node|
           connections = id_to_connections[id]
 
           [id, connections]
@@ -80,9 +80,9 @@ module Trailblazer
 
         return Circuit.new(
             map:            map,
-            start_task_id:  config.keys[0],
+            start_task_id:  nodes.keys[0],
             termini:        termini,
-            config:         config,
+            nodes:         nodes,
           ),
           outputs
       end

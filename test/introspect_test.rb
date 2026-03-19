@@ -29,13 +29,13 @@ class IntrospectionTest < Minitest::Spec
     it "[:a]" do
       top_node, top_pipe = fixtures
 
-      assert_equal _A::Circuit::Node::Introspect.find_path(top_node, [:a]), top_pipe.config[:a]
+      assert_equal _A::Circuit::Node::Introspect.find_path(top_node, [:a]), top_pipe.nodes[:a]
     end
 
     it "[:a, :e]" do
       top_node, _, my_nested_pipe = fixtures
 
-      assert_equal _A::Circuit::Node::Introspect.find_path(top_node, [:b, :e]), my_nested_pipe.config[:e]
+      assert_equal _A::Circuit::Node::Introspect.find_path(top_node, [:b, :e]), my_nested_pipe.nodes[:e]
     end
   end
 end

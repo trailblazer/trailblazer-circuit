@@ -6,7 +6,7 @@ module Trailblazer
       def resolve(current_task_id, signal)
         next_task_id = map[current_task_id][nil]
 
-        return next_task_id, config[next_task_id]
+        return next_task_id, nodes[next_task_id]
       end
     end
   end # Circuit

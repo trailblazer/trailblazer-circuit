@@ -37,7 +37,7 @@ class EachTest < Minitest::Spec
   end
 
   it do
-    config = {
+    nodes = {
       init: Trailblazer::Circuit::Node[:init, :init, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod],
       fetch_value_from_dataset: Trailblazer::Circuit::Node[:fetch_value_from_dataset, :fetch_value_from_dataset, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod],
       a: Trailblazer::Circuit::Node::Scoped[:a, :my_task_a, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod, merge_to_lib_ctx: {exec_context: self}],
@@ -52,7 +52,7 @@ class EachTest < Minitest::Spec
       }
 
     circuit = Trailblazer::Circuit.new(
-      config:     config,
+      nodes:     nodes,
       map: map,
       start_task_id: :init,
       termini: [:finished]

@@ -2,9 +2,8 @@ require "trailblazer/circuit/version"
 
 module Trailblazer
   # A circuit is run using {Circuit::Processor}.
-  class Circuit # < Struct.new(:map, :start_task_id, :termini, :config, keyword_init: true) # superclass already defined via version.rb.
-    # DISCUSS: do we need a config after all? or can we infer such thing from the flow_map?
-    def self.build(flow_map:, config:)
+  class Circuit # < Struct.new(:map, :start_task_id, :termini, :nodes, keyword_init: true) # superclass already defined via version.rb.
+    def self.build(flow_map:, nodes:)
       # Init logic, done when compiling Activitys and
       # when extending ciruits via :wrap_runtime.
       ids           = flow_map.keys
@@ -13,7 +12,7 @@ module Trailblazer
 
       new(
         map:            flow_map,
-        config:         config,
+        nodes:         nodes,
         start_task_id:  start_task_id,
         termini:        termini,
       )
@@ -31,22 +30,21 @@ module Trailblazer
 
       next_task_id = signal_map[signal] or raise "#{current_node_id}===>#{signal.inspect} @ #{signal_map}".inspect # this will be nil for a terminus.
 
-      return next_task_id, config[next_task_id] # TODO: can we save this lookup and optimize the map directly?
+      return next_task_id, nodes[next_task_id] # TODO: can we save this lookup and optimize the map directly?
     end
 
 
 
     # def start_for
-    #   return termini, *config[start_task_id]
+    #   return termini, *nodes[start_task_id]
     # end
 
     def to_a_FIXME
-      return start_task_id, config[start_task_id] # FIXME: is map.first faster?
+      return start_task_id, nodes[start_task_id] # FIXME: is map.first faster?
     end
   end # Circuit
 end
 # TODO: map should be named flow_map
-# config => tasks_attributes?
 
 require "trailblazer/circuit/context"
 require "trailblazer/circuit/node"

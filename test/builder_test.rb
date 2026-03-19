@@ -98,8 +98,8 @@ class CircuitBuilderTest < Minitest::Spec
       termini: [:failure, :success],
     )
 
-    success_node = c_circuit.config[:success]
-    failure_node = c_circuit.config[:failure]
+    success_node = c_circuit.nodes[:success]
+    failure_node = c_circuit.nodes[:failure]
 
     assert_equal termini, {success: success_node, failure: failure_node}
 

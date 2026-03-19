@@ -34,7 +34,7 @@ class NodeRunnerTest < Minitest::Spec
     my_exec_context = T.def_steps(:a, :b, :c)
 
     lib_ctx, flow_options, signal = runner.(my_pipe_node, {exec_context: my_exec_context}, {application_ctx: {seq: []}}, nil, runner: runner,
-      start_node: [:b, my_pipe.config[:b]],
+      start_node: [:b, my_pipe.nodes[:b]],
       context_implementation: Trailblazer::Circuit::Context,
     )
 
@@ -55,7 +55,7 @@ class NodeRunnerTest < Minitest::Spec
       def call(lib_ctx, flow_options, signal, **circuit_options)
         start_node_id = flow_options[:start_node_id_for_b]
 
-        super(lib_ctx, flow_options, signal, **circuit_options, start_node: [start_node_id, task.config[start_node_id]])
+        super(lib_ctx, flow_options, signal, **circuit_options, start_node: [start_node_id, task.nodes[start_node_id]])
       end
     end.new(id: :b, task: my_nested_pipe, interface: _A::Circuit::Processor)
 

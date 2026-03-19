@@ -12,21 +12,21 @@ module Trailblazer
         # TODO: evaluate if we can us  https://rubyapi.org/3.4/o/array#method-i-assoc
         blaaaaaa_FIXME = circuit.to_h
         flow_map = blaaaaaa_FIXME[:map]
-        config = blaaaaaa_FIXME[:config]
+        nodes = blaaaaaa_FIXME[:nodes]
         signal_to_reconnect = nil
 
         # Passing around start_id and last_id is for internal "caching" and part of this algorithm, not of the Circuit building.
         instructions.each do |task_args, insertion_method, target_id|
-          flow_map, config = send(insertion_method, flow_map, config, task_args, target_id, signal_to_reconnect)
+          flow_map, nodes = send(insertion_method, flow_map, nodes, task_args, target_id, signal_to_reconnect)
         end
 
-        circuit.class.build(flow_map: flow_map, config: config) # this will recompute start and termini.
+        circuit.class.build(flow_map: flow_map, nodes: nodes) # this will recompute start and termini.
       end
 
       # TODO: generic Insert logic.
 
-      def self.before(flow_map, config, args_for_inserted, target_id, signal_to_reconnect)
-        config, target_id, target_index, inserted_id, flow_ary_keys = prepare_insertion(args_for_inserted, flow_map, config, target_id, index_for_nil: 0)
+      def self.before(flow_map, nodes, args_for_inserted, target_id, signal_to_reconnect)
+        nodes, target_id, target_index, inserted_id, flow_ary_keys = prepare_insertion(args_for_inserted, flow_map, nodes, target_id, index_for_nil: 0)
 
         # If not the first node, we need to update the predecessor's outgoing connection.
         if target_index > 0
@@ -38,13 +38,13 @@ module Trailblazer
         # to array representation here for correct insertion position.
         flow_map = insert_at(flow_map, target_index, [inserted_id, {signal_to_reconnect => target_id}])
 
-        return flow_map, config
+        return flow_map, nodes
       end
 
       # raise "how does Processor compute start, how if we reached terminus? by ID or simply because there's nil?"
 
-      def self.after(flow_map, config, args_for_inserted, target_id, signal_to_reconnect)
-        config, target_id, target_index, inserted_id, flow_ary_keys = prepare_insertion(args_for_inserted, flow_map, config, target_id, index_for_nil: -1, offset: 1)
+      def self.after(flow_map, nodes, args_for_inserted, target_id, signal_to_reconnect)
+        nodes, target_id, target_index, inserted_id, flow_ary_keys = prepare_insertion(args_for_inserted, flow_map, nodes, target_id, index_for_nil: -1, offset: 1)
 
         target_connections = flow_map[target_id]
 
@@ -55,12 +55,12 @@ module Trailblazer
 
         flow_map = insert_at(flow_map, target_index, [inserted_id, {signal_to_reconnect => target_connections[signal_to_reconnect]}])
 
-        return flow_map, config
+        return flow_map, nodes
       end
 
-      def self.prepare_insertion(args_for_inserted, flow_map, config, target_id, index_for_nil:, offset: 0)
+      def self.prepare_insertion(args_for_inserted, flow_map, nodes, target_id, index_for_nil:, offset: 0)
         inserted_id = args_for_inserted[0]
-        config = config.merge(inserted_id => args_for_inserted) # DISCUSS: we kind of have to do that here.
+        nodes = nodes.merge(inserted_id => args_for_inserted) # DISCUSS: we kind of have to do that here.
         flow_ary_keys = flow_map.keys
 
         if target_id.nil? # new start task coming.
@@ -70,7 +70,7 @@ module Trailblazer
           target_index = flow_ary_keys.index(target_id) + offset
         end
 
-        return config, target_id, target_index, inserted_id, flow_ary_keys
+        return nodes, target_id, target_index, inserted_id, flow_ary_keys
       end
 
       # @private
@@ -91,8 +91,8 @@ module Trailblazer
         return flow_map.merge(to_merge)
       end
 
-      def self.delete(flow_map, config, _, target_id, signal_to_reconnect)
-        config = config.slice(*(config.keys - [target_id]))
+      def self.delete(flow_map, nodes, _, target_id, signal_to_reconnect)
+        nodes = nodes.slice(*(nodes.keys - [target_id]))
         flow_ary_keys = flow_map.keys
         target_index = flow_ary_keys.index(target_id) # TODO: cleanup this!
 
@@ -102,18 +102,18 @@ module Trailblazer
           flow_map = reconnect_predecessor(flow_map, flow_ary_keys, target_index, signal_to_reconnect, target_successor_id)
         end
 
-        # flow_map = flow_map.slice(*config.keys) # FIXME: do we still have same order?
+        # flow_map = flow_map.slice(*nodes.keys) # FIXME: do we still have same order?
         flow_map = flow_map.slice(*(flow_ary_keys - [target_id]))
 
-        return flow_map, config
+        return flow_map, nodes
       end
 
-      def self.replace(flow_map, config, args_for_inserted, target_id, signal_to_reconnect)
+      def self.replace(flow_map, nodes, args_for_inserted, target_id, signal_to_reconnect)
         inserted_id = args_for_inserted[0]
 
-        # Replace old key/args from config.
-        config = config.slice(*(config.keys - [target_id])) # FIXME: redundant with {delete} logic.
-        config = config.merge(inserted_id => args_for_inserted)
+        # Replace old key/args from nodes.
+        nodes = nodes.slice(*(nodes.keys - [target_id])) # FIXME: redundant with {delete} logic.
+        nodes = nodes.merge(inserted_id => args_for_inserted)
 
         flow_ary_keys = flow_map.keys
         target_index = flow_ary_keys.index(target_id) # TODO: cleanup this!
@@ -129,7 +129,7 @@ module Trailblazer
 
         flow_map = insert_at(flow_map, target_index, [inserted_id, target_connections])
 
-        return flow_map, config
+        return flow_map, nodes
       end
     end
   end # Circuit
