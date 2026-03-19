@@ -30,19 +30,7 @@ class ProcessorTest < Minitest::Spec
 
     canonical_node = Trailblazer::Circuit::Node[:Create, create_tw, Trailblazer::Circuit::Processor]
 
-    lib_ctx, flow_options, signal = Trailblazer::Circuit::Node::Runner.(
-      canonical_node,
-      {},
-      {
-        application_ctx: {seq: []},
-      },
-      nil,
-      runner: Trailblazer::Circuit::Node::Runner,
-      context_implementation: Trailblazer::Circuit::Context,
-    )
-
-    assert_equal signal, nil
-    assert_equal flow_options[:application_ctx][:seq], [
+    assert_run canonical_node, node: true, seq: [
       [:input, create_tw.nodes[:input]],
       [:model, create_circuit.nodes[:model]],
     ]
