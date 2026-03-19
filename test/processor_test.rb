@@ -1,32 +1,40 @@
 require "test_helper"
 
 class ProcessorTest < Minitest::Spec
-  it "we can see :node in circuit_options" do
-    skip
-    my_exec_context = Struct.new(:my_id) do
+  # DISCUSS: we can also "be" an Adapter directly, should we spare this?
+  # DISCUSS: this interface could be officially supported in Adapter, but i'm not sure
+  # anyone needs it, we'll see.
+  class CircuitInterface
+    def self.call(task, lib_ctx, flow_options, signal, **circuit_options)
+      task.(lib_ctx, flow_options, signal, **circuit_options)
+    end
+  end
+
+  it "we can see {:node} in the {circuit_options} and hence, a CircuitInterface task, has access to data stored there" do
+    my_task_with_circuit_interface = Struct.new(:my_id) do
       def call(lib_ctx, flow_options, signal, node:, **circuit_options) # CircuitInterface.
-        puts "@@@@@ #{my_id} #{node.id.inspect}"
+        flow_options[:application_ctx][:seq] << [my_id, node]
 
         return lib_ctx, flow_options, signal
       end
     end
 
     create_circuit = Pipeline(
-      [:model, my_exec_context.new(:model), Trailblazer::Circuit::Task::Adapter::CircuitInterface],
+      [:model, my_task_with_circuit_interface.new(:model), CircuitInterface],
     )
 
     create_tw = Pipeline(
-      [:input, my_exec_context.new(:input), Trailblazer::Circuit::Task::Adapter::CircuitInterface],
+      [:input, my_task_with_circuit_interface.new(:input), CircuitInterface],
       [:call_task, create_circuit, Trailblazer::Circuit::Processor],
     )
 
-    canonical_node = Trailblazer::Circuit::Node[id: :Create, task: create_tw, interface: Trailblazer::Circuit::Processor]
+    canonical_node = Trailblazer::Circuit::Node[:Create, create_tw, Trailblazer::Circuit::Processor]
 
     lib_ctx, flow_options, signal = Trailblazer::Circuit::Node::Runner.(
       canonical_node,
       {},
       {
-        #application_ctx: {params: {id: 1, title: "Rancid"}},
+        application_ctx: {seq: []},
       },
       nil,
       runner: Trailblazer::Circuit::Node::Runner,
@@ -34,5 +42,9 @@ class ProcessorTest < Minitest::Spec
     )
 
     assert_equal signal, nil
+    assert_equal flow_options[:application_ctx][:seq], [
+      [:input, create_tw.nodes[:input]],
+      [:model, create_circuit.nodes[:model]],
+    ]
   end
 end

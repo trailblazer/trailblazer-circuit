@@ -12,8 +12,14 @@
         id, node = start_node
 
         loop do
-          puts ">>>Processor #{id.inspect} <<<#{signal.inspect}>>> #{node.class}"
-          ctx, lib_ctx, signal = runner.(node, ctx, lib_ctx, signal, **circuit_options, runner: runner)
+          # puts ">>>Processor #{id.inspect} <<<#{signal.inspect}>>> #{node.class}"
+          circuit_options = {
+            **circuit_options,
+            runner: runner,
+            node:   node # NOTE: you can access the current node in a task via the CircuitInterface.
+          }
+
+          ctx, lib_ctx, signal = runner.(node, ctx, lib_ctx, signal, **circuit_options)
 
           id, node = circuit.resolve(id, signal) # DISCUSS: pass id and node?
 
