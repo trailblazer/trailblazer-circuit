@@ -1,13 +1,5 @@
 require "test_helper"
 
-class NodeBuilderTest < Minitest::Spec
-  # Builder.Node
-  #
-  it "what" do
-
-  end
-end
-
 class PipelineBuilderTest < Minitest::Spec
   let(:exec_context_for_d) do
     Class.new do
@@ -23,14 +15,24 @@ class PipelineBuilderTest < Minitest::Spec
     T.def_steps(:a)
   end
 
-  it "scope: true" do
-    raise
+  it "{scope: true} creates Node::Scoped" do
+    my_task = ->(lib_ctx, flow_options, signal, **) do
+      flow_options[:application_ctx][:seq] << :my_pollutor
+
+      return lib_ctx.merge(pollute: true), # this will be discarded *if* this node is scoped.
+        flow_options, signal
+    end
+
+    my_circuit = Trailblazer::Circuit::Builder.Pipeline(
+      [:my_pollutor, my_task, Trailblazer::Circuit::Task::Adapter::LibInterface, scoped: true]
+    )
+
+    lib_ctx, _ = assert_run my_circuit, terminus: nil, seq: [:my_pollutor]
+
+    assert_equal lib_ctx, {} # no pollution visible if it was scoped.
   end
 
-  it "provides defaulting" do
-    my_steps = T.def_steps(:b, :c)
-    my_tasks = T.def_tasks(:d, success_signal: Right)
-
+  it "{node: MyNode} allows passing a node directly without any DSL logic involved" do
     my_node_with_circuit_interface = Class.new do
       def self.call(lib_ctx, flow_options, signal, **circuit_options)
         flow_options[:application_ctx][:seq] << :e
@@ -39,13 +41,29 @@ class PipelineBuilderTest < Minitest::Spec
       end
     end
 
+    circuit = Trailblazer::Circuit::Builder.Pipeline(
+      # {node: Node.new} allows to bypass all defaulting and Node building.
+      [:e, node: my_node_with_circuit_interface],
+    )
+
+    lib_ctx, _ = assert_run circuit, terminus: nil,
+      seq: [:e]
+
+    assert_equal lib_ctx, {}
+  end
+
+  it "provides defaulting" do
+    my_steps = T.def_steps(:b, :c)
+    my_tasks = T.def_tasks(:d, success_signal: Right)
+
+
     c_circuit = Trailblazer::Circuit::Builder.Pipeline(
       [:c, my_steps.method(:c), Trailblazer::Circuit::Task::Adapter::StepInterface]
     )
 
     circuit = Trailblazer::Circuit::Builder.Pipeline(
       # instance method with step interface.
-      [:a, :a, Trailblazer::Circuit::Task::Adapter::StepInterface::InstanceMethod, {exec_context: exec_context_for_a}],
+      [:a, :a, Trailblazer::Circuit::Task::Adapter::StepInterface::InstanceMethod, merge_to_lib_ctx: {exec_context: exec_context_for_a}],
 
       # callable with step interface, we don't get defaulting here.
       [:b, my_steps.method(:b), Trailblazer::Circuit::Task::Adapter::StepInterface],
@@ -55,35 +73,14 @@ class PipelineBuilderTest < Minitest::Spec
 
       # task interface with defaulting, lib task with signal # FIXME.
       [:d, :d],
-
-      # {node: Node.new} allows to bypass all defaulting and Node building.
-      [:e, node: my_node_with_circuit_interface],
     )
 
     lib_ctx, _ = assert_run circuit, terminus: Right, # last signal is from {:d}.
-      seq: [:a, :b, :c, :d, :e],
+      seq: [:a, :b, :c, :d],
       exec_context: exec_context_for_d
 
     assert_equal lib_ctx, {exec_context: exec_context_for_d, :value=>true}
   end
-
-  it "accepts options for the Node itself" do
-    raise
-  end
-
-  # it "accepts kwargs as circuit_options defaults" do
-  #   circuit = Trailblazer::Circuit::Builder.Pipeline(
-
-  #     # we can manually override the {circuit_options}:
-  #     [:a, :a, Trailblazer::Circuit::Task::Adapter::StepInterface::InstanceMethod, {exec_context: exec_context_for_a}],
-
-  #     # or use the pipe-wide default, see two lines below.
-  #     [:d, :d],
-  #     exec_context: exec_context_for_d
-  #   )
-
-  #   assert_run circuit, seq: [:a, :d], terminus: Right # signal from {:a}.
-  # end
 end
 
 class CircuitBuilderTest < Minitest::Spec

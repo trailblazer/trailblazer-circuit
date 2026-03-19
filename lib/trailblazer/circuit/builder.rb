@@ -6,7 +6,7 @@ module Trailblazer
       def self.Pipeline(*task_cfgs, **default_circuit_options)
         raise if default_circuit_options.any?
 
-        config = Pipeline.build_config_from_dsl(task_cfgs)
+        config = Pipeline.build_node_from_dsl(task_cfgs)
 
         map = task_cfgs.collect.with_index do |(id, _), i|
           next_task = task_cfgs[i + 1]
@@ -28,22 +28,35 @@ module Trailblazer
         module_function
 
         # Produces a set of {Node}s, currently called "config".
-        def build_config_from_dsl(task_cfgs)
-          task_cfgs.collect do |id, task, interface = Task::Adapter::LibInterface::InstanceMethod, merge_to_lib_ctx = nil, scoped: false, **options_for_node|
+        def build_node_from_dsl(task_cfgs)
+          # Disect the incoming DSL bogus into input for #build_node_from_dsl.
+          task_cfgs.collect do |id, task, *args|
             node =
               if task.is_a?(Hash)
                 task.fetch(:node)
               else
-                node_class = Node
-                node_class = Node::Scoped if scoped || merge_to_lib_ctx
+                args, options_for_node = args
+                options_for_node ||= {}
 
-                options_for_node = options_for_node.merge(merge_to_lib_ctx: merge_to_lib_ctx) if merge_to_lib_ctx
+                # Handle the [id, task, scoped: true] case, which is perfectly legal.
+                if options_for_node.empty? && args.is_a?(Hash)
+                  args, options_for_node = [], args
+                end
 
-                node_class[id, task, interface, **options_for_node]
+                create_node(id, task, *args, **options_for_node)
               end
 
             [id, node]
           end.to_h
+        end
+
+        # Defaulting happens here.
+        def create_node(id, task, interface = Task::Adapter::LibInterface::InstanceMethod, scoped: false, merge_to_lib_ctx: nil, **options_for_node)
+          node_class = Node
+          node_class = Node::Scoped if scoped || merge_to_lib_ctx
+          options_for_node = options_for_node.merge(merge_to_lib_ctx: merge_to_lib_ctx) if merge_to_lib_ctx
+
+          node_class[id, task, interface, **options_for_node]
         end
       end
 
@@ -51,7 +64,7 @@ module Trailblazer
         task_cfgs         = task_rows.collect { |(task_cfg, connections)| task_cfg }
         id_to_connections = task_rows.collect { |(task_cfg, connections)| [task_cfg[0], connections] }.to_h
 
-        config = Pipeline.build_config_from_dsl(task_cfgs)
+        config = Pipeline.build_node_from_dsl(task_cfgs)
 
         outputs = termini.collect do |semantic|
           terminus_task = config[semantic]

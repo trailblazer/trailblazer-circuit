@@ -8,7 +8,7 @@ class CircuitScopeTest < Minitest::Spec
         {nil => :b, Left => :c}
       ], # isolated.
       [
-        [:b, Capture.new(:b), _A::Circuit::Task::Adapter::LibInterface, {d: 4}, scoped: true, copy_to_outer_ctx: [:d]],
+        [:b, Capture.new(:b), _A::Circuit::Task::Adapter::LibInterface, merge_to_lib_ctx: {d: 4}, scoped: true, copy_to_outer_ctx: [:d]],
         {nil => :c, Left => :c}
       ],
       [

@@ -5,9 +5,9 @@ class CircuitAddsTest < Minitest::Spec
 
   let(:model_tw_pipe) do
     Trailblazer::Circuit::Builder.Pipeline(
-      [:a, :a, _A::Circuit::Task::Adapter::LibInterface::InstanceMethod, {exec_context: my_exec_context}],
-      [:b, :b, _A::Circuit::Task::Adapter::LibInterface::InstanceMethod, {exec_context: my_exec_context}],
-      [:c, :c, _A::Circuit::Task::Adapter::LibInterface::InstanceMethod, {exec_context: my_exec_context}],
+      [:a, :a, _A::Circuit::Task::Adapter::LibInterface::InstanceMethod, merge_to_lib_ctx: {exec_context: my_exec_context}],
+      [:b, :b, _A::Circuit::Task::Adapter::LibInterface::InstanceMethod, merge_to_lib_ctx: {exec_context: my_exec_context}],
+      [:c, :c, _A::Circuit::Task::Adapter::LibInterface::InstanceMethod, merge_to_lib_ctx: {exec_context: my_exec_context}],
     )
   end
 

@@ -21,10 +21,12 @@ class PipelineTest < Minitest::Spec
 
   it "obviously allows scoping its elements" do
     pipe = _A::Circuit::Builder.Pipeline(
-      [:a, Capture.new(:a), _A::Circuit::Task::Adapter::LibInterface, {}, _A::Circuit::Node::Scoped], # isolated.
-      [:b, Capture.new(:b), _A::Circuit::Task::Adapter::LibInterface, {}, _A::Circuit::Node::Scoped, copy_to_outer_ctx: [:d], merge_to_lib_ctx: {d: 4}],
-      [:c, Capture.new(:c), _A::Circuit::Task::Adapter::LibInterface, {}, _A::Circuit::Node::Scoped], # isolated, but sees {:d}.
+      [:a, Capture.new(:a), _A::Circuit::Task::Adapter::LibInterface, scoped: true], # isolated.
+      [:b, Capture.new(:b), _A::Circuit::Task::Adapter::LibInterface, scoped: true, copy_to_outer_ctx: [:d], merge_to_lib_ctx: {d: 4}],
+      [:c, Capture.new(:c), _A::Circuit::Task::Adapter::LibInterface, scoped: true], # isolated, but sees {:d}.
     )
+
+    pp pipe
 
     lib_ctx, flow_options = assert_run pipe, terminus: nil, seq: []
     assert_equal flow_options, {
@@ -38,8 +40,8 @@ class PipelineTest < Minitest::Spec
 
   it "internally set variables can be exposed to the follower via :copy_to_outer_ctx" do
     pipe = _A::Circuit::Builder.Pipeline(
-      [:a, Capture.new(:a, pollute: true), _A::Circuit::Task::Adapter::LibInterface, {}, _A::Circuit::Node::Scoped, copy_to_outer_ctx: [:pollute]],
-      [:b, Capture.new(:b), _A::Circuit::Task::Adapter::LibInterface, {}, _A::Circuit::Node::Scoped, ],  # sees :pollute
+      [:a, Capture.new(:a, pollute: true), _A::Circuit::Task::Adapter::LibInterface, {}, scoped: true, copy_to_outer_ctx: [:pollute]],
+      [:b, Capture.new(:b), _A::Circuit::Task::Adapter::LibInterface, {}, scoped: true, ],  # sees :pollute
     )
 
     lib_ctx, flow_options = assert_run pipe, terminus: nil, seq: []
@@ -56,7 +58,7 @@ class PipelineTest < Minitest::Spec
 
     my_other_pipe = Pipeline([:b, :b])
     my_other_pipe = Trailblazer::Circuit::Adds.(my_other_pipe,
-      [Trailblazer::Circuit::Node[id: :a, task: :a, interface: Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod], :before, :b]
+      [Trailblazer::Circuit::Node[:a, :a, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod], :before, :b]
     )
 
     assert_equal my_original_pipe, my_other_pipe

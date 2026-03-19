@@ -27,7 +27,7 @@ module Trailblazer
             node_attrs = extend_task_wrap_pipeline(wrap_runtime, node_attrs[:id], node, node_attrs)
           end
 
-          node = node.class[**node_attrs]
+          node = node.class.new(**node_attrs)
 
           super
         end

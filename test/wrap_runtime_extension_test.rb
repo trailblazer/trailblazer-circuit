@@ -30,7 +30,7 @@ class WrapRuntimeExtensionTest < Minitest::Spec
   it "Extension::AddsInstruction applies changes to the passed node's circuit" do
     my_adds_ext = ->(id:, **) {
       [
-        [Trailblazer::Circuit::Node[id: :b, task: :b, interface: Module], :after, :a]
+        [Trailblazer::Circuit::Node[:b, :b, Module], :after, :a]
       ]
     }
 

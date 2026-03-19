@@ -93,7 +93,7 @@ class WrapRuntimeTest < Minitest::Spec
       [:call_task, create_circuit, Trailblazer::Circuit::Processor]
     )
 
-    canonical_node = Trailblazer::Circuit::Node[id: :Create, task: create_tw, interface: Trailblazer::Circuit::Processor]
+    canonical_node = Trailblazer::Circuit::Node[:Create, create_tw, Trailblazer::Circuit::Processor]
 
     return canonical_node, create_instance
   end
@@ -134,8 +134,8 @@ class WrapRuntimeTest < Minitest::Spec
         # Called through WrapRuntime::Runner.
         def self.call(id:, **attrs)
           [
-            [Trailblazer::Circuit::Node[id: :capture_before, task: Capture.new(id, :before), interface: Trailblazer::Circuit::Task::Adapter::LibInterface], :before],
-            [Trailblazer::Circuit::Node[id: :capture_after, task: Capture.new(id, :after), interface: Trailblazer::Circuit::Task::Adapter::LibInterface], :after],
+            [Trailblazer::Circuit::Node[:capture_before, Capture.new(id, :before),  Trailblazer::Circuit::Task::Adapter::LibInterface], :before],
+            [Trailblazer::Circuit::Node[:capture_after,  Capture.new(id, :after),   Trailblazer::Circuit::Task::Adapter::LibInterface], :after],
           ]
         end
       end

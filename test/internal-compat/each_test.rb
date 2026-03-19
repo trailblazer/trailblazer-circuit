@@ -38,10 +38,10 @@ class EachTest < Minitest::Spec
 
   it do
     config = {
-      init: Trailblazer::Circuit::Node[id: :init, task: :init, interface: Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod],
-      fetch_value_from_dataset: Trailblazer::Circuit::Node[id: :fetch_value_from_dataset, task: :fetch_value_from_dataset, interface: Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod],
-      a: Trailblazer::Circuit::Node::Scoped[id: :a, task: :my_task_a, interface: Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod, merge_to_lib_ctx: {exec_context: self}],
-      finished: Trailblazer::Circuit::Node[id: :finished, task: :finished, interface: Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod],
+      init: Trailblazer::Circuit::Node[:init, :init, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod],
+      fetch_value_from_dataset: Trailblazer::Circuit::Node[:fetch_value_from_dataset, :fetch_value_from_dataset, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod],
+      a: Trailblazer::Circuit::Node::Scoped[:a, :my_task_a, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod, merge_to_lib_ctx: {exec_context: self}],
+      finished: Trailblazer::Circuit::Node[:finished, :finished, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod],
     }
 
     map = {

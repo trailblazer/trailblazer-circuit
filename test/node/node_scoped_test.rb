@@ -72,7 +72,18 @@ class NodeScopedTest < Minitest::Spec
       }
     end
 
-    it "allows to pass the complicated kwargs" do
+    it "raises when passing a fourth positional arg. this is for safety reasons" do
+      assert_raises ArgumentError do
+        my_node = Trailblazer::Circuit::Node::Scoped[
+          :a,
+          :method_a,
+          MyInterface,
+          {exec_context: Object} # an explicit hash here is {merge_to_lib_ctx}, but it's invalid.
+        ]
+      end
+    end
+
+    it "allows to pass the complicated kwargs after the three positionals" do
       my_node = Trailblazer::Circuit::Node::Scoped[:a, :method_a, MyInterface, merge_to_lib_ctx: {exec_context: Object}, return_outer_signal: true]
 
       assert_equal my_node.to_h, {
