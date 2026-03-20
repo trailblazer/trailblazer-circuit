@@ -1,10 +1,8 @@
-# frozen_string_literal: true
-
 require_relative "lib/trailblazer/circuit/version"
 
 Gem::Specification.new do |spec|
   spec.name = "trailblazer-circuit"
-  spec.version = Trailblazer::Circuit::VERSION
+  spec.version = Trailblazer::CIRCUIT_VERSION
   spec.authors = ["Nick Sutterer"]
   spec.email = ["apotonick@gmail.com"]
 

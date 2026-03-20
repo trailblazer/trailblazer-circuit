@@ -1,8 +1,7 @@
-require "trailblazer/circuit/version"
 
 module Trailblazer
   # A circuit is run using {Circuit::Processor}.
-  class Circuit # < Struct.new(:map, :start_tuple, :termini, :nodes, keyword_init: true) # superclass already defined via version.rb.
+  class Circuit < Struct.new(:map, :start_tuple, :termini, :nodes, keyword_init: true)
     def self.build(flow_map:, nodes:)
       # Init logic, done when compiling Activitys and
       # when extending ciruits via :wrap_runtime.
@@ -37,6 +36,7 @@ module Trailblazer
 end
 # TODO: map should be named flow_map
 
+require "trailblazer/circuit/version"
 require "trailblazer/circuit/context"
 require "trailblazer/circuit/node"
 require "trailblazer/circuit/node/scoped"
