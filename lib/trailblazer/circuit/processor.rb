@@ -5,11 +5,8 @@
     # keyed by a signal.
     class Processor
       # TODO: this can still be optimized for runtime speed, even though I spent days on it already.
-      def self.call(circuit, lib_ctx, flow_options, signal, runner:, start_node: circuit.to_a_FIXME, **circuit_options) # FIXME: allow {:start_task}.
-        # puts "@@@@@??? #{circuit.inspect}"
-        # id, task, invoker, circuit_options_to_merge = circuit.to_a_FIXME # we absolutely safely know that we want the start_task here.
-        # node = circuit.to_a_FIXME # we absolutely safely know that we want the start_task here.
-        id, node = start_node
+      def self.call(circuit, lib_ctx, flow_options, signal, runner:, start_tuple: circuit.start_tuple, **circuit_options) # FIXME: allow {:start_task}.
+        id, node = start_tuple
 
         loop do
           # puts ">>>Processor #{id.inspect} <<<#{signal.inspect}>>> #{node.class}"

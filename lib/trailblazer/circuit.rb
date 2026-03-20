@@ -2,19 +2,20 @@ require "trailblazer/circuit/version"
 
 module Trailblazer
   # A circuit is run using {Circuit::Processor}.
-  class Circuit # < Struct.new(:map, :start_task_id, :termini, :nodes, keyword_init: true) # superclass already defined via version.rb.
+  class Circuit # < Struct.new(:map, :start_tuple, :termini, :nodes, keyword_init: true) # superclass already defined via version.rb.
     def self.build(flow_map:, nodes:)
       # Init logic, done when compiling Activitys and
       # when extending ciruits via :wrap_runtime.
       ids           = flow_map.keys
       start_task_id = ids[0]
+      start_tuple   = [start_task_id, nodes[start_task_id]] # DISCUSS: is nodes.to_a[0] faster?
       termini       = [ids[-1]] # FIXME: test that!
 
       new(
-        map:            flow_map,
-        nodes:         nodes,
-        start_task_id:  start_task_id,
-        termini:        termini,
+        map:          flow_map,
+        nodes:        nodes,
+        start_tuple:  start_tuple,
+        termini:      termini,
       )
     end
 
@@ -31,16 +32,6 @@ module Trailblazer
       next_task_id = signal_map[signal] or raise "#{current_node_id}===>#{signal.inspect} @ #{signal_map}".inspect # this will be nil for a terminus.
 
       return next_task_id, nodes[next_task_id] # TODO: can we save this lookup and optimize the map directly?
-    end
-
-
-
-    # def start_for
-    #   return termini, *nodes[start_task_id]
-    # end
-
-    def to_a_FIXME
-      return start_task_id, nodes[start_task_id] # FIXME: is map.first faster?
     end
   end # Circuit
 end

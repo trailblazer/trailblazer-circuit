@@ -79,10 +79,10 @@ module Trailblazer
         end.to_h
 
         return Circuit.new(
-            map:            map,
-            start_task_id:  nodes.keys[0],
-            termini:        termini,
-            nodes:         nodes,
+            map:          map,
+            start_tuple:  nodes.to_a[0],
+            termini:      termini,
+            nodes:        nodes,
           ),
           outputs
       end
