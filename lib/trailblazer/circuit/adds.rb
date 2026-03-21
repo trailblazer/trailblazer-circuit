@@ -1,6 +1,7 @@
 module Trailblazer
   class Circuit
-    # Insert, replace or delete tasks in an Activity::Circuit.
+    # Insert, replace or delete tasks in a {Circuit} instance.
+    # Per design, this class knows internals about Circuit.
     module Adds
       # Implements the Friendly interface™. (not so friendly anymore...)
       #
@@ -10,10 +11,9 @@ module Trailblazer
       # Feel free to benchmark and optimize this!
       def self.call(circuit, *instructions)
         # TODO: evaluate if we can us  https://rubyapi.org/3.4/o/array#method-i-assoc
-        blaaaaaa_FIXME = circuit.to_h
-        flow_map = blaaaaaa_FIXME[:flow_map]
-        nodes = blaaaaaa_FIXME[:nodes]
         signal_to_reconnect = nil
+        flow_map  = circuit.flow_map
+        nodes     = circuit.nodes
 
         # Passing around start_id and last_id is for internal "caching" and part of this algorithm, not of the Circuit building.
         instructions.each do |task_args, insertion_method, target_id|
