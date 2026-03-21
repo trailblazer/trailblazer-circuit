@@ -1,3 +1,5 @@
 module Trailblazer
-  CIRCUIT_VERSION = "0.1.0"
+  module Version
+    Circuit = "0.1.0"
+  end
 end
