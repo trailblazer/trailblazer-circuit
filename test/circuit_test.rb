@@ -1,5 +1,31 @@
 require "test_helper"
 
+class CircuitTest < Minitest::Spec
+  it "{.build} computes start and terminus" do
+    my_exec_context = T.def_tasks(:a, :b, :c, success_signal: nil)
+
+    my_nodes = {
+      a: node_a = Trailblazer::Circuit::Node[:a, my_exec_context.method(:a), Trailblazer::Circuit::Task::Adapter::LibInterface],
+      b: Trailblazer::Circuit::Node[:b, my_exec_context.method(:b), Trailblazer::Circuit::Task::Adapter::LibInterface],
+      c: Trailblazer::Circuit::Node[:c, my_exec_context.method(:c), Trailblazer::Circuit::Task::Adapter::LibInterface],
+    }
+
+    my_flow_map = {
+      a: {nil => :b},
+      b: {nil => :c},
+      c: {}, # NOTE: we're doing {flow_map.keys.last} to compute the terminus, that's why we want an empty hash here.
+    }
+
+    circuit = Trailblazer::Circuit.build(nodes: my_nodes, flow_map: my_flow_map)
+
+
+    assert_equal circuit.start_tuple, [:a, node_a]
+    assert_equal circuit.termini, [:c]
+
+    assert_run circuit, seq: [:a, :b, :c]
+  end
+end
+
 class CircuitScopeTest < Minitest::Spec
   it "obviously allows scoping its elements" do
     circuit, _ = _A::Circuit::Builder.Circuit(

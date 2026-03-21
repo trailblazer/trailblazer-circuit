@@ -1,21 +1,18 @@
 
 module Trailblazer
   # A circuit is run using {Circuit::Processor}.
-  class Circuit < Struct.new(:map, :start_tuple, :termini, :nodes, keyword_init: true)
+  class Circuit < Struct.new(:map, :start_tuple, :termini, :nodes)
+    # Automatically computes start and terminus node.
     def self.build(flow_map:, nodes:)
-      # Init logic, done when compiling Activitys and
-      # when extending ciruits via :wrap_runtime.
       ids           = flow_map.keys
-      start_task_id = ids[0]
-      start_tuple   = [start_task_id, nodes[start_task_id]] # DISCUSS: is nodes.to_a[0] faster?
-      termini       = [ids[-1]] # FIXME: test that!
 
-      new(
-        map:          flow_map,
-        nodes:        nodes,
-        start_tuple:  start_tuple,
-        termini:      termini,
-      )
+      start_task_id = ids[0]
+      start_tuple   = [start_task_id, nodes[start_task_id]]
+
+      terminus_id   = ids[-1]
+      termini       = [terminus_id] # FIXME: test that!
+
+      new(flow_map, start_tuple, termini, nodes)
     end
 
     # Find the next step for {current_node_id => signal}.
