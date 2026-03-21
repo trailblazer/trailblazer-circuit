@@ -72,14 +72,14 @@ module Trailblazer
           [semantic, terminus_task]
         end.to_h
 
-        map = nodes.collect do |id, node|
+        flow_map = nodes.collect do |id, node|
           connections = id_to_connections[id]
 
           [id, connections]
         end.to_h
 
         return Circuit.new(
-            map:          map,
+            flow_map:     flow_map,
             start_tuple:  nodes.to_a[0],
             termini:      termini,
             nodes:        nodes,

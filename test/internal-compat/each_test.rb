@@ -53,7 +53,7 @@ class EachTest < Minitest::Spec
 
     circuit = Trailblazer::Circuit.new(
       nodes:     nodes,
-      map: map,
+      flow_map: map,
       start_tuple: [:init, nodes[:init]],
       termini: [:finished]
     )

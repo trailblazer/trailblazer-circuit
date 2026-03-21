@@ -1,15 +1,16 @@
 require "test_helper"
 
 class CircuitTest < Minitest::Spec
-  it "{.build} computes start and terminus" do
-    my_exec_context = T.def_tasks(:a, :b, :c, success_signal: nil)
-
-    my_nodes = {
+  let(:my_exec_context) { T.def_tasks(:a, :b, :c, success_signal: nil) }
+  let(:my_nodes) do
+    {
       a: node_a = Trailblazer::Circuit::Node[:a, my_exec_context.method(:a), Trailblazer::Circuit::Task::Adapter::LibInterface],
       b: Trailblazer::Circuit::Node[:b, my_exec_context.method(:b), Trailblazer::Circuit::Task::Adapter::LibInterface],
       c: Trailblazer::Circuit::Node[:c, my_exec_context.method(:c), Trailblazer::Circuit::Task::Adapter::LibInterface],
     }
+  end
 
+  it "{.build} computes start and terminus" do
     my_flow_map = {
       a: {nil => :b},
       b: {nil => :c},
@@ -18,11 +19,29 @@ class CircuitTest < Minitest::Spec
 
     circuit = Trailblazer::Circuit.build(nodes: my_nodes, flow_map: my_flow_map)
 
-
-    assert_equal circuit.start_tuple, [:a, node_a]
+    assert_equal circuit.start_tuple, [:a, my_nodes[:a]]
     assert_equal circuit.termini, [:c]
 
     assert_run circuit, seq: [:a, :b, :c]
+  end
+
+  it "{#new} allows setting start and terminus manually" do
+    my_flow_map = {
+      a: {nil => :b},
+      b: {nil => :c},
+    }
+
+    circuit = Trailblazer::Circuit.new(
+      flow_map: my_flow_map,
+      nodes: my_nodes,
+      start_tuple: [:b, my_nodes[:b]],
+      termini: [:c]
+    )
+
+    assert_equal circuit.start_tuple, [:b, my_nodes[:b]]
+    assert_equal circuit.termini, [:c]
+
+    assert_run circuit, seq: [:b, :c]
   end
 end
 

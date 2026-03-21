@@ -1,7 +1,7 @@
 
 module Trailblazer
   # A circuit is run using {Circuit::Processor}.
-  class Circuit < Struct.new(:map, :start_tuple, :termini, :nodes)
+  class Circuit < Struct.new(:flow_map, :start_tuple, :termini, :nodes)
     # Automatically computes start and terminus node.
     def self.build(flow_map:, nodes:)
       ids           = flow_map.keys
@@ -21,7 +21,7 @@ module Trailblazer
       return if termini.include?(current_node_id) # this is faster than any other trick I tried, with {terminus => nil} etc.
 
       # This lookup will always succeed unless something is entirely wrong.
-      signal_map = map[current_node_id] # assumption: ID must always be a symbol.
+      signal_map = flow_map[current_node_id] # assumption: ID must always be a symbol.
 # puts "circuit ~~~~~~ current_node_id #{current_node_id.inspect}, Signal<#{signal.inspect}> #{signal_map}"
       # return if signal_map == :terminus
 
@@ -31,7 +31,6 @@ module Trailblazer
     end
   end # Circuit
 end
-# TODO: map should be named flow_map
 
 require "trailblazer/circuit/version"
 require "trailblazer/circuit/context"

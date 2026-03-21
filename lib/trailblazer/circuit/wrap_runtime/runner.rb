@@ -29,7 +29,7 @@ module Trailblazer
 
           extended_node_attrs = tw_extension.(**node_attrs) # DISCUSS: pass runtime options here, too? # FIXME: test what we pass here.
 
-          pp extended_node_attrs[:task].map.keys
+          pp extended_node_attrs[:task].flow_map.keys
 
           extended_node_attrs
         end

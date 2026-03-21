@@ -4,7 +4,7 @@ module Trailblazer
     # when looking up the next step.
     class Pipeline < Circuit
       def resolve(current_task_id, signal)
-        next_task_id = map[current_task_id][nil]
+        next_task_id = flow_map[current_task_id][nil]
 
         return next_task_id, nodes[next_task_id]
       end

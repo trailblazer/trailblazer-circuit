@@ -11,7 +11,7 @@ module Trailblazer
       def self.call(circuit, *instructions)
         # TODO: evaluate if we can us  https://rubyapi.org/3.4/o/array#method-i-assoc
         blaaaaaa_FIXME = circuit.to_h
-        flow_map = blaaaaaa_FIXME[:map]
+        flow_map = blaaaaaa_FIXME[:flow_map]
         nodes = blaaaaaa_FIXME[:nodes]
         signal_to_reconnect = nil
 
