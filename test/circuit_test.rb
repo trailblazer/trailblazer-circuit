@@ -10,13 +10,15 @@ class CircuitTest < Minitest::Spec
     }
   end
 
-  it "{.build} computes start and terminus" do
-    my_flow_map = {
+  let(:my_flow_map) do
+    {
       a: {nil => :b},
       b: {nil => :c},
       c: {}, # NOTE: we're doing {flow_map.keys.last} to compute the terminus, that's why we want an empty hash here.
     }
+  end
 
+  it "{.build} computes start and terminus" do
     circuit = Trailblazer::Circuit.build(nodes: my_nodes, flow_map: my_flow_map)
 
     assert_equal circuit.start_tuple, [:a, my_nodes[:a]]
@@ -42,6 +44,18 @@ class CircuitTest < Minitest::Spec
     assert_equal circuit.termini, [:c]
 
     assert_run circuit, seq: [:b, :c]
+  end
+
+  it "exposes {#start_tuple} used in {Processor} and {#termini}" do
+    circuit = Trailblazer::Circuit.new(
+      flow_map: my_flow_map,
+      nodes: my_nodes,
+      start_tuple: [:b, my_nodes[:b]],
+      termini: [:c]
+    )
+
+    assert_equal circuit.start_tuple, [:b, my_nodes[:b]]
+    assert_equal circuit.termini, [:c]
   end
 end
 
