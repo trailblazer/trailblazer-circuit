@@ -1,18 +1,20 @@
-PATH
-  remote: ../trailblazer-core-utils
+GIT
+  remote: https://github.com/trailblazer/trailblazer-core-utils.git
+  revision: 85ccdd28be8a8ed8dd507ce0b1b7826612f5d251
   specs:
     trailblazer-core-utils (0.1.0)
 
 PATH
   remote: .
   specs:
-    trailblazer-circuit (0.1.0)
+    trailblazer-circuit (1.0.0)
       minitest-line
 
 GEM
   remote: https://rubygems.org/
   specs:
     base64 (0.3.0)
+    benchmark-ips (2.14.0)
     minitest (5.26.2)
     minitest-line (0.6.5)
       minitest (~> 5.0)
@@ -27,6 +29,7 @@ PLATFORMS
   x86_64-linux
 
 DEPENDENCIES
+  benchmark-ips
   minitest (~> 5.16)
   rake (~> 13.0)
   ruby-prof
