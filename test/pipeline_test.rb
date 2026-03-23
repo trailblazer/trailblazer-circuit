@@ -11,9 +11,9 @@ class PipelineTest < Minitest::Spec
 
   it "always uses {nil} as the lookup signal, regardless what was returned, but returns the actual last signal" do
     pipe = _A::Circuit::Builder.Pipeline(
-      [:a, Task.new(:a, Object), _A::Circuit::Task::Adapter::LibInterface],
-      [:b, Task.new(:b, Right), _A::Circuit::Task::Adapter::LibInterface],
-      [:c, Task.new(:c, Module), _A::Circuit::Task::Adapter::LibInterface],
+      [:a, Task.new(:a, Object)],
+      [:b, Task.new(:b, Right)],
+      [:c, Task.new(:c, Module)],
     )
 
     assert_run pipe, terminus: Module, seq: [:a, :b, :c]
@@ -21,9 +21,9 @@ class PipelineTest < Minitest::Spec
 
   it "obviously allows scoping its elements" do
     pipe = _A::Circuit::Builder.Pipeline(
-      [:a, Capture.new(:a), _A::Circuit::Task::Adapter::LibInterface, scoped: true], # isolated.
-      [:b, Capture.new(:b), _A::Circuit::Task::Adapter::LibInterface, scoped: true, copy_to_outer_ctx: [:d], merge_to_lib_ctx: {d: 4}],
-      [:c, Capture.new(:c), _A::Circuit::Task::Adapter::LibInterface, scoped: true], # isolated, but sees {:d}.
+      [:a, Capture.new(:a), scoped: true], # isolated.
+      [:b, Capture.new(:b), scoped: true, copy_to_outer_ctx: [:d], merge_to_lib_ctx: {d: 4}],
+      [:c, Capture.new(:c), scoped: true], # isolated, but sees {:d}.
     )
 
     pp pipe
@@ -40,8 +40,8 @@ class PipelineTest < Minitest::Spec
 
   it "internally set variables can be exposed to the follower via :copy_to_outer_ctx" do
     pipe = _A::Circuit::Builder.Pipeline(
-      [:a, Capture.new(:a, pollute: true), _A::Circuit::Task::Adapter::LibInterface, {}, scoped: true, copy_to_outer_ctx: [:pollute]],
-      [:b, Capture.new(:b), _A::Circuit::Task::Adapter::LibInterface, {}, scoped: true, ],  # sees :pollute
+      [:a, Capture.new(:a, pollute: true), {}, scoped: true, copy_to_outer_ctx: [:pollute]],
+      [:b, Capture.new(:b), {}, scoped: true, ],  # sees :pollute
     )
 
     lib_ctx, flow_options = assert_run pipe, terminus: nil, seq: []
@@ -58,7 +58,7 @@ class PipelineTest < Minitest::Spec
 
     my_other_pipe = Pipeline([:b, :b])
     my_other_pipe = Trailblazer::Circuit::Adds.(my_other_pipe,
-      [Trailblazer::Circuit::Node[:a, :a, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod], :before, :b]
+      [Trailblazer::Circuit::Node[:a, :a, Trailblazer::Circuit::Task::Adapter::LibInterface], :before, :b]
     )
 
     assert_equal my_original_pipe, my_other_pipe

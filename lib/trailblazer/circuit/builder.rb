@@ -3,9 +3,7 @@ module Trailblazer
     # Helpers for those who don't like or have a DSL :D
     module Builder
       # Pipeline is just another circiut, where each step has only one output.
-      def self.Pipeline(*task_cfgs, **default_circuit_options)
-        raise if default_circuit_options.any?
-
+      def self.Pipeline(*task_cfgs)
         nodes = Pipeline.build_node_from_dsl(task_cfgs)
 
         map = task_cfgs.collect.with_index do |(id, _), i|
@@ -51,7 +49,7 @@ module Trailblazer
         end
 
         # Defaulting happens here.
-        def create_node(id, task, interface = Task::Adapter::LibInterface::InstanceMethod, scoped: false, merge_to_lib_ctx: nil, **options_for_node)
+        def create_node(id, task, interface = Task::Adapter::LibInterface, scoped: false, merge_to_lib_ctx: nil, **options_for_node)
           node_class = Node
           node_class = Node::Scoped if scoped || merge_to_lib_ctx
           options_for_node = options_for_node.merge(merge_to_lib_ctx: merge_to_lib_ctx) if merge_to_lib_ctx

@@ -344,8 +344,8 @@ module Fixtures
     run_checks_pipe      = Trailblazer::Activity::Circuit::Builder::Step.InstanceMethod(:run_checks)
     title_length_ok_pipe = Trailblazer::Activity::Circuit::Builder::Step.InstanceMethod(:title_length_ok?)
 
-    success_pipe = pipeline_circuit([:success, success = Trailblazer::Activity::Terminus::Success.new(semantic: :success), Trailblazer::Activity::Circuit::Task::Adapter::LibInterface])
-    failure_pipe = pipeline_circuit([:failure, failure = Trailblazer::Activity::Terminus::Failure.new(semantic: :failure), Trailblazer::Activity::Circuit::Task::Adapter::LibInterface])
+    success_pipe = pipeline_circuit([:success, success = Trailblazer::Activity::Terminus::Success.new(semantic: :success)])
+    failure_pipe = pipeline_circuit([:failure, failure = Trailblazer::Activity::Terminus::Failure.new(semantic: :failure)])
 
     validate_outputs = {
       success: success,

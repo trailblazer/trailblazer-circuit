@@ -46,9 +46,9 @@ class NodeRunnerTest < Minitest::Spec
     my_exec_context = T.def_tasks(:a, :b, :c, :d, :e, :f, success_signal: Right)
 
     my_nested_pipe = Pipeline(
-      [:d, :d],
-      [:e, :e],
-      [:f, :f],
+      [:d, my_exec_context.method(:d)],
+      [:e, my_exec_context.method(:e)],
+      [:f, my_exec_context.method(:f)],
     )
 
     my_node_that_knows_start_tuple = Class.new(_A::Circuit::Node) do
@@ -60,9 +60,9 @@ class NodeRunnerTest < Minitest::Spec
     end.new(id: :b, task: my_nested_pipe, interface: _A::Circuit::Processor)
 
     my_pipe = Pipeline(
-      [:a, :a],
+      [:a, my_exec_context.method(:a)],
       [:b, node: my_node_that_knows_start_tuple],
-      [:c, :c],
+      [:c, my_exec_context.method(:c)],
     )
 
     assert_run my_pipe, seq: [:a, :d, :e, :f, :c], exec_context: my_exec_context, flow_options: {start_tuple_id_for_b: :d}, terminus: Right

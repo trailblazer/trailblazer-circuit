@@ -24,7 +24,7 @@ class PipelineBuilderTest < Minitest::Spec
     end
 
     my_circuit = Trailblazer::Circuit::Builder.Pipeline(
-      [:my_pollutor, my_task, Trailblazer::Circuit::Task::Adapter::LibInterface, scoped: true]
+      [:my_pollutor, my_task, scoped: true]
     )
 
     lib_ctx, _ = assert_run my_circuit, terminus: nil, seq: [:my_pollutor]
@@ -71,8 +71,8 @@ class PipelineBuilderTest < Minitest::Spec
       # defaulting for circuit_options for the nested pipe.
       [:c, c_circuit, Trailblazer::Circuit::Processor],
 
-      # task interface with defaulting, lib task with signal # FIXME.
-      [:d, :d],
+      # default to LibInterface.
+      [:d, my_tasks.method(:d)],
     )
 
     lib_ctx, _ = assert_run circuit, terminus: Right, # last signal is from {:d}.
