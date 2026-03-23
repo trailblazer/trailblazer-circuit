@@ -164,6 +164,56 @@ class NodeScopedCallTest < Minitest::Spec
     assert_equal flow_options, {:b=>2, :captured=>[{a: 1, z: Module}, {:b=>2}, Object, {a: 1, z: Module}]} # we can see :a and :z.
     assert_equal signal, Object
   end
+
+  it "nested scoping" do
+    # Test that a small utility pipes can work on their own lib_ctx.
+    # This pipe produces value_from_a, value_from_b, value_from_c
+    my_input_user_method = Pipeline(
+      [:a, :call, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod, merge_to_lib_ctx: {exec_context: capture_a = Capture.new(:a, {value_from_a: 1})}, copy_to_outer_ctx: [:value_from_a]],
+      [:b, :call, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod, merge_to_lib_ctx: {exec_context: capture_b = Capture.new(:b, {value_from_b: 2})}], # discard value_from_b.
+      [:c, :call, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod, merge_to_lib_ctx: {exec_context: capture_c = Capture.new(:c, {value_from_c: 3})}, copy_to_outer_ctx: [:value_from_c]],
+    )
+
+    my_input_pipe = Pipeline(
+      # [:c, Capture.new(:c)],
+      [:d, my_input_user_method, Trailblazer::Circuit::Processor, scoped: true, copy_to_outer_ctx: [:value_from_a]],
+    )
+
+    lib_ctx, flow_options = assert_run my_input_pipe, seq: []
+
+    assert_equal lib_ctx, {value_from_a: 1}
+    # pp flow_options
+    assert_equal flow_options, {
+      application_ctx: application_ctx = {seq: []},
+      :a=> a = [
+        {:exec_context=>capture_a},
+        {:application_ctx=>application_ctx},
+        nil,
+        {:exec_context=>capture_a}
+      ],
+      :b=>
+        [{:value_from_a=>1, :exec_context=>capture_b},
+         {:application_ctx=>application_ctx, :a=>a},
+         nil,
+         {:value_from_a=>1, :exec_context=>capture_b}
+       ],
+       :c=>
+        [
+          {:value_from_a=>1, :exec_context=>capture_c},
+          {:application_ctx=>application_ctx,
+            :a=>a,
+            :b=>
+            [{:value_from_a=>1, :exec_context=>capture_b},
+              {:application_ctx=>application_ctx, :a=>a},
+              nil,
+              {:value_from_a=>1, :exec_context=>capture_b}
+            ],
+          },
+          nil,
+          {:value_from_a=>1, :exec_context=>capture_c}
+        ]
+      }
+  end
 end
 
 
