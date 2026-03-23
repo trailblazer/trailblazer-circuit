@@ -106,11 +106,11 @@ class CircuitBuilderTest < Minitest::Spec
     lib_ctx, flow_options = assert_run c_circuit, terminus: Right, seq: [:c, :d, :success]
     assert_equal lib_ctx, {}
 
-    lib_ctx, flow_options = assert_run c_circuit, terminus: Right, seq: [:c, :failure], c: Left
+    lib_ctx, flow_options = assert_run c_circuit, terminus: Right, seq: [:c, :failure], application_ctx: {c: Left}
     assert_equal lib_ctx, {}
 
 
-    lib_ctx, flow_options = assert_run c_circuit, terminus: Right, seq: [:c, :d, :failure], d: Left
+    lib_ctx, flow_options = assert_run c_circuit, terminus: Right, seq: [:c, :d, :failure], application_ctx: {d: Left}
     assert_equal lib_ctx, {}
   end
 end

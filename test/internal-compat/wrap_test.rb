@@ -33,7 +33,7 @@ class WrapTest < Minitest::Spec
     assert_nil flow_options[:application_ctx][:exception]
 
     # raise
-    lib_ctx, flow_options = assert_run wrap_pipe, seq: [:b, :a, :d, :c], do_raise: true
+    lib_ctx, flow_options = assert_run wrap_pipe, seq: [:b, :a, :d, :c], application_ctx: {do_raise: true}
     assert_equal flow_options[:application_ctx][:exception].inspect, %(RuntimeError)
   end
 end

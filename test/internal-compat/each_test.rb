@@ -58,7 +58,7 @@ class EachTest < Minitest::Spec
       termini: [:finished]
     )
 
-    assert_run circuit, exec_context: MyEach, dataset: [1,2,3],
+    assert_run circuit, exec_context: MyEach, application_ctx: {dataset: [1,2,3]},
       seq: [[0, 1], [1, 2], [2, 3]],
       terminus: "done"
   end
