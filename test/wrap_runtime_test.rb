@@ -81,12 +81,11 @@ class WrapRuntimeTest < Minitest::Spec
     )
 
     create_circuit, _ = Trailblazer::Circuit::Builder.Circuit(
-      [[:Model, model_tw, Trailblazer::Circuit::Processor], {Right => :Save, Left => :failure}],
-      # [[:Validate, validate_circuit, Trailblazer::Circuit::Processor], {Right => :Validate, Left => :failure}]
-      [[:Save, save_tw, Trailblazer::Circuit::Processor], {Right => :success, Left => :failure}],
-      [[:success, success_pipe, Trailblazer::Circuit::Processor], {}],
-      [[:failure, failure_pipe, Trailblazer::Circuit::Processor], {}],
-      termini: [:success, :failure]
+      [:Model, model_tw, Trailblazer::Circuit::Processor, connections: {Right => :Save, Left => :failure}],
+      # [:Validate, validate_circuit, Trailblazer::Circuit::Processor], connections: {Right => :Validate, Left => :failure}]
+      [:Save, save_tw, Trailblazer::Circuit::Processor, connections: {Right => :success, Left => :failure}],
+      [:success, success_pipe, Trailblazer::Circuit::Processor],
+      [:failure, failure_pipe, Trailblazer::Circuit::Processor]
     )
 
     create_tw = Trailblazer::Circuit::Builder.Pipeline(

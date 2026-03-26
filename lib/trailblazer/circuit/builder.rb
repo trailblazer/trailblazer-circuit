@@ -16,7 +16,7 @@ module Trailblazer
           ]
         end.to_h
 
-        Circuit::Pipeline.build(
+        Trailblazer::Circuit::Pipeline.build(
           flow_map: map,
           nodes:   nodes,
         )
@@ -59,8 +59,18 @@ module Trailblazer
       end
 
       def self.Circuit(*task_rows)
-        task_cfgs         = task_rows.collect { |(task_cfg, connections)| task_cfg }
-        id_to_connections = task_rows.collect { |(task_cfg, connections)| [task_cfg[0], connections] }.to_h
+        # Disect [:id, method(...), Adapter, connections: {}, scoped: true], the {:connections} key
+        # has to be removed, the rest can go straight to {Builder.Pipeline}.
+        tasks_hsh = task_rows.collect do |task_cfg|
+          args, options = task_cfg.last.is_a?(Hash) ?
+            [task_cfg[0..-2], task_cfg[-1]] :
+            [task_cfg,  {}]
+
+          Circuit.normalize_dsl_row(*args, **options)
+        end.to_h
+
+        task_cfgs = tasks_hsh.keys
+        id_to_connections = tasks_hsh.values.to_h
 
         nodes = Pipeline.build_node_from_dsl(task_cfgs)
 
@@ -70,11 +80,22 @@ module Trailblazer
           [id, connections]
         end.to_h
 
-        return Circuit.new(
+        return Trailblazer::Circuit.new(
             flow_map:     flow_map,
             start_tuple:  nodes.to_a[0],
             nodes:        nodes,
           )
+      end
+
+      module Circuit
+        module_function
+
+        def normalize_dsl_row(id, *args, connections: {}, **options)
+          [
+            [id, *args, options],
+            [id, connections]
+          ]
+        end
       end
 
       # FIXME: MOVE TO Activity?

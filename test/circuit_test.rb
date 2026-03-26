@@ -76,18 +76,9 @@ end
 class CircuitScopeTest < Minitest::Spec
   it "obviously allows scoping its elements" do
     circuit = _A::Circuit::Builder.Circuit(
-      [
-        [:a, Capture.new(:a), _A::Circuit::Task::Adapter::LibInterface, scoped: true],
-        {nil => :b, Left => :c}
-      ], # isolated.
-      [
-        [:b, Capture.new(:b), _A::Circuit::Task::Adapter::LibInterface, merge_to_lib_ctx: {d: 4}, scoped: true, copy_to_outer_ctx: [:d]],
-        {nil => :c, Left => :c}
-      ],
-      [
-        [:c, Capture.new(:c), _A::Circuit::Task::Adapter::LibInterface, scoped: true],
-        {}
-        ], # isolated, but sees {:d}.
+      [:a, Capture.new(:a), scoped: true, connections: {nil => :b, Left => :c}], # isolated.
+      [:b, Capture.new(:b), merge_to_lib_ctx: {d: 4}, scoped: true, copy_to_outer_ctx: [:d], connections: {nil => :c, Left => :c}],
+      [:c, Capture.new(:c), scoped: true], # isolated, but sees {:d}.
     )
 
     lib_ctx, flow_options = assert_run circuit, terminus: nil, seq: []
@@ -102,14 +93,8 @@ class CircuitScopeTest < Minitest::Spec
 
   it "internally set variables can be exposed to the follower via {:copy_to_outer_ctx}" do
     circuit = _A::Circuit::Builder.Circuit(
-      [
-        [:a, Capture.new(:a, pollute: true), _A::Circuit::Task::Adapter::LibInterface, scoped: true, copy_to_outer_ctx: [:pollute]],
-        {nil => :b, Left => :b}
-      ],
-      [
-        [:b, Capture.new(:b), _A::Circuit::Task::Adapter::LibInterface, scoped: true, ],  # sees :pollute
-        {}
-      ],
+      [:a, Capture.new(:a, pollute: true), scoped: true, copy_to_outer_ctx: [:pollute], connections: {nil => :b, Left => :b}],
+      [:b, Capture.new(:b), scoped: true],  # sees :pollute
     )
 
     lib_ctx, flow_options = assert_run circuit, terminus: nil, seq: []
