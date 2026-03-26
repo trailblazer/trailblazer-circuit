@@ -56,11 +56,11 @@ class CircuitTest < Minitest::Spec
     assert_equal circuit.flow_map, my_flow_map
   end
 
-  it "a Circuit doesn't have explicit termini set, if a signal points to {nil}, it terminates" do
+  it "a Circuit doesn't have explicit termini set, if a signal points to {nil}, or the node's signal map is an empty hash, it terminates" do
     my_flow_map = {
       a: {nil => :b},
       b: {nil => :c, :Left => nil}, # the :Left signal points to nil, meaning it terminates here.
-      c: {}
+      c: {} # empty signal map will also terrminate.
     }
 
     circuit = Trailblazer::Circuit.build(
