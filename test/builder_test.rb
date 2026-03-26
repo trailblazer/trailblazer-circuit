@@ -81,6 +81,14 @@ class PipelineBuilderTest < Minitest::Spec
 
     assert_equal lib_ctx, {exec_context: exec_context_for_d, :value=>true}
   end
+
+  it "{Builder.Pipeline} and {Builder::Pipeline.call} are identical" do
+    tasks = [
+      [:a, :a]
+    ]
+
+    assert_equal Trailblazer::Circuit::Builder.Pipeline(*tasks), Trailblazer::Circuit::Builder::Pipeline.(*tasks)
+  end
 end
 
 class CircuitBuilderTest < Minitest::Spec
@@ -103,5 +111,13 @@ class CircuitBuilderTest < Minitest::Spec
 
     lib_ctx, flow_options = assert_run c_circuit, terminus: Right, seq: [:c, :d, :failure], application_ctx: {d: Left}
     assert_equal lib_ctx, {}
+  end
+
+  it "{Builder.Circuit} and {Builder::Circuit.call} are identical" do
+    tasks = [
+      [:a, :a]
+    ]
+
+    assert_equal Trailblazer::Circuit::Builder.Circuit(*tasks), Trailblazer::Circuit::Builder::Circuit.(*tasks)
   end
 end
