@@ -32,7 +32,7 @@
 end
 
 
-
+# FIXME: move this to developer
         # def raise_illegal_signal_error!(task, last_signal, outputs, **circuit_options)
         #   raise IllegalSignalError.new(
         #     task,

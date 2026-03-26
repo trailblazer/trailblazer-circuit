@@ -30,10 +30,6 @@ class EachTest < Minitest::Spec
       # DISCUSS: is there any other way to detect when an enumerator reached the end?
       return lib_ctx, flow_options, "done"
     end
-
-    def self.finished(lib_ctx, flow_options, signal, **) # TODO: this isn't really necessary.
-      return lib_ctx, flow_options, signal
-    end
   end
 
   it do
@@ -46,7 +42,7 @@ class EachTest < Minitest::Spec
 
     map = {
         init: {nil => :fetch_value_from_dataset},
-        fetch_value_from_dataset: {nil => :a, "done" => :finished},
+        fetch_value_from_dataset: {nil => :a, "done" => nil},
         a: {nil => :fetch_value_from_dataset},
         finished: {}
       }
@@ -55,7 +51,6 @@ class EachTest < Minitest::Spec
       nodes:     nodes,
       flow_map: map,
       start_tuple: [:init, nodes[:init]],
-      termini: [:finished]
     )
 
     assert_run circuit, exec_context: MyEach, application_ctx: {dataset: [1,2,3]},

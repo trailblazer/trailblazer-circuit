@@ -87,21 +87,12 @@ class CircuitBuilderTest < Minitest::Spec
   it "what" do
     my_tasks = T.def_tasks(:c, :d, :success, :failure, success_signal: Right)
 
-
-
-    c_circuit, termini = Trailblazer::Circuit::Builder.Circuit(
+    c_circuit = Trailblazer::Circuit::Builder.Circuit(
       [[:c, my_tasks.method(:c), Trailblazer::Circuit::Task::Adapter::LibInterface], {Right => :d, Left => :failure}],
       [[:d, my_tasks.method(:d), Trailblazer::Circuit::Task::Adapter::LibInterface], {Right => :success, Left => :failure}],
-      [[:failure, failure = my_tasks.method(:failure), _A::Circuit::Task::Adapter::LibInterface]],
-      [[:success, success = my_tasks.method(:success), _A::Circuit::Task::Adapter::LibInterface]],
-
-      termini: [:failure, :success],
+      [[:failure, failure = my_tasks.method(:failure), _A::Circuit::Task::Adapter::LibInterface], {}],
+      [[:success, success = my_tasks.method(:success), _A::Circuit::Task::Adapter::LibInterface], {}],
     )
-
-    success_node = c_circuit.nodes[:success]
-    failure_node = c_circuit.nodes[:failure]
-
-    assert_equal termini, {success: success_node, failure: failure_node}
 
     lib_ctx, flow_options = assert_run c_circuit, terminus: Right, seq: [:c, :d, :success]
     assert_equal lib_ctx, {}

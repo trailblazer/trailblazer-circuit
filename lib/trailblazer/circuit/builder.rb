@@ -58,17 +58,11 @@ module Trailblazer
         end
       end
 
-      def self.Circuit(*task_rows, termini:)
+      def self.Circuit(*task_rows)
         task_cfgs         = task_rows.collect { |(task_cfg, connections)| task_cfg }
         id_to_connections = task_rows.collect { |(task_cfg, connections)| [task_cfg[0], connections] }.to_h
 
         nodes = Pipeline.build_node_from_dsl(task_cfgs)
-
-        outputs = termini.collect do |semantic|
-          terminus_task = nodes[semantic]
-
-          [semantic, terminus_task]
-        end.to_h
 
         flow_map = nodes.collect do |id, node|
           connections = id_to_connections[id]
@@ -79,10 +73,8 @@ module Trailblazer
         return Circuit.new(
             flow_map:     flow_map,
             start_tuple:  nodes.to_a[0],
-            termini:      termini,
             nodes:        nodes,
-          ),
-          outputs
+          )
       end
 
       # FIXME: MOVE TO Activity?

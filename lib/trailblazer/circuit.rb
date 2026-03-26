@@ -1,7 +1,7 @@
 
 module Trailblazer
   # A circuit is run using {Circuit::Processor}.
-  class Circuit < Struct.new(:flow_map, :start_tuple, :termini, :nodes)
+  class Circuit < Struct.new(:flow_map, :start_tuple, :nodes)
     # Automatically computes start and terminus node.
     def self.build(flow_map:, nodes:)
       ids           = flow_map.keys
@@ -9,23 +9,13 @@ module Trailblazer
       start_task_id = ids[0]
       start_tuple   = [start_task_id, nodes[start_task_id]]
 
-      terminus_id   = ids[-1]
-      termini       = [terminus_id] # FIXME: test that!
-
-      new(flow_map, start_tuple, termini, nodes)
+      new(flow_map, start_tuple, nodes)
     end
 
     # Find the next step for {current_node_id => signal}.
     # This is called in {Circuit::Processor.call}.
     def resolve(current_node_id, signal)
-      return if termini.include?(current_node_id) # this is faster than any other trick I tried, with {terminus => nil} etc.
-
-      # This lookup will always succeed unless something is entirely wrong.
-      signal_map = flow_map[current_node_id] # assumption: ID must always be a symbol.
-# puts "circuit ~~~~~~ current_node_id #{current_node_id.inspect}, Signal<#{signal.inspect}> #{signal_map}"
-      # return if signal_map == :terminus
-
-      next_task_id = signal_map[signal] or raise "#{current_node_id}===>#{signal.inspect} @ #{signal_map}".inspect # this will be nil for a terminus.
+      next_task_id = flow_map[current_node_id][signal] # TODO: how to improve dev experience for IllegalSignal?
 
       return next_task_id, nodes[next_task_id] # TODO: can we save this lookup and optimize the map directly?
     end

@@ -14,56 +14,68 @@ class CircuitTest < Minitest::Spec
     {
       a: {nil => :b},
       b: {nil => :c},
-      c: {}, # NOTE: we're doing {flow_map.keys.last} to compute the terminus, that's why we want an empty hash here.
+      c: {},
     }
   end
 
-  it "{.build} computes start and terminus" do
+  it "{.build} computes start" do
     circuit = Trailblazer::Circuit.build(nodes: my_nodes, flow_map: my_flow_map)
 
     assert_equal circuit.start_tuple, [:a, my_nodes[:a]]
-    assert_equal circuit.termini, [:c]
 
     assert_run circuit, seq: [:a, :b, :c]
   end
 
-  it "{#new} allows setting start and terminus manually" do
+  it "{#new} allows setting start manually" do
     my_flow_map = {
       a: {nil => :b},
       b: {nil => :c},
+      c: {}
     }
 
     circuit = Trailblazer::Circuit.new(
       flow_map: my_flow_map,
       nodes: my_nodes,
       start_tuple: [:b, my_nodes[:b]],
-      termini: [:c]
     )
 
     assert_equal circuit.start_tuple, [:b, my_nodes[:b]]
-    assert_equal circuit.termini, [:c]
 
     assert_run circuit, seq: [:b, :c]
   end
 
-  it "exposes {#start_tuple} used in {Processor} and {#termini} and {#nodes} and {#flow_map}" do
+  it "exposes {#start_tuple} used in {Processor} and {#nodes} and {#flow_map}" do
     circuit = Trailblazer::Circuit.new(
       flow_map: my_flow_map,
       nodes: my_nodes,
       start_tuple: [:b, my_nodes[:b]],
-      termini: [:c]
     )
 
     assert_equal circuit.start_tuple, [:b, my_nodes[:b]]
-    assert_equal circuit.termini, [:c]
     assert_equal circuit.nodes, my_nodes
     assert_equal circuit.flow_map, my_flow_map
+  end
+
+  it "a Circuit doesn't have explicit termini set, if a signal points to {nil}, it terminates" do
+    my_flow_map = {
+      a: {nil => :b},
+      b: {nil => :c, :Left => nil}, # the :Left signal points to nil, meaning it terminates here.
+      c: {}
+    }
+
+    circuit = Trailblazer::Circuit.build(
+      flow_map: my_flow_map,
+      nodes: my_nodes,
+    )
+
+    assert_run circuit, seq: [:a, :b, :c]
+    assert_run circuit, seq: [:a, :b], flow_options: {application_ctx: {seq: [], b: :Left}}, terminus: :Left
   end
 end
 
 class CircuitScopeTest < Minitest::Spec
   it "obviously allows scoping its elements" do
-    circuit, _ = _A::Circuit::Builder.Circuit(
+    circuit = _A::Circuit::Builder.Circuit(
       [
         [:a, Capture.new(:a), _A::Circuit::Task::Adapter::LibInterface, scoped: true],
         {nil => :b, Left => :c}
@@ -76,7 +88,6 @@ class CircuitScopeTest < Minitest::Spec
         [:c, Capture.new(:c), _A::Circuit::Task::Adapter::LibInterface, scoped: true],
         {}
         ], # isolated, but sees {:d}.
-      termini: [:c]
     )
 
     lib_ctx, flow_options = assert_run circuit, terminus: nil, seq: []
@@ -89,16 +100,16 @@ class CircuitScopeTest < Minitest::Spec
     }
   end
 
-  it "internally set variables can be exposed to the follower via :copy_to_outer_ctx" do
-    circuit, _ = _A::Circuit::Builder.Circuit(
+  it "internally set variables can be exposed to the follower via {:copy_to_outer_ctx}" do
+    circuit = _A::Circuit::Builder.Circuit(
       [
         [:a, Capture.new(:a, pollute: true), _A::Circuit::Task::Adapter::LibInterface, scoped: true, copy_to_outer_ctx: [:pollute]],
         {nil => :b, Left => :b}
       ],
       [
         [:b, Capture.new(:b), _A::Circuit::Task::Adapter::LibInterface, scoped: true, ],  # sees :pollute
+        {}
       ],
-      termini: [:b]
     )
 
     lib_ctx, flow_options = assert_run circuit, terminus: nil, seq: []

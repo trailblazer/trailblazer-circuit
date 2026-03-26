@@ -44,9 +44,11 @@ my_new_circuit.instance_eval do
   def resolve(current_node_id, signal)
     signal_map = flow_map[current_node_id] # assumption: ID must always be a symbol.
 
-    raise "signal unknown" unless signal_map.key?(signal)
+    # raise "signal unknown" unless signal_map.key?(signal) # TODO: this is a development helper, not needed at production runtime.
 
-    next_task_id = signal_map[signal]# or raise "#{current_node_id}===>#{signal.inspect} @ #{signal_map}".inspect # this will be nil for a terminus.
+    # next_task_id = signal_map[signal]# or raise "#{current_node_id}===>#{signal.inspect} @ #{signal_map}".inspect # this will be nil for a terminus.
+    next_task_id = signal_map[signal]
+    # next_task_id = signal_map.fetch(signal) # fetch is a bit slower but provides dev security
 
     return next_task_id, nodes[next_task_id]
   end
@@ -55,6 +57,30 @@ end
 my_new_node = Trailblazer::Circuit::Node[:new, my_new_circuit, Trailblazer::Circuit::Processor]
 
 lib_ctx, flow_options, signal = run_circuit(my_new_node)
+raise flow_options.inspect unless flow_options[:application_ctx][:seq] == [:a, :b]
+
+# Implementation like above but with {:nil} signals.
+
+my_nil_exec_context = T.def_tasks(:a, :b, :c, success_signal: :nil)
+
+my_newer_circuit, termini = Trailblazer::Circuit::Builder.Circuit(
+  [[:a, my_nil_exec_context.method(:a)], {:nil => :b, Activity::Left => nil}],
+  [[:b, my_nil_exec_context.method(:b)], {:nil => :c, Activity::Left => nil}],
+  [[:c, my_nil_exec_context.method(:c)], {:nil => nil, Activity::Left => nil}],
+  termini: [], # TODO: we don't need those
+)
+
+my_newer_circuit.instance_eval do
+  def resolve(current_node_id, signal)
+    next_task_id = flow_map[current_node_id][signal]
+
+    return next_task_id, nodes[next_task_id]
+  end
+end
+
+my_newer_node = Trailblazer::Circuit::Node[:new, my_newer_circuit, Trailblazer::Circuit::Processor]
+
+lib_ctx, flow_options, signal = run_circuit(my_newer_node)
 raise flow_options.inspect unless flow_options[:application_ctx][:seq] == [:a, :b]
 
 require "benchmark/ips"
@@ -66,6 +92,10 @@ Benchmark.ips do |x|
 
   x.report("circuit pointing to nil") {
     run_circuit(my_new_node)
+  }
+
+  x.report(":nil signals") {
+    run_circuit(my_newer_node)
   }
 
   x.compare!

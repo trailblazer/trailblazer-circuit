@@ -22,7 +22,7 @@ class CircuitAddsTest < Minitest::Spec
 
   # FIXME: private test
   it "prepare_insertion" do
-    flow_map, _, _, nodes = model_tw_pipe.to_a
+    flow_map, _, nodes = model_tw_pipe.to_a
 
     _, target_id, target_index = Trailblazer::Circuit::Adds.prepare_insertion([:z, :z], flow_map, nodes, nil, index_for_nil: 0)# before: nil
     assert_equal [target_id, target_index], [:a, 0]
