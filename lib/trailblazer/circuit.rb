@@ -1,4 +1,3 @@
-
 module Trailblazer
   # A circuit is run using {Circuit::Processor}.
   class Circuit < Struct.new(:flow_map, :start_tuple, :nodes)

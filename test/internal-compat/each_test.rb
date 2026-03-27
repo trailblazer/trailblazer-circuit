@@ -47,11 +47,7 @@ class EachTest < Minitest::Spec
         finished: {}
       }
 
-    circuit = Trailblazer::Circuit.new(
-      nodes:     nodes,
-      flow_map: map,
-      start_tuple: [:init, nodes[:init]],
-    )
+    circuit = Trailblazer::Circuit.build(flow_map: map, nodes: nodes)
 
     assert_run circuit, exec_context: MyEach, application_ctx: {dataset: [1,2,3]},
       seq: [[0, 1], [1, 2], [2, 3]],

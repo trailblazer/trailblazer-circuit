@@ -92,9 +92,9 @@ module Trailblazer
           end.to_h
 
           return Trailblazer::Circuit.new(
-              flow_map:     flow_map,
-              start_tuple:  nodes.to_a[0],
-              nodes:        nodes,
+              flow_map,
+              nodes.to_a[0],
+              nodes,
             )
         end
 

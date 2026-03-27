@@ -34,9 +34,9 @@ class CircuitTest < Minitest::Spec
     }
 
     circuit = Trailblazer::Circuit.new(
-      flow_map: my_flow_map,
-      nodes: my_nodes,
-      start_tuple: [:b, my_nodes[:b]],
+      my_flow_map,
+      [:b, my_nodes[:b]],
+      my_nodes,
     )
 
     assert_equal circuit.start_tuple, [:b, my_nodes[:b]]
@@ -46,9 +46,9 @@ class CircuitTest < Minitest::Spec
 
   it "exposes {#start_tuple} used in {Processor} and {#nodes} and {#flow_map}" do
     circuit = Trailblazer::Circuit.new(
-      flow_map: my_flow_map,
-      nodes: my_nodes,
-      start_tuple: [:b, my_nodes[:b]],
+      my_flow_map,
+      [:b, my_nodes[:b]],
+      my_nodes,
     )
 
     assert_equal circuit.start_tuple, [:b, my_nodes[:b]]
