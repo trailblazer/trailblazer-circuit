@@ -123,7 +123,7 @@ class WrapRuntimeTest < Minitest::Spec
         def call(lib_ctx, flow_options, signal, **) # FIXME: we need circuit_options for the {:task}.
           stack = flow_options.fetch(:stack)
 
-          stack += [[position, captured_task, flow_options[:application_ctx].to_h.inspect]] # treat stack as an immutable object
+          stack += [[position, captured_task, CU.inspect(flow_options[:application_ctx].to_h)]] # treat stack as an immutable object
 
           return lib_ctx, flow_options.merge(stack: stack), signal
         end
@@ -168,7 +168,7 @@ class WrapRuntimeTest < Minitest::Spec
     assert_equal signal, :Success
     assert_equal flow_options[:application_ctx], {:params=>{:id=>1, title: "Uwe", :model=>Record.new(1, "Uwe")}}
 
-    pp flow_options[:stack]
+    # pp flow_options[:stack]
 
     assert_stack flow_options[:stack], [
      [:before, :Create, "{:params=>{:id=>1, :title=>\"Uwe\"}}"], # this is the Create.tw pipe
