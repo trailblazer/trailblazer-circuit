@@ -147,8 +147,39 @@ class CircuitAddsTest < Minitest::Spec
     assert_equal extended_tw_pipe.to_a[0].keys, [:a, :b, :z] # TODO: do that everywhere!
   end
 
-  it "can extend Circuit, too" do
-    skip
+  # Circuit-relevant
+  let(:my_circuit) do
+    Trailblazer::Circuit::Builder.Circuit(
+      [:a, my_exec_context.method(:a), connections: {Right => :b, Left => :c}],
+      [:b, my_exec_context.method(:b), connections: {}],
+      [:c, my_exec_context.method(:c)],
+    )
+  end
 
+  let(:lib_interface) { Trailblazer::Circuit::Task::Adapter::LibInterface }
+
+  it "the {my_circuit} fixture does what we expect it to do" do
+    assert_run my_circuit, terminus: Right, seq: [:a, :b]
+    assert_run my_circuit, terminus: Right, seq: [:a, :c], flow_options: {application_ctx: {seq: [], a: Left}}
+  end
+
+  it "{after, :a, inbound_signal: Left, outbound_signal: Right}" do
+    extended_circuit = Trailblazer::Circuit::Adds.(
+      my_circuit,
+      [_A::Circuit::Node[:z, my_exec_context.method(:z), lib_interface], :after, :a, inbound_signal: Left, outbound_signal: Right],
+    )
+
+    assert_run extended_circuit, seq: [:a, :b], terminus: Right
+    assert_run extended_circuit, terminus: Right, seq: [:a, :z, :c], flow_options: {application_ctx: {seq: [], a: Left}}
+  end
+
+  it "{before, :a, inbound_signal: Left, outbound_signal: Right}" do
+    extended_circuit = Trailblazer::Circuit::Adds.(
+      my_circuit,
+      [_A::Circuit::Node[:z, my_exec_context.method(:z), lib_interface], :before, :c, inbound_signal: Left, outbound_signal: Right],
+    )
+
+    assert_run extended_circuit, seq: [:a, :b], terminus: Right
+    assert_run extended_circuit, terminus: Right, seq: [:a, :z, :c], flow_options: {application_ctx: {seq: [], a: Left}}
   end
 end

@@ -1,6 +1,7 @@
 module Trailblazer
   class Circuit
-    # Insert, replace or delete tasks in a {Circuit} instance.
+    # Simple graph operations: insert, replace or delete
+    # nodes in a {Circuit} or {Pipeline} instance.
     # Per design, this class knows internals about Circuit.
     module Adds
       # Implements the Friendly interface™. (not so friendly anymore...)
@@ -11,13 +12,14 @@ module Trailblazer
       # Feel free to benchmark and optimize this!
       def self.call(circuit, *instructions)
         # TODO: evaluate if we can us  https://rubyapi.org/3.4/o/array#method-i-assoc
-        signal_to_reconnect = nil
         flow_map  = circuit.flow_map
         nodes     = circuit.nodes
 
-        # Passing around start_id and last_id is for internal "caching" and part of this algorithm, not of the Circuit building.
-        instructions.each do |task_args, insertion_method, target_id|
-          flow_map, nodes = send(insertion_method, flow_map, nodes, task_args, target_id, signal_to_reconnect)
+        # inbound_signal: the signal from the previous node to reconnect
+        # outbound signal: the new node's outgoing signal. (we only allow to add one outgoing connection currently)
+
+        instructions.each do |task_args, insertion_method, target_id, options = {inbound_signal: nil, outbound_signal: nil}|
+          flow_map, nodes = send(insertion_method, flow_map, nodes, task_args, target_id, **options)
         end
 
         circuit.class.build(flow_map: flow_map, nodes: nodes) # this will recompute start and termini.
@@ -25,35 +27,36 @@ module Trailblazer
 
       # TODO: generic Insert logic.
 
-      def self.before(flow_map, nodes, args_for_inserted, target_id, signal_to_reconnect)
+      def self.before(flow_map, nodes, args_for_inserted, target_id, inbound_signal:, outbound_signal:)
         nodes, target_id, target_index, inserted_id, flow_ary_keys = prepare_insertion(args_for_inserted, flow_map, nodes, target_id, index_for_nil: 0)
 
         # If not the first node, we need to update the predecessor's outgoing connection.
+
         if target_index > 0
           # Re-point the predecessor of target to the newly inserted.
-          flow_map = reconnect_predecessor(flow_map, flow_ary_keys, target_index, signal_to_reconnect, inserted_id)
+          flow_map = reconnect_predecessor(flow_map, flow_ary_keys, target_id, inbound_signal, inserted_id)
         end
 
         # Since we have to ensure the correct order in flow_map, we switch
         # to array representation here for correct insertion position.
-        flow_map = insert_at(flow_map, target_index, [inserted_id, {signal_to_reconnect => target_id}])
+        flow_map = insert_at(flow_map, target_index, [inserted_id, {outbound_signal => target_id}])
 
         return flow_map, nodes
       end
 
-      # raise "how does Processor compute start, how if we reached terminus? by ID or simply because there's nil?"
-
-      def self.after(flow_map, nodes, args_for_inserted, target_id, signal_to_reconnect)
+      def self.after(flow_map, nodes, args_for_inserted, target_id, inbound_signal:, outbound_signal:)
         nodes, target_id, target_index, inserted_id, flow_ary_keys = prepare_insertion(args_for_inserted, flow_map, nodes, target_id, index_for_nil: -1, offset: 1)
 
+        # outgoing connections from the target that gets a new descendent.
         target_connections = flow_map[target_id]
+        original_target_descendent = target_connections[inbound_signal] # a: {Right: :b, Left: :c}
 
         # TIL #merge reuses the old position of the key!
         flow_map = flow_map.merge(
-          target_id => target_connections.merge(signal_to_reconnect => inserted_id),
+          target_id => target_connections.merge(inbound_signal => inserted_id),
         )
 
-        flow_map = insert_at(flow_map, target_index, [inserted_id, {signal_to_reconnect => target_connections[signal_to_reconnect]}])
+        flow_map = insert_at(flow_map, target_index, [inserted_id, {outbound_signal => original_target_descendent}])
 
         return flow_map, nodes
       end
@@ -81,25 +84,24 @@ module Trailblazer
       end
 
       # @private
-      def self.reconnect_predecessor(flow_map, flow_ary_keys, target_index, signal_to_reconnect, new_id)
-        predecessor_id = flow_ary_keys[target_index - 1] # since flow_map is guaranteed to be ordered by {signal_to_reconnect}, we know that {index-1} is pointing to target.
-        predecessor_connections = flow_map[predecessor_id]
+      def self.reconnect_predecessor(flow_map, flow_ary_keys, target_id, inbound_signal, new_id)
+        predecessor_id, predecessor_connections = flow_map.find { |id, connections| connections[inbound_signal] == target_id }
 
         # First, re-point the predecessor of target to the newly inserted.
-        to_merge = {predecessor_id => predecessor_connections.merge(signal_to_reconnect => new_id)}
+        to_merge = {predecessor_id => predecessor_connections.merge(inbound_signal => new_id)}
 
         return flow_map.merge(to_merge)
       end
 
-      def self.delete(flow_map, nodes, _, target_id, signal_to_reconnect)
+      def self.delete(flow_map, nodes, _, target_id, inbound_signal:, **)
         nodes = nodes.slice(*(nodes.keys - [target_id]))
         flow_ary_keys = flow_map.keys
         target_index = flow_ary_keys.index(target_id) # TODO: cleanup this!
 
         if target_index > 0
-          target_successor_id = flow_map[target_id][signal_to_reconnect] # ID of following node.
+          target_successor_id = flow_map[target_id][inbound_signal] # ID of following node.
 
-          flow_map = reconnect_predecessor(flow_map, flow_ary_keys, target_index, signal_to_reconnect, target_successor_id)
+          flow_map = reconnect_predecessor(flow_map, flow_ary_keys, target_id, inbound_signal, target_successor_id)
         end
 
         # flow_map = flow_map.slice(*nodes.keys) # FIXME: do we still have same order?
@@ -108,7 +110,7 @@ module Trailblazer
         return flow_map, nodes
       end
 
-      def self.replace(flow_map, nodes, args_for_inserted, target_id, signal_to_reconnect)
+      def self.replace(flow_map, nodes, args_for_inserted, target_id, inbound_signal:, **)
         inserted_id = args_for_inserted[0]
 
         # Replace old key/args from nodes.
@@ -121,7 +123,7 @@ module Trailblazer
         target_connections = flow_map[target_id] # FIXME: redundant to {after} logic.
 
         if target_index > 0
-          flow_map = reconnect_predecessor(flow_map, flow_ary_keys, target_index, signal_to_reconnect, inserted_id)
+          flow_map = reconnect_predecessor(flow_map, flow_ary_keys, target_id, inbound_signal, inserted_id)
         end
 
         # delete old key.
