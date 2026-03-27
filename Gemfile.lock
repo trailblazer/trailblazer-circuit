@@ -1,6 +1,6 @@
 GIT
   remote: https://github.com/trailblazer/trailblazer-core-utils.git
-  revision: 85ccdd28be8a8ed8dd507ce0b1b7826612f5d251
+  revision: 2e5015d01a837ba18954dd8c784737aa8fb5b639
   specs:
     trailblazer-core-utils (0.1.0)
 
