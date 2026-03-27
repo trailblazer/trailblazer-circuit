@@ -8,7 +8,7 @@ Gem::Specification.new do |spec|
 
   spec.summary = "Low-level runtime code for Trailblazer's circuits and pipelines. "
   spec.homepage = "https://trailblazer.to/2.2"
-  spec.required_ruby_version = ">= 2.1.0"
+  spec.required_ruby_version = ">= 2.6.0"
 
   # spec.metadata["allowed_push_host"] = "TODO: Set to your gem server 'https://example.com'"
 
@@ -29,9 +29,5 @@ Gem::Specification.new do |spec|
   spec.executables = spec.files.grep(%r{\Aexe/}) { |f| File.basename(f) }
   spec.require_paths = ["lib"]
 
-  # Uncomment to register a new dependency of your gem
   spec.add_dependency "minitest-line"#, "~> 1.0"
-
-  # For more information and examples about making a new gem, check out our
-  # guide at: https://bundler.io/guides/creating_gem.html
 end
