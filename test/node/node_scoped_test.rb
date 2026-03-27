@@ -9,7 +9,7 @@ class NodeScopedTest < Minitest::Spec
         my_node = Trailblazer::Circuit::Node::Scoped.new
       end
 
-      assert_equal exception.message, %(missing keywords: :id, :task, :interface)
+      assert_equal exception.message.gsub(":", ""), %(missing keywords id, task, interface)
     end
 
     it "has required keywords, defaults the rest" do
