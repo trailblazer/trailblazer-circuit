@@ -9,10 +9,10 @@ class NodeTest < Minitest::Spec
         my_node = Trailblazer::Circuit::Node.new
       end
 
-      missing_keywords = "id, task, interface"
-      missing_keywords = "id" if RUBY_ENGINE == 'jruby'
+      missing_keywords = "s id, task, interface"
+      missing_keywords = " id" if RUBY_ENGINE == 'jruby'
 
-      assert_equal exception.message.gsub(":", ""), %(missing keywords #{missing_keywords})
+      assert_equal exception.message.gsub(":", ""), %(missing keyword#{missing_keywords})
     end
 
     it "has required keywords" do
