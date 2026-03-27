@@ -9,7 +9,10 @@ class NodeScopedTest < Minitest::Spec
         my_node = Trailblazer::Circuit::Node::Scoped.new
       end
 
-      assert_equal exception.message.gsub(":", ""), %(missing keywords id, task, interface)
+      missing_keywords = "id, task, interface"
+      missing_keywords = "id" if RUBY_ENGINE == 'jruby'
+
+      assert_equal exception.message.gsub(":", ""), %(missing keywords #{missing_keywords})
     end
 
     it "has required keywords, defaults the rest" do
