@@ -18,8 +18,8 @@ module Trailblazer
         # inbound_signal: the signal from the previous node to reconnect
         # outbound signal: the new node's outgoing signal. (we only allow to add one outgoing connection currently)
 
-        instructions.each do |task_args, insertion_method, target_id, options = {inbound_signal: nil, outbound_signal: nil}|
-          flow_map, nodes = send(insertion_method, flow_map, nodes, task_args, target_id, **options)
+        instructions.each do |node, insertion_method, target_id, options = {inbound_signal: nil, outbound_signal: nil}|
+          flow_map, nodes = send(insertion_method, flow_map, nodes, node, target_id, **options)
         end
 
         circuit.class.build(flow_map: flow_map, nodes: nodes) # this will recompute start and termini.
