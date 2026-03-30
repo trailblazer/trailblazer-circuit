@@ -4,31 +4,31 @@ module Trailblazer
     # nodes in a {Circuit} or {Pipeline} instance.
     # Per design, this class knows internals about Circuit.
     module Adds
+      module_function
+
       # Implements the Friendly interface™. (not so friendly anymore...)
       #
       # Since we're using this to implement {:wrap_runtime}, this has to be fast.
       # It is also used at compile-time, though.
       #
       # Feel free to benchmark and optimize this!
-      def self.call(circuit, *instructions)
+      def call(circuit, *instructions)
         # TODO: evaluate if we can us  https://rubyapi.org/3.4/o/array#method-i-assoc
         flow_map  = circuit.flow_map
         nodes     = circuit.nodes
 
         # inbound_signal: the signal from the previous node to reconnect
-        # outbound signal: the new node's outgoing signal. (we only allow to add one outgoing connection currently)
-
-        instructions.each do |node, insertion_method, target_id, options = {inbound_signal: nil, outbound_signal: nil}|
+        instructions.each do |node, insertion_method, target_id, options = {inbound_signal: nil}|
           flow_map, nodes = send(insertion_method, flow_map, nodes, node, target_id, **options)
         end
 
         circuit.class.build(flow_map: flow_map, nodes: nodes) # this will recompute start and termini.
       end
 
-      # TODO: generic Insert logic.
-
-      def self.before(flow_map, nodes, args_for_inserted, target_id, inbound_signal:, outbound_signal:)
+      def before(flow_map, nodes, args_for_inserted, target_id, inbound_signal:, outbound_connections: nil, outbound: [[nil]])
         nodes, target_id, target_index, inserted_id, flow_ary_keys = prepare_insertion(args_for_inserted, flow_map, nodes, target_id, index_for_nil: 0)
+
+        outbound_connections = defaultize_outbound_connections(target_id, outbound_connections: outbound_connections, outbound: outbound)
 
         # If not the first node, we need to update the predecessor's outgoing connection.
 
@@ -39,29 +39,40 @@ module Trailblazer
 
         # Since we have to ensure the correct order in flow_map, we switch
         # to array representation here for correct insertion position.
-        flow_map = insert_at(flow_map, target_index, [inserted_id, {outbound_signal => target_id}])
+        flow_map = insert_at(flow_map, target_index, [inserted_id, outbound_connections])
 
         return flow_map, nodes
       end
 
-      def self.after(flow_map, nodes, args_for_inserted, target_id, inbound_signal:, outbound_signal:)
+      def after(flow_map, nodes, args_for_inserted, target_id, inbound_signal:, outbound_connections: nil, outbound: [[nil]])
         nodes, target_id, target_index, inserted_id, flow_ary_keys = prepare_insertion(args_for_inserted, flow_map, nodes, target_id, index_for_nil: -1, offset: 1)
-
         # outgoing connections from the target that gets a new descendent.
         target_connections = flow_map[target_id]
         original_target_descendent = target_connections[inbound_signal] # a: {Right: :b, Left: :c}
+
+        outbound_connections = defaultize_outbound_connections(original_target_descendent, outbound: outbound, outbound_connections: outbound_connections)
 
         # TIL #merge reuses the old position of the key!
         flow_map = flow_map.merge(
           target_id => target_connections.merge(inbound_signal => inserted_id),
         )
 
-        flow_map = insert_at(flow_map, target_index, [inserted_id, {outbound_signal => original_target_descendent}])
+        flow_map = insert_at(flow_map, target_index, [inserted_id, outbound_connections])
 
         return flow_map, nodes
       end
 
-      def self.prepare_insertion(args_for_inserted, flow_map, nodes, target_id, index_for_nil:, offset: 0)
+      def defaultize_outbound_connections(original_target_descendent, outbound:, outbound_connections:)
+        return outbound_connections if outbound_connections
+
+        outbound.collect do |signal_to_target_ary|
+          signal, descendent = signal_to_target_ary
+
+          signal_to_target_ary.size == 1 ? [signal, original_target_descendent] : signal_to_target_ary
+        end.to_h
+      end
+
+      def prepare_insertion(args_for_inserted, flow_map, nodes, target_id, index_for_nil:, offset: 0)
         inserted_id = args_for_inserted[0]
         nodes = nodes.merge(inserted_id => args_for_inserted) # DISCUSS: we kind of have to do that here.
         flow_ary_keys = flow_map.keys
@@ -77,14 +88,14 @@ module Trailblazer
       end
 
       # @private
-      def self.insert_at(flow_map, target_index, element)
+      def insert_at(flow_map, target_index, element)
         flow_ary = flow_map.to_a
         flow_ary = flow_ary.insert(target_index, element)
         flow_map = flow_ary.to_h
       end
 
       # @private
-      def self.reconnect_predecessor(flow_map, flow_ary_keys, target_id, inbound_signal, new_id)
+      def reconnect_predecessor(flow_map, flow_ary_keys, target_id, inbound_signal, new_id)
         predecessor_id, predecessor_connections = flow_map.find { |id, connections| connections[inbound_signal] == target_id }
 
         # First, re-point the predecessor of target to the newly inserted.
@@ -93,7 +104,7 @@ module Trailblazer
         return flow_map.merge(to_merge)
       end
 
-      def self.delete(flow_map, nodes, _, target_id, inbound_signal:, **)
+      def delete(flow_map, nodes, _, target_id, inbound_signal:, **)
         nodes = nodes.slice(*(nodes.keys - [target_id]))
         flow_ary_keys = flow_map.keys
         target_index = flow_ary_keys.index(target_id) # TODO: cleanup this!
@@ -110,7 +121,7 @@ module Trailblazer
         return flow_map, nodes
       end
 
-      def self.replace(flow_map, nodes, args_for_inserted, target_id, inbound_signal:, **)
+      def replace(flow_map, nodes, args_for_inserted, target_id, inbound_signal:, **)
         inserted_id = args_for_inserted[0]
 
         # Replace old key/args from nodes.

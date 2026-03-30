@@ -166,20 +166,84 @@ class CircuitAddsTest < Minitest::Spec
   it "{after, :a, inbound_signal: Left, outbound_signal: Right}" do
     extended_circuit = Trailblazer::Circuit::Adds.(
       my_circuit,
-      [_A::Circuit::Node[:z, my_exec_context.method(:z), lib_interface], :after, :a, inbound_signal: Left, outbound_signal: Right],
+      [_A::Circuit::Node[:z, my_exec_context.method(:z), lib_interface], :after, :a, inbound_signal: Left, outbound: [[Right]]],
     )
 
     assert_run extended_circuit, seq: [:a, :b], terminus: Right
     assert_run extended_circuit, terminus: Right, seq: [:a, :z, :c], flow_options: {application_ctx: {seq: [], a: Left}}
   end
 
-  it "{before, :a, inbound_signal: Left, outbound_signal: Right}" do
+  it "{before, :c, inbound_signal: Left, outbound_signal: Right}" do
     extended_circuit = Trailblazer::Circuit::Adds.(
       my_circuit,
-      [_A::Circuit::Node[:z, my_exec_context.method(:z), lib_interface], :before, :c, inbound_signal: Left, outbound_signal: Right],
+      [_A::Circuit::Node[:z, my_exec_context.method(:z), lib_interface], :before, :c, inbound_signal: Left, outbound: [[Right]]],
     )
+
+    #  :a --> :c
+    #  ||
+    #  :b
+
+    #  :a --> :z --> :c
+    #  ||
+    #  :b
 
     assert_run extended_circuit, seq: [:a, :b], terminus: Right
     assert_run extended_circuit, terminus: Right, seq: [:a, :z, :c], flow_options: {application_ctx: {seq: [], a: Left}}
+  end
+
+
+  it "we can define {:outbound} instead of using defaults with {:after}" do
+    extended_circuit = Trailblazer::Circuit::Adds.(
+      my_circuit,
+      [_A::Circuit::Node[:z, my_exec_context.method(:z), lib_interface], :after, :a, inbound_signal: Left, outbound: [[Right, nil], [:MySignal]]],
+    )
+
+    assert_run extended_circuit, seq: [:a, :b], terminus: Right
+    assert_run extended_circuit, terminus: Right, seq: [:a, :z], flow_options: {application_ctx: {seq: [], a: Left}}
+    assert_run extended_circuit, terminus: Right, seq: [:a, :z, :c], flow_options: {application_ctx: {seq: [], a: Left, z: :MySignal}}
+  end
+
+  it "we can define {:outbound_connections} with {:before}" do
+    extended_circuit = Trailblazer::Circuit::Adds.(
+      my_circuit,
+      [_A::Circuit::Node[:z, my_exec_context.method(:z), lib_interface], :before, :c, inbound_signal: Left, outbound_connections: {Right => nil, :MySignal => :c}],
+    )
+
+    assert_run extended_circuit, seq: [:a, :b], terminus: Right
+    assert_run extended_circuit, terminus: Right, seq: [:a, :z], flow_options: {application_ctx: {seq: [], a: Left}}
+    assert_run extended_circuit, terminus: Right, seq: [:a, :z, :c], flow_options: {application_ctx: {seq: [], a: Left, z: :MySignal}}
+  end
+
+  it "we can use {:outbound} with {:before}, it adds the descendent for us" do
+    extended_circuit = Trailblazer::Circuit::Adds.(
+      my_circuit,
+      [_A::Circuit::Node[:z, my_exec_context.method(:z), lib_interface], :before, :c, inbound_signal: Left, outbound: [[Right => nil], [:MySignal]]], # will be resolved to {Right => nil, MySignal => :c}
+    )
+
+    assert_run extended_circuit, seq: [:a, :b], terminus: Right
+    assert_run extended_circuit, terminus: Right, seq: [:a, :z], flow_options: {application_ctx: {seq: [], a: Left}}
+    assert_run extended_circuit, terminus: Right, seq: [:a, :z, :c], flow_options: {application_ctx: {seq: [], a: Left, z: :MySignal}}
+  end
+
+  it "with :inbound_signal, the predecessor represents the first node that points to target via {inbound_signal}" do
+    my_circuit = Trailblazer::Circuit::Builder.Circuit(
+      [:a, my_exec_context.method(:a), connections: {Right => :c, Left => :b}],
+      [:b, my_exec_context.method(:b), connections: {Right => :c}],
+      [:c, my_exec_context.method(:c)]# we got two (:a and :b) both pointing to :c.
+    )
+
+    my_circuit = Trailblazer::Circuit::Adds.(
+      my_circuit,
+      [_A::Circuit::Node[:z, my_exec_context.method(:z), lib_interface], :before, :c, inbound_signal: Right, outbound_connections: {Right => :c}],
+    )
+
+    # a --> c
+    #   --> b --> c
+
+    # a --> z --> c
+    #   --> b --> c
+
+    assert_run my_circuit, seq: [:a, :z, :c], terminus: Right
+    assert_run my_circuit, terminus: Right, seq: [:a, :b, :c], flow_options: {application_ctx: {seq: [], a: Left}}
   end
 end
