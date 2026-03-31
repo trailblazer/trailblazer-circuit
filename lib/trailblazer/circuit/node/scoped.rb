@@ -15,19 +15,24 @@ module Trailblazer
 
         # raise "do we need local_circuit_options, e.g. for :start_task?"
 
-        def call(outer_ctx, flow_options, outer_signal, context_implementation:, **circuit_options)# FIXME: we need to "cleanse" the circuit_options from any configuration, dangerous. waht if a higher node has a config that is not filtered out by the Node runner?
-          ctx = context_implementation.scope(outer_ctx, copy_from_outer_ctx, merge_to_lib_ctx)
+        def call(outer_ctx, flow_options, outer_signal, **circuit_options)
+          ctx = scope(outer_ctx, flow_options, outer_signal, **circuit_options)
 
-          ctx, flow_options, signal = super(ctx, flow_options, outer_signal, **circuit_options, context_implementation: context_implementation)
+          ctx, flow_options, signal = super(ctx, flow_options, outer_signal, **circuit_options)
 
             # puts "@@@@ after #{id}!@ #{signal.inspect}"
-          ctx, signal = unscope(ctx, outer_ctx, signal, outer_signal, context_implementation)
+          ctx, signal = unscope(ctx, outer_ctx, signal, outer_signal, **circuit_options)
 # puts "@@@@@ #{ctx.inspect}"
           return ctx, flow_options, signal
         end
 
         # @private
-        def unscope(lib_ctx, outer_ctx, signal, outer_signal, context_implementation)
+        def scope(outer_ctx, flow_options, outer_signal, context_implementation:, **)
+          context_implementation.scope(outer_ctx, copy_from_outer_ctx, merge_to_lib_ctx) # FIXME: {copy_from_outer_ctx} and {merge_to_lib_ctx} are attrs.
+        end
+
+        # @private
+        def unscope(lib_ctx, outer_ctx, signal, outer_signal, context_implementation:, **)
           # Per default, we do NOT copy anything to {outer_ctx}.
           # puts "@@#{local_circuit_options}@@@ #{copy_to_outer_ctx.inspect}"
           lib_ctx = context_implementation.unscope(outer_ctx, lib_ctx, copy_to_outer_ctx)
