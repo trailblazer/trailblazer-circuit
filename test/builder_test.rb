@@ -11,10 +11,6 @@ class PipelineBuilderTest < Minitest::Spec
     end
   end
 
-  let(:exec_context_for_a) do
-    T.def_steps(:a)
-  end
-
   it "{scope: true} creates Node::Scoped" do
     my_task = ->(lib_ctx, flow_options, signal, **) do
       flow_options[:application_ctx][:seq] << :my_pollutor
@@ -53,20 +49,18 @@ class PipelineBuilderTest < Minitest::Spec
   end
 
   it "provides defaulting" do
-    my_steps = T.def_steps(:b, :c)
-    my_tasks = T.def_tasks(:d, success_signal: Right)
-
+    my_tasks = T.def_tasks(:b, :c, :d, success_signal: Right)
 
     c_circuit = Trailblazer::Circuit::Builder.Pipeline(
-      [:c, my_steps.method(:c), Trailblazer::Circuit::Task::Adapter::StepInterface]
+      [:c, my_tasks.method(:c)]
     )
 
     circuit = Trailblazer::Circuit::Builder.Pipeline(
-      # instance method with step interface.
-      [:a, :a, Trailblazer::Circuit::Task::Adapter::StepInterface::InstanceMethod, merge_to_lib_ctx: {exec_context: exec_context_for_a}],
+      # instance method with lib interface.
+      [:a, :a, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod, merge_to_lib_ctx: {exec_context: T.def_tasks(:a, success_signal: nil)}],
 
       # callable with step interface, we don't get defaulting here.
-      [:b, my_steps.method(:b), Trailblazer::Circuit::Task::Adapter::StepInterface],
+      [:b, my_tasks.method(:b), Trailblazer::Circuit::Task::Adapter::LibInterface],
 
       # defaulting for circuit_options for the nested pipe.
       [:c, c_circuit, Trailblazer::Circuit::Processor],
@@ -79,7 +73,7 @@ class PipelineBuilderTest < Minitest::Spec
       seq: [:a, :b, :c, :d],
       exec_context: exec_context_for_d
 
-    assert_equal lib_ctx, {exec_context: exec_context_for_d, :value=>true}
+    assert_equal lib_ctx, {exec_context: exec_context_for_d}
   end
 
   it "{Builder.Pipeline} and {Builder::Pipeline.call} are identical" do

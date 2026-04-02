@@ -1,17 +1,17 @@
 require "test_helper"
 
 class NodeRunnerTest < Minitest::Spec
+  let(:my_exec_context) { T.def_tasks(:a, :b, :c, success_signal: nil) }
+
   it "{Runner.call}" do
     my_pipe = Pipeline(
-      [:a, :a, _A::Circuit::Task::Adapter::StepInterface::InstanceMethod],
-      [:b, :b, _A::Circuit::Task::Adapter::StepInterface::InstanceMethod],
-      [:c, :c, _A::Circuit::Task::Adapter::StepInterface::InstanceMethod],
+      [:a, :a, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod],
+      [:b, :b, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod],
+      [:c, :c, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod],
     )
 
     my_pipe_node = _A::Circuit::Node::Scoped[:my_pipe_node, my_pipe, _A::Circuit::Processor]
     runner = _A::Circuit::Node::Runner
-
-    my_exec_context = T.def_steps(:a, :b, :c)
 
     lib_ctx, flow_options = runner.(my_pipe_node, {exec_context: my_exec_context}, {application_ctx: {seq: []}}, nil,
       runner: runner,
@@ -23,15 +23,13 @@ class NodeRunnerTest < Minitest::Spec
 
   it "{:start_tuple} can be passed which is then used by Processor" do
     my_pipe = Pipeline(
-      [:a, :a, _A::Circuit::Task::Adapter::StepInterface::InstanceMethod],
-      [:b, :b, _A::Circuit::Task::Adapter::StepInterface::InstanceMethod],
-      [:c, :c, _A::Circuit::Task::Adapter::StepInterface::InstanceMethod],
+      [:a, :a, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod],
+      [:b, :b, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod],
+      [:c, :c, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod],
     )
 
     my_pipe_node = _A::Circuit::Node::Scoped[:my_pipe_node, my_pipe, _A::Circuit::Processor]
     runner = _A::Circuit::Node::Runner
-
-    my_exec_context = T.def_steps(:a, :b, :c)
 
     lib_ctx, flow_options, signal = runner.(my_pipe_node, {exec_context: my_exec_context}, {application_ctx: {seq: []}}, nil, runner: runner,
       start_tuple: [:b, my_pipe.nodes[:b]],

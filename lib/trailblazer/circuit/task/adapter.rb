@@ -19,14 +19,14 @@
 
         # The step interface is only used on the application level.
         class StepInterface
-          def self.call(task, ctx, flow_options, _, **)
-            target_ctx = flow_options[:application_ctx]
+          def self.call(task, lib_ctx, flow_options, signal, **circuit_options)
+            target_ctx = lib_ctx.fetch(:target_ctx) # TODO: introduce second kwargs method that calls {#run_step}.
 
-            result = run_step(task, target_ctx, **ctx)
+            result = run_step(task, target_ctx, **lib_ctx)
 
-            ctx[:value] = result
+            lib_ctx[:value] = result
 
-            return ctx, flow_options, nil # DISCUSS: value.
+            return lib_ctx, flow_options, nil # TODO: test returning {nil}. we do that because this task is also used in Circuits, so we should have a well-defined returned signal.
           end
 
           def self.run_step(task, target_ctx, **)

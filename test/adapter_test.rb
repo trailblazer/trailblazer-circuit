@@ -36,11 +36,12 @@ class AdapterTest < Minitest::Spec
   end
 
   def assert_step_interface(node)
+    application_ctx = {params: {id: 1}, slug: 9}
+
     ctx, flow_options, signal = _A::Circuit::Node::Runner.(
       node,
-      {aggregate: []}, # let's assume this is part of the local processing pipeline and from one of the recent steps.
+      {aggregate: [], target_ctx: application_ctx}, # let's assume this is part of the local processing pipeline and from one of the recent steps.
       {
-        application_ctx: {params: {id: 1}, slug: 9},
         trace_ctx: {stack: []},
       },
       nil,
@@ -49,14 +50,15 @@ class AdapterTest < Minitest::Spec
     )
 
     assert_equal signal, nil
-    assert_equal ctx, {aggregate: []}
+    assert_equal ctx, {aggregate: [], target_ctx: application_ctx}
     assert_equal flow_options, {
-      :application_ctx=>{
-        params: {:id=>1},
-        slug: 9,
-        model:  Captured.new(["{:params=>{:id=>1}, :slug=>9}", "{:id=>1}", "{:slug=>9}"]),
-      },
       :trace_ctx=>{:stack=>[]}
+    }
+    # Unfortunately, application_ctx is mutated, that's how step interface works.
+    assert_equal application_ctx, {
+      params: {:id=>1},
+      slug: 9,
+      model:  Captured.new(["{:params=>{:id=>1}, :slug=>9}", "{:id=>1}", "{:slug=>9}"]),
     }
   end
 

@@ -45,17 +45,25 @@ class WrapRuntimeTest < Minitest::Spec
     end.new
 
     create_instance = Class.new do
-      def find(ctx, id:, **)
-        ctx[:model] = Record.new(id)
+      def find(lib_ctx, flow_options, signal, **)
+        id = flow_options[:application_ctx][:id]
+
+        flow_options[:application_ctx][:model] = Record.new(id)
+
+        return lib_ctx, flow_options, signal
       end
 
-      def save(ctx, params:, **)
+      def save(lib_ctx, flow_options, signal, **)
+        params = flow_options[:application_ctx][:params]
+
         params[:model].title = params[:title]
+
+        return lib_ctx, flow_options, signal
       end
     end.new
 
     model_call_pipe = Trailblazer::Circuit::Builder.Pipeline(
-      [:find, :find, Trailblazer::Circuit::Task::Adapter::StepInterface::InstanceMethod],
+      [:find, :find, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod],
       [:compute_signal, my_activity.method(:compute_signal), Trailblazer::Circuit::Task::Adapter::LibInterface],
     )
 
@@ -67,7 +75,7 @@ class WrapRuntimeTest < Minitest::Spec
 
     save_tw = Trailblazer::Circuit::Builder.Pipeline(
       # [:input, my_io.method(:model_input), Trailblazer::Circuit::Task::Adapter::LibInterface],
-      [:call_task, :save , Trailblazer::Circuit::Task::Adapter::StepInterface::InstanceMethod],
+      [:call_task, :save , Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod],
       [:compute_signal, my_activity.method(:compute_signal), Trailblazer::Circuit::Task::Adapter::LibInterface],
       # [:output, my_io.method(:model_output), Trailblazer::Circuit::Task::Adapter::LibInterface],
     )
