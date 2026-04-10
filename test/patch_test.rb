@@ -3,27 +3,29 @@ require "test_helper"
 module Trailblazer
   class Circuit
     module Patch
-      def self.call(circuit, path, adds:)
+      def self.call(node, path, adds:)
         # traverse deeper if {path}
         if path.any?
           id, *path = path
 
-          node_for_id = circuit.nodes[id]
-          circuit_for_id = node_for_id.task # DISCUSS: use Introspect?
+          node_for_id = Node::Introspect.find_path(node, [id])
+          # circuit_for_id = node_for_id.task
 
-          # traverse
-          new_circuit_for_id = call(circuit_for_id, path, adds: adds)
+          # recurse
+          new_node_for_id = call(node_for_id, path, adds: adds)
 
           # Replace the currently traversed nested node with the patched version.
           adds = [
             [
-              node_for_id.class.new(**node_for_id.to_h, task: new_circuit_for_id), # TODO: provide API from Node.
+              new_node_for_id,
               :replace, id
             ]
           ]
         end
 
-        return Adds.(circuit, *adds)
+        new_circuit = Adds.(node.task, *adds)
+
+        node.class.new(**node.to_h, task: new_circuit) # TODO: provide API from Node.
       end
     end
   end
@@ -47,10 +49,11 @@ class PatchTest < Minitest::Spec
       [:d, my_exec_context.method(:d)],
       [:abc, my_outer_pipe, Trailblazer::Circuit::Processor],
     )
+    my_top_node = Trailblazer::Circuit::Node[:top, my_top_pipe, Trailblazer::Circuit::Processor]
 
     # patch on the top pipe itself.
-    my_new_top_pipe = Trailblazer::Circuit::Patch.(
-      my_top_pipe,
+    my_new_top_node = Trailblazer::Circuit::Patch.(
+      my_top_node,
       [],
       adds: [
         [
@@ -61,8 +64,8 @@ class PatchTest < Minitest::Spec
     )
 
     # patch two levels down.
-    pipe_two_levels_patched = Trailblazer::Circuit::Patch.(
-      my_top_pipe,
+    node_two_levels_patched = Trailblazer::Circuit::Patch.(
+      my_top_node,
       [:abc],
       adds: [
         [
@@ -73,8 +76,8 @@ class PatchTest < Minitest::Spec
     )
 
     # patch three levels down.
-    top_pipe_deeply_patched = Trailblazer::Circuit::Patch.(
-      my_top_pipe,
+    node_three_levels_patched = Trailblazer::Circuit::Patch.(
+      my_top_node,
       [:abc, :ab],
       adds: [
         [
@@ -84,9 +87,9 @@ class PatchTest < Minitest::Spec
       ]
     )
 
-    assert_run my_top_pipe, seq: [:d, :c, :a, :b]
-    assert_run my_new_top_pipe, seq: [:e, :c, :a, :b]
-    assert_run top_pipe_deeply_patched, seq: [:d, :c, :a, :e, :b]
-    assert_run pipe_two_levels_patched, seq: [:d, :c, :e, :a, :b]
+    assert_run my_top_node, node: true, seq: [:d, :c, :a, :b]
+    assert_run my_new_top_node, node: true, seq: [:e, :c, :a, :b]
+    assert_run node_two_levels_patched, node: true, seq: [:d, :c, :e, :a, :b]
+    assert_run node_three_levels_patched, node: true, seq: [:d, :c, :a, :e, :b]
   end
 end
