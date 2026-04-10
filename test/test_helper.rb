@@ -7,10 +7,6 @@ Minitest::Spec.class_eval do
   include Trailblazer::Core::Utils::AssertEqual
   T = Trailblazer::Core
 
-  # module Minitest::Spec::Implementing
-  #   extend T.def_tasks(:a, :b, :c, :d, :f, :g)
-  # end
-
   Left = Class.new
   Right = Class.new
 end
@@ -42,10 +38,7 @@ class Capture < Struct.new(:name, :pollute, :return_signal)
 end
 
 Minitest::Spec.class_eval do
-  require "trailblazer/core"
   CU = Trailblazer::Core::Utils
-
-  include Trailblazer::Core::Utils::AssertRun
 
   let(:_A) { Trailblazer } # TODO: remove.
 
