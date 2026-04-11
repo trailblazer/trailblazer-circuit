@@ -18,15 +18,15 @@ module Trailblazer
         nodes     = circuit.nodes
 
         # inbound_signal: the signal from the previous node to reconnect
-        instructions.each do |node, insertion_method, target_id, options = {inbound_signal: nil}|
-          flow_map, nodes = send(insertion_method, flow_map, nodes, node, target_id, **options)
+        instructions.each do |id, node, insertion_method, target_id, options = {inbound_signal: nil}|
+          flow_map, nodes = send(insertion_method, flow_map, nodes, id, node, target_id, **options)
         end
 
         circuit.class.build(flow_map: flow_map, nodes: nodes) # this will recompute start and termini.
       end
 
-      def before(flow_map, nodes, args_for_inserted, target_id, inbound_signal:, outbound_connections: nil, outbound: [[nil]])
-        nodes, target_id, target_index, inserted_id, flow_ary_keys = prepare_insertion(args_for_inserted, flow_map, nodes, target_id, index_for_nil: 0)
+      def before(flow_map, nodes, inserted_id, inserted_node, target_id, inbound_signal:, outbound_connections: nil, outbound: [[nil]])
+        nodes, target_id, target_index, inserted_id, flow_ary_keys = prepare_insertion(inserted_id, inserted_node, flow_map, nodes, target_id, index_for_nil: 0)
 
         outbound_connections = defaultize_outbound_connections(target_id, outbound_connections: outbound_connections, outbound: outbound)
 
@@ -44,8 +44,8 @@ module Trailblazer
         return flow_map, nodes
       end
 
-      def after(flow_map, nodes, args_for_inserted, target_id, inbound_signal:, outbound_connections: nil, outbound: [[nil]])
-        nodes, target_id, target_index, inserted_id, flow_ary_keys = prepare_insertion(args_for_inserted, flow_map, nodes, target_id, index_for_nil: -1, offset: 1)
+      def after(flow_map, nodes, inserted_id, inserted_node, target_id, inbound_signal:, outbound_connections: nil, outbound: [[nil]])
+        nodes, target_id, target_index, inserted_id, flow_ary_keys = prepare_insertion(inserted_id, inserted_node, flow_map, nodes, target_id, index_for_nil: -1, offset: 1)
         # outgoing connections from the target that gets a new descendent.
         target_connections = flow_map[target_id]
         original_target_descendent = target_connections[inbound_signal] # a: {Right: :b, Left: :c}
@@ -72,9 +72,8 @@ module Trailblazer
         end.to_h
       end
 
-      def prepare_insertion(args_for_inserted, flow_map, nodes, target_id, index_for_nil:, offset: 0)
-        inserted_id = args_for_inserted[0]
-        nodes = nodes.merge(inserted_id => args_for_inserted) # DISCUSS: we kind of have to do that here.
+      def prepare_insertion(inserted_id, inserted_node, flow_map, nodes, target_id, index_for_nil:, offset: 0)
+        nodes = nodes.merge(inserted_id => inserted_node) # DISCUSS: we kind of have to do that here.
         flow_ary_keys = flow_map.keys
 
         if target_id.nil? # new start task coming.
@@ -104,7 +103,7 @@ module Trailblazer
         return flow_map.merge(to_merge)
       end
 
-      def delete(flow_map, nodes, _, target_id, inbound_signal:, **)
+      def delete(flow_map, nodes, _, _, target_id, inbound_signal:, **)
         nodes = nodes.slice(*(nodes.keys - [target_id]))
         flow_ary_keys = flow_map.keys
         target_index = flow_ary_keys.index(target_id) # TODO: cleanup this!
@@ -121,12 +120,10 @@ module Trailblazer
         return flow_map, nodes
       end
 
-      def replace(flow_map, nodes, args_for_inserted, target_id, inbound_signal:, **)
-        inserted_id = args_for_inserted[0]
-
+      def replace(flow_map, nodes, inserted_id, inserted_node, target_id, inbound_signal:, **)
         # Replace old key/args from nodes.
         nodes = nodes.slice(*(nodes.keys - [target_id])) # FIXME: redundant with {delete} logic.
-        nodes = nodes.merge(inserted_id => args_for_inserted)
+        nodes = nodes.merge(inserted_id => inserted_node)
 
         flow_ary_keys = flow_map.keys
         target_index = flow_ary_keys.index(target_id) # TODO: cleanup this!

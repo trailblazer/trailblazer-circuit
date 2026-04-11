@@ -16,6 +16,7 @@ module Trailblazer
             # Replace the currently traversed nested node with the patched version.
             adds = [
               [
+                id,
                 new_node_for_id,
                 :replace, id
               ]

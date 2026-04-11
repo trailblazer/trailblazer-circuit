@@ -24,26 +24,26 @@ class CircuitAddsTest < Minitest::Spec
   it "prepare_insertion" do
     flow_map, _, nodes = model_tw_pipe.to_a
 
-    _, target_id, target_index = Trailblazer::Circuit::Adds.prepare_insertion([:z, :z], flow_map, nodes, nil, index_for_nil: 0)# before: nil
+    _, target_id, target_index = Trailblazer::Circuit::Adds.prepare_insertion(:z, :z, flow_map, nodes, nil, index_for_nil: 0)# before: nil
     assert_equal [target_id, target_index], [:a, 0]
-    _, target_id, target_index = Trailblazer::Circuit::Adds.prepare_insertion([:z, :z], flow_map, nodes, :a, index_for_nil: 0)# before: :a
+    _, target_id, target_index = Trailblazer::Circuit::Adds.prepare_insertion(:z, :z, flow_map, nodes, :a, index_for_nil: 0)# before: :a
     assert_equal [target_id, target_index], [:a, 0]
-    _, target_id, target_index = Trailblazer::Circuit::Adds.prepare_insertion([:z, :z], flow_map, nodes, :b, index_for_nil: 0)# before: :b
+    _, target_id, target_index = Trailblazer::Circuit::Adds.prepare_insertion(:z, :z, flow_map, nodes, :b, index_for_nil: 0)# before: :b
     assert_equal [target_id, target_index], [:b, 1]
 
-    _, target_id, target_index = Trailblazer::Circuit::Adds.prepare_insertion([:z, :z], flow_map, nodes, nil, index_for_nil: -1, offset: 1)# after: nil
+    _, target_id, target_index = Trailblazer::Circuit::Adds.prepare_insertion(:z, :z, flow_map, nodes, nil, index_for_nil: -1, offset: 1)# after: nil
     assert_equal [target_id, target_index], [:c, -1]
-    _, target_id, target_index = Trailblazer::Circuit::Adds.prepare_insertion([:z, :z], flow_map, nodes, :c, index_for_nil: -1, offset: 1)# after: :c
+    _, target_id, target_index = Trailblazer::Circuit::Adds.prepare_insertion(:z, :z, flow_map, nodes, :c, index_for_nil: -1, offset: 1)# after: :c
     assert_equal [target_id, target_index], [:c, 3]
-    _, target_id, target_index = Trailblazer::Circuit::Adds.prepare_insertion([:z, :z], flow_map, nodes, :a, index_for_nil: -1, offset: 1)# after: :a
+    _, target_id, target_index = Trailblazer::Circuit::Adds.prepare_insertion(:z, :z, flow_map, nodes, :a, index_for_nil: -1, offset: 1)# after: :a
     assert_equal [target_id, target_index], [:a, 1]
   end
 
   it "{before, nil, before, nil} adds to the beginning, the last becomes the first" do
     extended_tw_pipe = Trailblazer::Circuit::Adds.(
       model_tw_pipe,
-      [_A::Circuit::Node::Scoped[:z, :z, interface, **node_options], :before],
-      [_A::Circuit::Node::Scoped[:y, :y, interface, **node_options], :before],
+      [:z, _A::Circuit::Node::Scoped[:z, :z, interface, **node_options], :before],
+      [:y, _A::Circuit::Node::Scoped[:y, :y, interface, **node_options], :before],
     )
 
     assert_run extended_tw_pipe, seq: [:y, :z, :a, :b, :c], terminus: Right
@@ -52,7 +52,7 @@ class CircuitAddsTest < Minitest::Spec
   it "{before, :b}" do
     extended_tw_pipe = Trailblazer::Circuit::Adds.(
       model_tw_pipe,
-      [_A::Circuit::Node::Scoped[:z, :z, interface, **node_options], :before, :b],
+      [:z, _A::Circuit::Node::Scoped[:z, :z, interface, **node_options], :before, :b],
     )
 
     assert_run extended_tw_pipe, seq: [:a, :z, :b, :c], terminus: Right
@@ -61,7 +61,7 @@ class CircuitAddsTest < Minitest::Spec
   it "{after, :b}" do
     extended_tw_pipe = Trailblazer::Circuit::Adds.(
       model_tw_pipe,
-      [_A::Circuit::Node::Scoped[:z, :z, interface, **node_options], :after, :b],
+      [:z, _A::Circuit::Node::Scoped[:z, :z, interface, **node_options], :after, :b],
     )
 
     assert_run extended_tw_pipe, seq: [:a, :b, :z, :c], terminus: Right
@@ -70,8 +70,8 @@ class CircuitAddsTest < Minitest::Spec
   it "{after, :b}, {after: :b}" do
     extended_tw_pipe = Trailblazer::Circuit::Adds.(
       model_tw_pipe,
-      [_A::Circuit::Node::Scoped[:z, :z, interface, **node_options], :after, :b],
-      [_A::Circuit::Node::Scoped[:y, :y, interface, **node_options], :after, :b],
+      [:z, _A::Circuit::Node::Scoped[:z, :z, interface, **node_options], :after, :b],
+      [:y, _A::Circuit::Node::Scoped[:y, :y, interface, **node_options], :after, :b],
     )
 
     assert_run extended_tw_pipe, seq: [:a, :b, :y, :z, :c], terminus: Right
@@ -80,8 +80,8 @@ class CircuitAddsTest < Minitest::Spec
   it "{after, nil}, {after: nil}" do
     extended_tw_pipe = Trailblazer::Circuit::Adds.(
       model_tw_pipe,
-      [_A::Circuit::Node::Scoped[:z, :z, interface, **node_options], :after],
-      [_A::Circuit::Node::Scoped[:y, :y, interface, **node_options], :after],
+      [:z, _A::Circuit::Node::Scoped[:z, :z, interface, **node_options], :after],
+      [:y, _A::Circuit::Node::Scoped[:y, :y, interface, **node_options], :after],
     )
 
     assert_run extended_tw_pipe, seq: [:a, :b, :c, :z, :y], terminus: Right
@@ -90,7 +90,7 @@ class CircuitAddsTest < Minitest::Spec
   it ":delete, first node" do
     extended_tw_pipe = Trailblazer::Circuit::Adds.(
       model_tw_pipe,
-      [_A::Circuit::Node::Scoped[:z, :z, interface, **node_options], :delete, :a],
+      [:z, _A::Circuit::Node::Scoped[:z, :z, interface, **node_options], :delete, :a],
     )
 
     assert_run extended_tw_pipe, seq: [:b, :c], terminus: Right
@@ -99,7 +99,7 @@ class CircuitAddsTest < Minitest::Spec
   it ":delete middle" do
     extended_tw_pipe = Trailblazer::Circuit::Adds.(
       model_tw_pipe,
-      [_A::Circuit::Node::Scoped[:z, :z, interface, **node_options], :delete, :b],
+      [:z, _A::Circuit::Node::Scoped[:z, :z, interface, **node_options], :delete, :b],
     )
 
     assert_run extended_tw_pipe, seq: [:a, :c], terminus: Right
@@ -108,7 +108,7 @@ class CircuitAddsTest < Minitest::Spec
   it ":delete, last" do
     extended_tw_pipe = Trailblazer::Circuit::Adds.(
       model_tw_pipe,
-      [_A::Circuit::Node::Scoped[:z, :z, interface, **node_options], :delete, :c],
+      [:z, _A::Circuit::Node::Scoped[:z, :z, interface, **node_options], :delete, :c],
     )
 
     assert_run extended_tw_pipe, seq: [:a, :b], terminus: Right
@@ -117,7 +117,7 @@ class CircuitAddsTest < Minitest::Spec
   it ":replace first" do
     extended_tw_pipe = Trailblazer::Circuit::Adds.(
       model_tw_pipe,
-      [_A::Circuit::Node::Scoped[:z, :z, interface, **node_options], :replace, :a],
+      [:z, _A::Circuit::Node::Scoped[:z, :z, interface, **node_options], :replace, :a],
     )
 
     assert_run extended_tw_pipe, seq: [:z, :b, :c], terminus: Right
@@ -128,7 +128,7 @@ class CircuitAddsTest < Minitest::Spec
   it ":replace middle" do
     extended_tw_pipe = Trailblazer::Circuit::Adds.(
       model_tw_pipe,
-      [_A::Circuit::Node::Scoped[:z, :z, interface, **node_options], :replace, :b],
+      [:z, _A::Circuit::Node::Scoped[:z, :z, interface, **node_options], :replace, :b],
     )
 
     assert_run extended_tw_pipe, seq: [:a, :z, :c], terminus: Right
@@ -139,7 +139,7 @@ class CircuitAddsTest < Minitest::Spec
   it ":replace last" do
     extended_tw_pipe = Trailblazer::Circuit::Adds.(
       model_tw_pipe,
-      [_A::Circuit::Node::Scoped[:z, :z, interface, **node_options], :replace, :c],
+      [:z, _A::Circuit::Node::Scoped[:z, :z, interface, **node_options], :replace, :c],
     )
 
     assert_run extended_tw_pipe, seq: [:a, :b, :z], terminus: Right
@@ -166,7 +166,7 @@ class CircuitAddsTest < Minitest::Spec
   it "{after, :a, inbound_signal: Left, outbound_signal: Right}" do
     extended_circuit = Trailblazer::Circuit::Adds.(
       my_circuit,
-      [_A::Circuit::Node[:z, my_exec_context.method(:z), lib_interface], :after, :a, inbound_signal: Left, outbound: [[Right]]],
+      [:z, _A::Circuit::Node[:z, my_exec_context.method(:z), lib_interface], :after, :a, inbound_signal: Left, outbound: [[Right]]],
     )
 
     assert_run extended_circuit, seq: [:a, :b], terminus: Right
@@ -176,7 +176,7 @@ class CircuitAddsTest < Minitest::Spec
   it "{before, :c, inbound_signal: Left, outbound_signal: Right}" do
     extended_circuit = Trailblazer::Circuit::Adds.(
       my_circuit,
-      [_A::Circuit::Node[:z, my_exec_context.method(:z), lib_interface], :before, :c, inbound_signal: Left, outbound: [[Right]]],
+      [:z, _A::Circuit::Node[:z, my_exec_context.method(:z), lib_interface], :before, :c, inbound_signal: Left, outbound: [[Right]]],
     )
 
     #  :a --> :c
@@ -195,7 +195,7 @@ class CircuitAddsTest < Minitest::Spec
   it "we can define {:outbound} instead of using defaults with {:after}" do
     extended_circuit = Trailblazer::Circuit::Adds.(
       my_circuit,
-      [_A::Circuit::Node[:z, my_exec_context.method(:z), lib_interface], :after, :a, inbound_signal: Left, outbound: [[Right, nil], [:MySignal]]],
+      [:z, _A::Circuit::Node[:z, my_exec_context.method(:z), lib_interface], :after, :a, inbound_signal: Left, outbound: [[Right, nil], [:MySignal]]],
     )
 
     assert_run extended_circuit, seq: [:a, :b], terminus: Right
@@ -206,7 +206,7 @@ class CircuitAddsTest < Minitest::Spec
   it "we can define {:outbound_connections} with {:before}" do
     extended_circuit = Trailblazer::Circuit::Adds.(
       my_circuit,
-      [_A::Circuit::Node[:z, my_exec_context.method(:z), lib_interface], :before, :c, inbound_signal: Left, outbound_connections: {Right => nil, :MySignal => :c}],
+      [:z, _A::Circuit::Node[:z, my_exec_context.method(:z), lib_interface], :before, :c, inbound_signal: Left, outbound_connections: {Right => nil, :MySignal => :c}],
     )
 
     assert_run extended_circuit, seq: [:a, :b], terminus: Right
@@ -217,7 +217,7 @@ class CircuitAddsTest < Minitest::Spec
   it "we can use {:outbound} with {:before}, it adds the descendent for us" do
     extended_circuit = Trailblazer::Circuit::Adds.(
       my_circuit,
-      [_A::Circuit::Node[:z, my_exec_context.method(:z), lib_interface], :before, :c, inbound_signal: Left, outbound: [[Right => nil], [:MySignal]]], # will be resolved to {Right => nil, MySignal => :c}
+      [:z, _A::Circuit::Node[:z, my_exec_context.method(:z), lib_interface], :before, :c, inbound_signal: Left, outbound: [[Right => nil], [:MySignal]]], # will be resolved to {Right => nil, MySignal => :c}
     )
 
     assert_run extended_circuit, seq: [:a, :b], terminus: Right
@@ -234,7 +234,7 @@ class CircuitAddsTest < Minitest::Spec
 
     my_circuit = Trailblazer::Circuit::Adds.(
       my_circuit,
-      [_A::Circuit::Node[:z, my_exec_context.method(:z), lib_interface], :before, :c, inbound_signal: Right, outbound_connections: {Right => :c}],
+      [:z, _A::Circuit::Node[:z, my_exec_context.method(:z), lib_interface], :before, :c, inbound_signal: Right, outbound_connections: {Right => :c}],
     )
 
     # a --> c

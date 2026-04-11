@@ -13,7 +13,7 @@ module Trailblazer
           # Apply the ADDS instructions to the current task to extend it (eg adding
           # tracing steps).
           def call(task:, **node_attrs)
-             adds_instructions = adds_producer.(task: task, **node_attrs) # DISCUSS: move that up to Extension? Do we actually need it outside of here?
+            adds_instructions = adds_producer.(task: task, **node_attrs) # DISCUSS: move that up to Extension? Do we actually need it outside of here?
 
             extended_task = Circuit::Adds.(task, *adds_instructions)
 

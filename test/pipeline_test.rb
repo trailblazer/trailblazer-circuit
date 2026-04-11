@@ -57,8 +57,9 @@ class PipelineTest < Minitest::Spec
     my_original_pipe = Pipeline([:a, :a], [:b, :b])
 
     my_other_pipe = Pipeline([:b, :b])
-    my_other_pipe = Trailblazer::Circuit::Adds.(my_other_pipe,
-      [Trailblazer::Circuit::Node[:a, :a, Trailblazer::Circuit::Task::Adapter::LibInterface], :before, :b]
+    my_other_pipe = Trailblazer::Circuit::Adds.(
+      my_other_pipe,
+      [:a, Trailblazer::Circuit::Node[:a, :a, Trailblazer::Circuit::Task::Adapter::LibInterface], :before, :b]
     )
 
     assert_equal my_original_pipe, my_other_pipe

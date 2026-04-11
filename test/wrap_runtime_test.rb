@@ -141,8 +141,8 @@ class WrapRuntimeTest < Minitest::Spec
         # Called through WrapRuntime::Runner.
         def self.call(id:, **attrs)
           [
-            [Trailblazer::Circuit::Node[:capture_before, Capture.new(id, :before),  Trailblazer::Circuit::Task::Adapter::LibInterface], :before],
-            [Trailblazer::Circuit::Node[:capture_after,  Capture.new(id, :after),   Trailblazer::Circuit::Task::Adapter::LibInterface], :after],
+            [:capture_before, Trailblazer::Circuit::Node[:capture_before, Capture.new(id, :before),  Trailblazer::Circuit::Task::Adapter::LibInterface], :before],
+            [:capture_after, Trailblazer::Circuit::Node[:capture_after,  Capture.new(id, :after),   Trailblazer::Circuit::Task::Adapter::LibInterface], :after],
           ]
         end
       end

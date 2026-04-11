@@ -26,6 +26,7 @@ class PatchTest < Minitest::Spec
       [],
       adds: [
         [
+          :e,
           Trailblazer::Circuit::Node[:e, my_exec_context.method(:e), Trailblazer::Circuit::Task::Adapter::LibInterface], # TODO: provide shortcut from Builder.
           :replace, :d
         ]
@@ -38,6 +39,7 @@ class PatchTest < Minitest::Spec
       [:abc],
       adds: [
         [
+          :e,
           Trailblazer::Circuit::Node[:e, my_exec_context.method(:e), Trailblazer::Circuit::Task::Adapter::LibInterface],
           :after, :c
         ]
@@ -50,6 +52,7 @@ class PatchTest < Minitest::Spec
       [:abc, :ab],
       adds: [
         [
+          :e,
           Trailblazer::Circuit::Node[:e, my_exec_context.method(:e), Trailblazer::Circuit::Task::Adapter::LibInterface],
           :after, :a
         ]
