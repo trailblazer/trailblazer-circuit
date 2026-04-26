@@ -39,6 +39,30 @@ class CircuitAddsTest < Minitest::Spec
     assert_equal [target_id, target_index], [:a, 1]
   end
 
+  it "{:before} with empty pipe" do
+    my_pipe = Trailblazer::Circuit::Builder.Pipeline()
+    pp my_pipe
+
+    my_extended_pipe = Trailblazer::Circuit::Adds.(
+      my_pipe,
+      [:a, _A::Circuit::Node[:a, my_exec_context.method(:a), Trailblazer::Circuit::Task::Adapter::LibInterface], :before]
+    )
+
+    assert_run my_extended_pipe, seq: [:a], terminus: Right
+  end
+
+  it "{:after} with empty pipe" do
+    my_pipe = Trailblazer::Circuit::Builder.Pipeline()
+    pp my_pipe
+
+    my_extended_pipe = Trailblazer::Circuit::Adds.(
+      my_pipe,
+      [:a, _A::Circuit::Node[:a, my_exec_context.method(:a), Trailblazer::Circuit::Task::Adapter::LibInterface], :after]
+    )
+
+    assert_run my_extended_pipe, seq: [:a], terminus: Right
+  end
+
   it "{before, nil, before, nil} adds to the beginning, the last becomes the first" do
     extended_tw_pipe = Trailblazer::Circuit::Adds.(
       model_tw_pipe,

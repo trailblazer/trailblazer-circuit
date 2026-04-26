@@ -46,16 +46,21 @@ module Trailblazer
 
       def after(flow_map, nodes, inserted_id, inserted_node, target_id, inbound_signal:, outbound_connections: nil, outbound: [[nil]])
         nodes, target_id, target_index, inserted_id, flow_ary_keys = prepare_insertion(inserted_id, inserted_node, flow_map, nodes, target_id, index_for_nil: -1, offset: 1)
-        # outgoing connections from the target that gets a new descendent.
-        target_connections = flow_map[target_id]
-        original_target_descendent = target_connections[inbound_signal] # a: {Right: :b, Left: :c}
 
-        outbound_connections = defaultize_outbound_connections(original_target_descendent, outbound: outbound, outbound_connections: outbound_connections)
+        if target_id # this is nil when after is applied on an empty pipe.
+          # outgoing connections from the target that gets a new descendent.
+          target_connections = flow_map[target_id]
+          original_target_descendent = target_connections[inbound_signal] # a: {Right: :b, Left: :c}
 
-        # TIL #merge reuses the old position of the key!
-        flow_map = flow_map.merge(
-          target_id => target_connections.merge(inbound_signal => inserted_id),
-        )
+          outbound_connections = defaultize_outbound_connections(original_target_descendent, outbound: outbound, outbound_connections: outbound_connections)
+
+          # TIL #merge reuses the old position of the key!
+          flow_map = flow_map.merge(
+            target_id => target_connections.merge(inbound_signal => inserted_id),
+          )
+        else
+          outbound_connections = {} # FIXME: couldn't this case be handled via prepare_insertion and a block?
+        end
 
         flow_map = insert_at(flow_map, target_index, [inserted_id, outbound_connections])
 
