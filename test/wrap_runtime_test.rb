@@ -92,8 +92,8 @@ class WrapRuntimeTest < Minitest::Spec
       [:Model, model_tw, Trailblazer::Circuit::Processor, connections: {Right => :Save, Left => :failure}],
       # [:Validate, validate_circuit, Trailblazer::Circuit::Processor], connections: {Right => :Validate, Left => :failure}]
       [:Save, save_tw, Trailblazer::Circuit::Processor, connections: {Right => :success, Left => :failure}],
-      [:success, success_pipe, Trailblazer::Circuit::Processor],
-      [:failure, failure_pipe, Trailblazer::Circuit::Processor]
+      [:success, success_pipe, Trailblazer::Circuit::Processor, connections: {:Success => nil}],
+      [:failure, failure_pipe, Trailblazer::Circuit::Processor, connections: {:Failure => nil}]
     )
 
     create_tw = Trailblazer::Circuit::Builder.Pipeline(

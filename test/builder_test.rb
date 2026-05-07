@@ -1,3 +1,4 @@
+
 require "test_helper"
 
 class PipelineBuilderTest < Minitest::Spec
@@ -87,13 +88,13 @@ end
 
 class CircuitBuilderTest < Minitest::Spec
   it "what" do
-    my_tasks = T.def_tasks(:c, :d, :success, :failure, success_signal: Right)
+    my_tasks = T.def_tasks(:c, :d, :failure, :success, success_signal: Right)
 
     c_circuit = Trailblazer::Circuit::Builder.Circuit(
       [:c, my_tasks.method(:c), connections: {Right => :d, Left => :failure}],
       [:d, my_tasks.method(:d), Trailblazer::Circuit::Task::Adapter::LibInterface, connections: {Right => :success, Left => :failure}],
-      [:failure, my_tasks.method(:failure)], # connections: {} is defaulted.
-      [:success, my_tasks.method(:success)],
+      [:failure, my_tasks.method(:failure), connections: {Right => nil}], # :connections imply terminus.
+      [:success, my_tasks.method(:success), connections: {Right => nil}], # :connections imply terminus.
     )
 
     lib_ctx, flow_options = assert_run c_circuit, terminus: Right, seq: [:c, :d, :success]
@@ -109,7 +110,7 @@ class CircuitBuilderTest < Minitest::Spec
 
   it "{Builder.Circuit} and {Builder::Circuit.call} are identical" do
     tasks = [
-      [:a, :a]
+      [:a, :a, connections: {nil => nil}]
     ]
 
     assert_equal Trailblazer::Circuit::Builder.Circuit(*tasks), Trailblazer::Circuit::Builder::Circuit.(*tasks)

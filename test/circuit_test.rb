@@ -14,7 +14,7 @@ class CircuitTest < Minitest::Spec
     {
       a: {nil => :b},
       b: {nil => :c},
-      c: {},
+      c: {nil => nil},
     }
   end
 
@@ -30,7 +30,7 @@ class CircuitTest < Minitest::Spec
     my_flow_map = {
       a: {nil => :b},
       b: {nil => :c},
-      c: {}
+      c: {nil => nil}
     }
 
     circuit = Trailblazer::Circuit.new(
@@ -56,11 +56,11 @@ class CircuitTest < Minitest::Spec
     assert_equal circuit.flow_map, my_flow_map
   end
 
-  it "a Circuit doesn't have explicit termini set, if a signal points to {nil}, or the node's signal map is an empty hash, it terminates" do
+  it "a Circuit doesn't have explicit termini set, if a signal points to {nil}, it terminates" do
     my_flow_map = {
       a: {nil => :b},
       b: {nil => :c, :Left => nil}, # the :Left signal points to nil, meaning it terminates here.
-      c: {} # empty signal map will also terrminate.
+      c: {nil => nil} # signal from  terminus pointing to nil terminates.
     }
 
     circuit = Trailblazer::Circuit.build(
@@ -71,6 +71,24 @@ class CircuitTest < Minitest::Spec
     assert_run circuit, seq: [:a, :b, :c]
     assert_run circuit, seq: [:a, :b], flow_options: {application_ctx: {seq: [], b: :Left}}, terminus: :Left
   end
+
+  it "should raise with IllegalSignalError FIXME" do
+    my_flow_map = {
+      a: {nil => :b}, # we don't know {"unknown signal"} here.
+    }
+
+    circuit = Trailblazer::Circuit.build(
+      flow_map: my_flow_map,
+      nodes: my_nodes,
+    )
+
+    exception = assert_raises KeyError do
+      assert_run circuit, seq: [:a],
+        application_ctx: {a: "unknown signal"}
+    end
+
+    assert_equal exception.message, "key not found: \"unknown signal\""
+  end
 end
 
 class CircuitScopeTest < Minitest::Spec
@@ -78,7 +96,7 @@ class CircuitScopeTest < Minitest::Spec
     circuit = _A::Circuit::Builder.Circuit(
       [:a, Capture.new(:a), scoped: true, connections: {nil => :b, Left => :c}], # isolated.
       [:b, Capture.new(:b), merge_to_lib_ctx: {d: 4}, scoped: true, copy_to_outer_ctx: [:d], connections: {nil => :c, Left => :c}],
-      [:c, Capture.new(:c), scoped: true], # isolated, but sees {:d}.
+      [:c, Capture.new(:c), scoped: true, connections: {nil => nil}], # isolated, but sees {:d}.
     )
 
     lib_ctx, flow_options = assert_run circuit, terminus: nil, seq: []
@@ -94,7 +112,7 @@ class CircuitScopeTest < Minitest::Spec
   it "internally set variables can be exposed to the follower via {:copy_to_outer_ctx}" do
     circuit = _A::Circuit::Builder.Circuit(
       [:a, Capture.new(:a, pollute: true), scoped: true, copy_to_outer_ctx: [:pollute], connections: {nil => :b, Left => :b}],
-      [:b, Capture.new(:b), scoped: true],  # sees :pollute
+      [:b, Capture.new(:b), scoped: true, connections: {nil => nil}],  # sees :pollute
     )
 
     lib_ctx, flow_options = assert_run circuit, terminus: nil, seq: []

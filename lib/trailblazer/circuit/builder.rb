@@ -98,7 +98,7 @@ module Trailblazer
             )
         end
 
-        def normalize_dsl_row(id, *args, connections: {}, **options)
+        def normalize_dsl_row(id, *args, connections:, **options)
           [
             [id, *args, options],
             [id, connections]
@@ -118,7 +118,7 @@ module Trailblazer
       # DISCUSS: should that sit in Activity? it's higher level than Circuit.
       # TODO: test me.
       # DISCUSS: this is a "std-lib" component. move this to {activity}.
-      module Step
+      module Step # FIXME: move to activity/remove
         def self.InstanceMethod(method_name)
           Builder.Pipeline(
             [:invoke_instance_method, method_name, Task::Adapter::StepInterface::InstanceMethod], # FIXME: we're currenly assuming that exec_context is passed down.

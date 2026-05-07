@@ -14,7 +14,8 @@ module Trailblazer
     # Find the next step for {current_node_id => signal}.
     # This is called in {Circuit::Processor.call}.
     def resolve(current_node_id, signal)
-      next_task_id = flow_map[current_node_id][signal] # TODO: how to improve dev experience for IllegalSignal?
+      # next_task_id = flow_map[current_node_id][signal] # TODO: how to improve dev experience for IllegalSignal?
+      next_task_id = flow_map[current_node_id].fetch(signal) # TODO: how to improve dev experience for IllegalSignal?
 
       return next_task_id, nodes[next_task_id] # TODO: can we save this lookup and optimize the map directly?
     end

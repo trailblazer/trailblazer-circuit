@@ -175,8 +175,8 @@ class CircuitAddsTest < Minitest::Spec
   let(:my_circuit) do
     Trailblazer::Circuit::Builder.Circuit(
       [:a, my_exec_context.method(:a), connections: {Right => :b, Left => :c}],
-      [:b, my_exec_context.method(:b), connections: {}],
-      [:c, my_exec_context.method(:c)],
+      [:b, my_exec_context.method(:b), connections: {Right => nil}],
+      [:c, my_exec_context.method(:c), connections: {Right => nil}],
     )
   end
 
@@ -241,7 +241,7 @@ class CircuitAddsTest < Minitest::Spec
   it "we can use {:outbound} with {:before}, it adds the descendent for us" do
     extended_circuit = Trailblazer::Circuit::Adds.(
       my_circuit,
-      [:z, _A::Circuit::Node[:z, my_exec_context.method(:z), lib_interface], :before, :c, inbound_signal: Left, outbound: [[Right => nil], [:MySignal]]], # will be resolved to {Right => nil, MySignal => :c}
+      [:z, _A::Circuit::Node[:z, my_exec_context.method(:z), lib_interface], :before, :c, inbound_signal: Left, outbound: [[Right, nil], [:MySignal]]], # will be resolved to {Right => nil, MySignal => :c}
     )
 
     assert_run extended_circuit, seq: [:a, :b], terminus: Right
@@ -253,7 +253,7 @@ class CircuitAddsTest < Minitest::Spec
     my_circuit = Trailblazer::Circuit::Builder.Circuit(
       [:a, my_exec_context.method(:a), connections: {Right => :c, Left => :b}],
       [:b, my_exec_context.method(:b), connections: {Right => :c}],
-      [:c, my_exec_context.method(:c)]# we got two (:a and :b) both pointing to :c.
+      [:c, my_exec_context.method(:c), connections: {Right => nil}]# we got two (:a and :b) both pointing to :c.
     )
 
     my_circuit = Trailblazer::Circuit::Adds.(
