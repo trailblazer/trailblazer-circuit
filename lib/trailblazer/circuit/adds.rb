@@ -77,7 +77,12 @@ module Trailblazer
         end.to_h
       end
 
+      class IllegalIdError < Exception
+      end
+
       def prepare_insertion(inserted_id, inserted_node, flow_map, nodes, target_id, index_for_nil:, offset: 0)
+        raise IllegalIdError.new(%(ID {#{inserted_id.inspect}} already taken.)) if nodes.key?(inserted_id)
+
         nodes = nodes.merge(inserted_id => inserted_node) # DISCUSS: we kind of have to do that here.
         flow_ary_keys = flow_map.keys
 

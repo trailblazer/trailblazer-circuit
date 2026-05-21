@@ -171,6 +171,22 @@ class CircuitAddsTest < Minitest::Spec
     assert_equal extended_tw_pipe.to_a[0].keys, [:a, :b, :z] # TODO: do that everywhere!
   end
 
+  it "inserting same ID twice raises with {:before}" do
+    exception = assert_raises Trailblazer::Circuit::Adds::IllegalIdError do
+      extended_tw_pipe = Trailblazer::Circuit::Adds.(model_tw_pipe, [:a, nil, :before])
+    end
+
+    assert_equal exception.message, %(ID {:a} already taken.)
+  end
+
+  it "inserting same ID twice raises with {:after}" do
+    exception = assert_raises Trailblazer::Circuit::Adds::IllegalIdError do
+      extended_tw_pipe = Trailblazer::Circuit::Adds.(model_tw_pipe, [:a, nil, :after])
+    end
+
+    assert_equal exception.message, %(ID {:a} already taken.)
+  end
+
   # Circuit-relevant
   let(:my_circuit) do
     Trailblazer::Circuit::Builder.Circuit(
