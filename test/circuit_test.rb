@@ -72,7 +72,7 @@ class CircuitTest < Minitest::Spec
     assert_run circuit, seq: [:a, :b], flow_options: {application_ctx: {seq: [], b: :Left}}, terminus: :Left
   end
 
-  it "should raise with IllegalSignalError FIXME" do
+  it "should raise with IllegalSignalError (# TODO)" do
     my_flow_map = {
       a: {nil => :b}, # we don't know {"unknown signal"} here.
     }
@@ -126,5 +126,38 @@ class CircuitScopeTest < Minitest::Spec
 
   it "allows discarding the internal signal and return the outer signal with {:return_outer_signal}" do
 
+  end
+end
+
+class CircuitResolveTest < Minitest::Spec
+  module Resolver
+    class Fixed < Struct.new(:signal) # TODO: is it faster to use a simple PORO?
+      def fetch(_signal)
+        signal
+      end
+    end
+  end
+
+  it "is possible to use a different resolving hash per node" do
+    my_flow_map = {
+      a: {Right => :b, Left => :failure}, # normal Resolver from a circuit step.
+      b: Resolver::Fixed.new(:c), # like {<any> => :next_step}
+      c: Resolver::Fixed.new(nil), # terminate, but return the "original" signal.
+      failure: {Right => nil}
+    }
+
+    my_exec_context = T.def_tasks(:a, :b, :c, :failure, success_signal: Right)
+
+    my_nodes = {
+      a: Trailblazer::Circuit::Node[:a, :a, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod],
+      b: Trailblazer::Circuit::Node[:b, :b, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod],
+      c: Trailblazer::Circuit::Node[:c, :c, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod],
+      failure: Trailblazer::Circuit::Node[:failure, :failure, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod],
+    }
+
+    my_circuit = Trailblazer::Circuit.build(flow_map: my_flow_map, nodes: my_nodes)
+
+    assert_run my_circuit, terminus: Right, seq: [:a, :b, :c], exec_context: my_exec_context
+    assert_run my_circuit, terminus: Right, seq: [:a, :failure], exec_context: my_exec_context, flow_options: {application_ctx: {seq: [], a: Left}}
   end
 end
