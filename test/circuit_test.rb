@@ -130,14 +130,46 @@ class CircuitScopeTest < Minitest::Spec
 end
 
 class CircuitResolveTest < Minitest::Spec
+  it "{Circuit#resolve} returns the next node and the signal" do
+    def self.a(lib_ctx, flow_options, signal, **)
+      lib_ctx[:seq_in_lib_ctx] << :a
+      return lib_ctx, flow_options, signal
+    end
+    def self.b(lib_ctx, flow_options, signal, **)
+      lib_ctx[:seq_in_lib_ctx] << :b
+      return lib_ctx, flow_options, signal
+    end
+
+    my_nodes = {
+      a: Trailblazer::Circuit::Node[:a, method(:a), Trailblazer::Circuit::Task::Adapter::LibInterface],
+      b: Trailblazer::Circuit::Node[:b, method(:b), Trailblazer::Circuit::Task::Adapter::LibInterface],
+    }
+
+    my_flow_map = {a: Resolver::Fixed.new(:b), b: Resolver::Fixed.new(nil)}
+
+    my_circuit = Class.new(Trailblazer::Circuit) do
+      def resolve(current_node_id, signal)
+        signal += [current_node_id] # the signal emitted by current_node.
+
+        super
+      end
+    end.build(flow_map:  my_flow_map, nodes: my_nodes)
+
+    lib_ctx, _ = assert_run my_circuit, seq: [], seq_in_lib_ctx: [], signal: [].freeze, terminus: [:a, :b]
+
+    assert_equal lib_ctx, {seq_in_lib_ctx: [:a, :b]}
+  end
+
   module Resolver
-    class Fixed < Struct.new(:signal) # TODO: is it faster to use a simple PORO?
+    class Fixed < Struct.new(:next_node_id) # TODO: is it faster to use a simple PORO?
       def fetch(_signal)
-        signal
+        next_node_id
       end
     end
   end
 
+  # it's now possible to either use a "hardcore" signal mapping hash, but it IS also possible
+  # to route without caring about the signal, etc.
   it "is possible to use a different resolving hash per node" do
     my_flow_map = {
       a: {Right => :b, Left => :failure}, # normal Resolver from a circuit step.
@@ -159,5 +191,13 @@ class CircuitResolveTest < Minitest::Spec
 
     assert_run my_circuit, terminus: Right, seq: [:a, :b, :c], exec_context: my_exec_context
     assert_run my_circuit, terminus: Right, seq: [:a, :failure], exec_context: my_exec_context, flow_options: {application_ctx: {seq: [], a: Left}}
+
+    # With a Reolver::Fixed, a terminating node can return any signal, but still terminates.
+    assert_run my_circuit, terminus: :c_says_Right, seq: [:a, :b, :c], exec_context: my_exec_context, flow_options: {application_ctx: {seq: [], c: :c_says_Right}}
+  end
+
+  it "what" do
+    raise "Pipeline vs Circuit with Fixed"
+    raise "old Circuit vs Circuit with resolving that returns signal"
   end
 end

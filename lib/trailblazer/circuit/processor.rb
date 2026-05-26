@@ -17,8 +17,7 @@
           }
 
           lib_ctx, flow_options, signal = runner.(node, lib_ctx, flow_options, signal, **circuit_options)
-
-          id, node = circuit.resolve(id, signal) # DISCUSS: pass id and node?
+          id, node, signal = circuit.resolve(id, signal) # DISCUSS: pass id and node? DISCUSS: allow returning the {signal} from resolve?
 
           return lib_ctx, flow_options, signal unless node
           # unless ()
