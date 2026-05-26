@@ -195,9 +195,4 @@ class CircuitResolveTest < Minitest::Spec
     # With a Reolver::Fixed, a terminating node can return any signal, but still terminates.
     assert_run my_circuit, terminus: :c_says_Right, seq: [:a, :b, :c], exec_context: my_exec_context, flow_options: {application_ctx: {seq: [], c: :c_says_Right}}
   end
-
-  it "what" do
-    raise "Pipeline vs Circuit with Fixed"
-    raise "old Circuit vs Circuit with resolving that returns signal"
-  end
 end
