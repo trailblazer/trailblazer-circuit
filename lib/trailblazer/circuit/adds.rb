@@ -25,7 +25,9 @@ module Trailblazer
         circuit.class.build(flow_map: flow_map, nodes: nodes) # this will recompute start and termini.
       end
 
-      def before(flow_map, nodes, inserted_id, inserted_node, target_id, inbound_signal:, outbound_connections: nil, outbound: [[nil]])
+      DEFAULT_OUTBOUND = [Resolver::Fixed.new, nil]
+
+      def before(flow_map, nodes, inserted_id, inserted_node, target_id, inbound_signal:, outbound_connections: nil, outbound: DEFAULT_OUTBOUND)
         nodes, target_id, target_index, inserted_id, flow_ary_keys = prepare_insertion(inserted_id, inserted_node, flow_map, nodes, target_id, index_for_nil: 0)
 
         outbound_connections = defaultize_outbound_connections(target_id, outbound_connections: outbound_connections, outbound: outbound)
@@ -44,23 +46,26 @@ module Trailblazer
         return flow_map, nodes
       end
 
-      def after(flow_map, nodes, inserted_id, inserted_node, target_id, inbound_signal:, outbound_connections: nil, outbound: [[nil]])
+      # #merge, #values
+
+      # DISCUSS: {inbound_signal} is refering to the signal going into the new descendent?
+      def after(flow_map, nodes, inserted_id, inserted_node, target_id, inbound_signal:, outbound_connections: nil, outbound: DEFAULT_OUTBOUND)
         nodes, target_id, target_index, inserted_id, flow_ary_keys = prepare_insertion(inserted_id, inserted_node, flow_map, nodes, target_id, index_for_nil: -1, offset: 1)
 
         if target_id # this is nil when after is applied on an empty pipe.
           # outgoing connections from the target that gets a new descendent.
           target_connections = flow_map[target_id]
-          original_target_descendent = target_connections[inbound_signal] # a: {Right: :b, Left: :c}
-
-          outbound_connections = defaultize_outbound_connections(original_target_descendent, outbound: outbound, outbound_connections: outbound_connections)
+          original_target_descendent = target_connections.fetch(inbound_signal) # a: {Right: :b, Left: :c}
 
           # TIL #merge reuses the old position of the key!
           flow_map = flow_map.merge(
             target_id => target_connections.merge(inbound_signal => inserted_id),
           )
         else
-          outbound_connections = {} # FIXME: couldn't this case be handled via prepare_insertion and a block?
+          original_target_descendent = nil
         end
+
+        outbound_connections = defaultize_outbound_connections(original_target_descendent, outbound: outbound, outbound_connections: outbound_connections)
 
         flow_map = insert_at(flow_map, target_index, [inserted_id, outbound_connections])
 
@@ -70,11 +75,13 @@ module Trailblazer
       def defaultize_outbound_connections(original_target_descendent, outbound:, outbound_connections:)
         return outbound_connections if outbound_connections
 
-        outbound.collect do |signal_to_target_ary|
-          signal, descendent = signal_to_target_ary
+        if outbound.size == 2 # TODO: test with pure hash.
+          resolver, placeholder_signal = outbound
 
-          signal_to_target_ary.size == 1 ? [signal, original_target_descendent] : signal_to_target_ary
-        end.to_h
+          outbound = resolver.merge(placeholder_signal => original_target_descendent)
+        end
+
+        outbound
       end
 
       class IllegalIdError < Exception
@@ -105,7 +112,8 @@ module Trailblazer
 
       # @private
       def reconnect_predecessor(flow_map, flow_ary_keys, target_id, inbound_signal, new_id)
-        predecessor_id, predecessor_connections = flow_map.find { |id, connections| connections[inbound_signal] == target_id }
+        # find the "first" predecessor.
+        predecessor_id, predecessor_connections = flow_map.find { |id, connections| connections.values.include?(target_id) }
 
         # First, re-point the predecessor of target to the newly inserted.
         to_merge = {predecessor_id => predecessor_connections.merge(inbound_signal => new_id)}
@@ -119,7 +127,7 @@ module Trailblazer
         target_index = flow_ary_keys.index(target_id) # TODO: cleanup this!
 
         if target_index > 0
-          target_successor_id = flow_map[target_id][inbound_signal] # ID of following node.
+          target_successor_id = flow_map[target_id].fetch(inbound_signal) # ID of following node.
 
           flow_map = reconnect_predecessor(flow_map, flow_ary_keys, target_id, inbound_signal, target_successor_id)
         end

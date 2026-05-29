@@ -115,4 +115,8 @@ class CircuitBuilderTest < Minitest::Spec
 
     assert_equal Trailblazer::Circuit::Builder.Circuit(*tasks), Trailblazer::Circuit::Builder::Circuit.(*tasks)
   end
+
+  it "" do
+    raise "test that :connections can be Resolver::Fixed"
+  end
 end

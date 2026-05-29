@@ -14,7 +14,8 @@ module Trailblazer
         def self.call(node, lib_ctx, flow_options, signal, wrap_runtime:, **circuit_options)
           node_attrs = node.to_h
 
-          if node.task.instance_of?(Trailblazer::Circuit::Pipeline)
+          # if node.task.instance_of?(Trailblazer::Circuit)
+          if node.task.instance_variable_get(:@pipe) # FIXME: how to detect what we want to trace?
             node_attrs = extend_task_wrap_pipeline(wrap_runtime, node_attrs[:id], node, node_attrs)
           end
 

@@ -23,14 +23,16 @@ module Trailblazer
 
             [
               id,
-              {signal => next_task ? next_task[0] : nil} # FIXME: don't link last task at all!
+              Resolver::Fixed.new(next_task ? next_task[0] : nil)
             ]
           end.to_h
 
-          Trailblazer::Circuit::Pipeline.build(
+          Trailblazer::Circuit.build(
             flow_map: map,
             nodes:   nodes,
-          )
+          ).tap do |pipe|
+            pipe.instance_variable_set(:@pipe, true) # FIXME: WE MARK THE CIRCUIT AS A PIPE FOR TW TRACING
+          end
         end
 
         # Produces a set of {Node}s, currently called "nodes".

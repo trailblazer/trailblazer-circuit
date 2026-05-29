@@ -41,7 +41,6 @@ class CircuitAddsTest < Minitest::Spec
 
   it "{:before} with empty pipe" do
     my_pipe = Trailblazer::Circuit::Builder.Pipeline()
-    pp my_pipe
 
     my_extended_pipe = Trailblazer::Circuit::Adds.(
       my_pipe,
@@ -53,14 +52,41 @@ class CircuitAddsTest < Minitest::Spec
 
   it "{:after} with empty pipe" do
     my_pipe = Trailblazer::Circuit::Builder.Pipeline()
-    pp my_pipe
 
     my_extended_pipe = Trailblazer::Circuit::Adds.(
       my_pipe,
       [:a, _A::Circuit::Node[:a, my_exec_context.method(:a), Trailblazer::Circuit::Task::Adapter::LibInterface], :after]
     )
 
+    pp my_extended_pipe
+
     assert_run my_extended_pipe, seq: [:a], terminus: Right
+  end
+
+  it "{:before} and {:after} with a non-Resolver, outgoing signals hash, empty pipe" do
+    my_pipe = Trailblazer::Circuit::Builder.Pipeline()
+
+    my_extended_pipe = Trailblazer::Circuit::Adds.(
+      my_pipe,
+      [:a, _A::Circuit::Node[:a, my_exec_context.method(:a), Trailblazer::Circuit::Task::Adapter::LibInterface], :before, nil,
+        outbound: [
+          {Left => nil},  # Left means terminus.
+          Right], inbound_signal: nil] # we can set signals other than {Resolver::Fixed}.
+    )
+
+    assert_run my_extended_pipe, seq: [:a], terminus: Right
+    assert_run my_extended_pipe, seq: [:a], terminus: Left, flow_options: {application_ctx: {seq: [], a: Left}}
+
+    my_extended_pipe = Trailblazer::Circuit::Adds.(
+      my_extended_pipe,
+      [:b, _A::Circuit::Node[:b, my_exec_context.method(:b), Trailblazer::Circuit::Task::Adapter::LibInterface], :after, nil,
+        outbound: [
+          {Left => nil},  # Left means terminus.
+          Right], inbound_signal: Left] # we can set signals other than {Resolver::Fixed}.
+    )
+
+    assert_run my_extended_pipe, seq: [:a], terminus: Right
+    assert_run my_extended_pipe, seq: [:a, :b], terminus: Right, flow_options: {application_ctx: {seq: [], a: Left}}
   end
 
   it "{before, nil, before, nil} adds to the beginning, the last becomes the first" do
@@ -206,7 +232,7 @@ class CircuitAddsTest < Minitest::Spec
   it "{after, :a, inbound_signal: Left, outbound_signal: Right}" do
     extended_circuit = Trailblazer::Circuit::Adds.(
       my_circuit,
-      [:z, _A::Circuit::Node[:z, my_exec_context.method(:z), lib_interface], :after, :a, inbound_signal: Left, outbound: [[Right]]],
+      [:z, _A::Circuit::Node[:z, my_exec_context.method(:z), lib_interface], :after, :a, inbound_signal: Left, outbound: [{}, Right]],
     )
 
     assert_run extended_circuit, seq: [:a, :b], terminus: Right
@@ -216,7 +242,7 @@ class CircuitAddsTest < Minitest::Spec
   it "{before, :c, inbound_signal: Left, outbound_signal: Right}" do
     extended_circuit = Trailblazer::Circuit::Adds.(
       my_circuit,
-      [:z, _A::Circuit::Node[:z, my_exec_context.method(:z), lib_interface], :before, :c, inbound_signal: Left, outbound: [[Right]]],
+      [:z, _A::Circuit::Node[:z, my_exec_context.method(:z), lib_interface], :before, :c, inbound_signal: Left, outbound: [{}, Right]],
     )
 
     #  :a --> :c
@@ -235,7 +261,7 @@ class CircuitAddsTest < Minitest::Spec
   it "we can define {:outbound} instead of using defaults with {:after}" do
     extended_circuit = Trailblazer::Circuit::Adds.(
       my_circuit,
-      [:z, _A::Circuit::Node[:z, my_exec_context.method(:z), lib_interface], :after, :a, inbound_signal: Left, outbound: [[Right, nil], [:MySignal]]],
+      [:z, _A::Circuit::Node[:z, my_exec_context.method(:z), lib_interface], :after, :a, inbound_signal: Left, outbound: [{Right => nil}, :MySignal]],
     )
 
     assert_run extended_circuit, seq: [:a, :b], terminus: Right
@@ -257,7 +283,7 @@ class CircuitAddsTest < Minitest::Spec
   it "we can use {:outbound} with {:before}, it adds the descendent for us" do
     extended_circuit = Trailblazer::Circuit::Adds.(
       my_circuit,
-      [:z, _A::Circuit::Node[:z, my_exec_context.method(:z), lib_interface], :before, :c, inbound_signal: Left, outbound: [[Right, nil], [:MySignal]]], # will be resolved to {Right => nil, MySignal => :c}
+      [:z, _A::Circuit::Node[:z, my_exec_context.method(:z), lib_interface], :before, :c, inbound_signal: Left, outbound: [{Right => nil}, :MySignal]], # will be resolved to {Right => nil, MySignal => :c}
     )
 
     assert_run extended_circuit, seq: [:a, :b], terminus: Right
@@ -285,5 +311,11 @@ class CircuitAddsTest < Minitest::Spec
 
     assert_run my_circuit, seq: [:a, :z, :c], terminus: Right
     assert_run my_circuit, terminus: Right, seq: [:a, :b, :c], flow_options: {application_ctx: {seq: [], a: Left}}
+  end
+
+  describe "Adds works with pure Hash resolvers" do
+    it "what" do
+      raise "test me"
+    end
   end
 end

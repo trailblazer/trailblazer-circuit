@@ -26,7 +26,7 @@ class PipelineTest < Minitest::Spec
       [:c, Capture.new(:c), scoped: true], # isolated, but sees {:d}.
     )
 
-    pp pipe
+    # pp pipe
 
     lib_ctx, flow_options = assert_run pipe, terminus: nil, seq: []
     assert_equal flow_options, {
