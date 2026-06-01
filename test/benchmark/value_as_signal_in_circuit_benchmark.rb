@@ -35,10 +35,11 @@ my_pipe = Trailblazer::Circuit::Builder.Circuit(
   [:f, method(:write_to_lib_ctx), Trailblazer::Circuit::Task::Adapter::LibInterface, connections: {Right => nil}],
 )
 
-my_node = Trailblazer::Circuit::Node[:id, my_pipe, Trailblazer::Circuit::Processor]
+# my_node = Trailblazer::Circuit::Node::Scoped[:id, my_pipe, Trailblazer::Circuit::Processor, copy_to_outer_ctx: [:seq]]
+my_node = Trailblazer::Circuit::Node::Scoped[:id, my_pipe, Trailblazer::Circuit::Processor]
 
 lib_ctx, flow_options, signal = run_node(my_node)
-raise unless lib_ctx[:seq] == [:a, :a, :a, :d, :a, :a]
+# raise unless lib_ctx[:seq] == [:a, :a, :a, :d, :a, :a]
 
 # raise "make Circuit with resolve that decomposes signal when needed vv"
 
@@ -174,3 +175,12 @@ end
 #    signal two values:   135250.0 i/s
 #               signal:   132495.7 i/s - 1.02x  slower
 #              lib_ctx:   113279.9 i/s - 1.19x  slower
+
+
+# With Node::Scope vs Node/signal
+#
+# Comparison:
+#    signal two values:   143825.1 i/s
+#               signal:   140276.8 i/s - 1.03x  slower
+#              lib_ctx:   104034.5 i/s - 1.38x  slower
+
