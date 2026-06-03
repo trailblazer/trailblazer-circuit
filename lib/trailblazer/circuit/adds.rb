@@ -18,30 +18,42 @@ module Trailblazer
         nodes     = circuit.nodes
 
         # inbound_signal: the signal from the previous node to reconnect
-        instructions.each do |id, node, insertion_method, target_id, options = {inbound_signal: nil}|
+        instructions.each do |id, node, insertion_method, target_id, options = {}|
           flow_map, nodes = send(insertion_method, flow_map, nodes, id, node, target_id, **options)
         end
 
         circuit.class.build(flow_map: flow_map, nodes: nodes) # this will recompute start and termini.
       end
 
-      DEFAULT_OUTBOUND = [Resolver::Fixed.new, nil]
+      DEFAULT_RESOLVER_BUILDER = Class.new do
+        def self.call(outbound_signal, target_id)
+          {outbound_signal => [target_id, outbound_signal]}
+        end
+      end
 
-      def before(flow_map, nodes, inserted_id, inserted_node, target_id, inbound_signal:, outbound_connections: nil, outbound: DEFAULT_OUTBOUND)
-        nodes, target_id, target_index, inserted_id, flow_ary_keys = prepare_insertion(inserted_id, inserted_node, flow_map, nodes, target_id, index_for_nil: 0)
+      def before(flow_map, nodes, inserted_id, inserted_node, target_id, **options)
+        target_id, target_index = find_target(flow_map, target_id, index_for_nil: 0)
 
-        outbound_connections = defaultize_outbound_connections(target_id, outbound_connections: outbound_connections, outbound: outbound)
+        insert_for(flow_map, nodes, inserted_id, inserted_node, target_id, target_id, target_index, **options)
+      end
 
-        # If not the first node, we need to update the predecessor's outgoing connection.
+      # Place a new "node" on a connection by reconnecting the predecessor and then connecting new to "target".
+      def insert_for(flow_map, nodes, inserted_id, inserted_node, target_id, next_node_id, target_index, resolver: nil, **options)
+        nodes = add_node(nodes, inserted_id, inserted_node)
 
-        if target_index > 0
-          # Re-point the predecessor of target to the newly inserted.
-          flow_map = reconnect_predecessor(flow_map, flow_ary_keys, target_id, inbound_signal, inserted_id)
+        unless resolver
+          resolver = build_resolver(next_node_id, **options)
         end
 
-        # Since we have to ensure the correct order in flow_map, we switch
-        # to array representation here for correct insertion position.
-        flow_map = insert_at(flow_map, target_index, [inserted_id, outbound_connections])
+        # we're not the very first element.
+        if target_index > 0
+          # reconnect the {predecessor --inbound_signal--> new_node}
+
+          # Re-point the predecessor of target to the newly inserted.
+          flow_map = reconnect_predecessor(flow_map, target_id, inserted_id) # DISCUSS: for {:after} cases, we already know the predecessor!
+        end
+
+        flow_map = insert_at(flow_map, target_index, [inserted_id, resolver])
 
         return flow_map, nodes
       end
@@ -49,48 +61,35 @@ module Trailblazer
       # #merge, #values
 
       # DISCUSS: {inbound_signal} is refering to the signal going into the new descendent?
-      def after(flow_map, nodes, inserted_id, inserted_node, target_id, inbound_signal:, outbound_connections: nil, outbound: DEFAULT_OUTBOUND)
-        nodes, target_id, target_index, inserted_id, flow_ary_keys = prepare_insertion(inserted_id, inserted_node, flow_map, nodes, target_id, index_for_nil: -1, offset: 1)
-
-        if target_id # this is nil when after is applied on an empty pipe.
-          # outgoing connections from the target that gets a new descendent.
-          target_connections = flow_map[target_id]
-          original_target_descendent = target_connections.fetch(inbound_signal) # a: {Right: :b, Left: :c}
-
-          # TIL #merge reuses the old position of the key!
-          flow_map = flow_map.merge(
-            target_id => target_connections.merge(inbound_signal => inserted_id),
-          )
-        else
-          original_target_descendent = nil
+      def after(flow_map, nodes, inserted_id, inserted_node, target_id, **options)
+        if flow_map.size == 0
+          return before(flow_map, nodes, inserted_id, inserted_node, target_id, **options)
         end
 
-        outbound_connections = defaultize_outbound_connections(original_target_descendent, outbound: outbound, outbound_connections: outbound_connections)
+        # find node after {target_id}.
+        next_node_index = flow_map.keys.index(target_id) + 1
+        next_node_id    = flow_map.keys[next_node_index] # might be {nil} if we're adding after the last node.
 
-        flow_map = insert_at(flow_map, target_index, [inserted_id, outbound_connections])
+        raise "#{target_id} is not connected to #{next_node_id}" unless flow_map[target_id].values.flatten.include?(next_node_id) # FIXME: solve this somehow, but for now i can't be bothered.
 
-        return flow_map, nodes
-      end
-
-      def defaultize_outbound_connections(original_target_descendent, outbound:, outbound_connections:)
-        return outbound_connections if outbound_connections
-
-        if outbound.size == 2 # TODO: test with pure hash.
-          resolver, placeholder_signal = outbound
-
-          outbound = resolver.merge(placeholder_signal => original_target_descendent)
-        end
-
-        outbound
+        insert_for(flow_map, nodes, inserted_id, inserted_node, next_node_id, next_node_id, next_node_index, **options)
       end
 
       class IllegalIdError < Exception
       end
 
-      def prepare_insertion(inserted_id, inserted_node, flow_map, nodes, target_id, index_for_nil:, offset: 0)
+      def add_node(nodes, inserted_id, inserted_node)
         raise IllegalIdError.new(%(ID {#{inserted_id.inspect}} already taken.)) if nodes.key?(inserted_id)
 
         nodes = nodes.merge(inserted_id => inserted_node) # DISCUSS: we kind of have to do that here.
+      end
+
+      def build_resolver(target_id, outbound_signal:, resolver_builder: DEFAULT_RESOLVER_BUILDER)
+        resolver_builder.(outbound_signal, target_id) # outbound_connections.
+      end
+
+      # FIXME: remove?
+      def find_target(flow_map, target_id, index_for_nil:, offset: 0)
         flow_ary_keys = flow_map.keys
 
         if target_id.nil? # new start task coming.
@@ -100,7 +99,7 @@ module Trailblazer
           target_index = flow_ary_keys.index(target_id) + offset
         end
 
-        return nodes, target_id, target_index, inserted_id, flow_ary_keys
+        return target_id, target_index#, flow_ary_keys
       end
 
       # @private
@@ -111,14 +110,28 @@ module Trailblazer
       end
 
       # @private
-      def reconnect_predecessor(flow_map, flow_ary_keys, target_id, inbound_signal, new_id)
+      def reconnect_predecessor(flow_map, target_id, new_id)
         # find the "first" predecessor.
-        predecessor_id, predecessor_connections = flow_map.find { |id, connections| connections.values.include?(target_id) }
+        # TODO: we should allow here to precisely identify on which connection we want to place the new node (eg "from A to B on the Left signal")
+        #       currently, we find the first appearance of any signal pointing to {target_id}. however, this will do the trick for pipelines.
+        predecessor_id, predecessor_resolver, signal_to_original_target = find_predecessor_with_signal(flow_map, target_id)
 
-        # First, re-point the predecessor of target to the newly inserted.
-        to_merge = {predecessor_id => predecessor_connections.merge(inbound_signal => new_id)}
+        # Re-point the predecessor of target to the newly inserted.
+        to_merge = {predecessor_id => predecessor_resolver.merge(signal_to_original_target => [new_id, signal_to_original_target])}
 
         return flow_map.merge(to_merge)
+      end
+
+      def find_predecessor_with_signal(flow_map, target_id)
+        flow_map.each { |id, resolver|
+          resolver.values.each { |next_node_id, signal|
+            if next_node_id == target_id
+              return id, resolver, signal
+            end
+          }
+        }
+
+        return nil
       end
 
       def delete(flow_map, nodes, _, _, target_id, inbound_signal:, **)
