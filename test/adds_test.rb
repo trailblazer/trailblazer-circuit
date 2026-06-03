@@ -143,6 +143,19 @@ class CircuitAddsTest < Minitest::Spec
 
     my_new_pipe = Trailblazer::Circuit::Adds.(
       my_pipe,
+      [:z, _A::Circuit::Node[:z, my_exec_context.method(:z), _LibInterface], :after, nil, outbound_signal: Right],
+
+    )
+    assert_run my_new_pipe, seq: [:a, :z], terminus: Right
+  end
+
+  it "{:after, :a} with [:a{Fixed}]" do
+    my_pipe = Trailblazer::Circuit::Builder.Pipeline(
+      [:a, my_exec_context.method(:a), _LibInterface],
+    )
+
+    my_new_pipe = Trailblazer::Circuit::Adds.(
+      my_pipe,
       [:z, _A::Circuit::Node[:z, my_exec_context.method(:z), _LibInterface], :after, :a, outbound_signal: Right],
 
     )
@@ -208,7 +221,20 @@ class CircuitAddsTest < Minitest::Spec
   end
 
   it "what" do
+    raise "test that we default {outbound_signal: nil}"
+  end
+
+  it "what" do
+    skip
     raise "# FIXME, we have to make sure that the next node is actually connected to the target_id?"
+  end
+
+  it "" do
+    raise "delete, replace need tests"
+  end
+
+  it "what" do
+    raise "how does replace work with its resolver?"
   end
 
 

@@ -18,7 +18,7 @@ module Trailblazer
         nodes     = circuit.nodes
 
         # inbound_signal: the signal from the previous node to reconnect
-        instructions.each do |id, node, insertion_method, target_id, options = {}|
+        instructions.each do |id, node, insertion_method, target_id, options = {outbound_signal: nil}|
           flow_map, nodes = send(insertion_method, flow_map, nodes, id, node, target_id, **options)
         end
 
@@ -64,6 +64,10 @@ module Trailblazer
       def after(flow_map, nodes, inserted_id, inserted_node, target_id, **options)
         if flow_map.size == 0
           return before(flow_map, nodes, inserted_id, inserted_node, target_id, **options)
+        end
+
+        if target_id.nil?
+          target_id = flow_map.keys.last # DISCUSS: this obviously only works correctly in "pipes".
         end
 
         # find node after {target_id}.
