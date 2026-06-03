@@ -15,8 +15,9 @@ module Trailblazer
     # This is called in {Circuit::Processor.call}.
     def resolve(current_node_id, signal)
       # next_task_id = flow_map[current_node_id][signal] # TODO: how to improve dev experience for IllegalSignal?
-      next_task_id = flow_map[current_node_id].fetch(signal) # TODO: how to improve dev experience for IllegalSignal?
+      next_task_id, signal = flow_map[current_node_id].fetch(signal) # TODO: how to improve dev experience for IllegalSignal?
 
+# DISCUSS: should we use fetch here to raise an IllegalSignal? vv
       return next_task_id, nodes[next_task_id], signal # TODO: can we save this lookup and optimize the map directly?
     end
   end # Circuit
