@@ -45,6 +45,19 @@ Minitest::Spec.class_eval do
   def Pipeline(*args)
     Trailblazer::Circuit::Builder.Pipeline(*args)
   end
+
+  module Benchmark
+    def self.run_node(node, lib_ctx: {seq: []}, signal: nil)
+      _, flow_options, _ = Trailblazer::Circuit::Node::Runner.(
+        node,
+        lib_ctx,
+        {},
+        signal,
+        context_implementation: Trailblazer::Circuit::Context,
+        runner: Trailblazer::Circuit::Node::Runner,
+      )
+    end
+  end
 end
 
 
