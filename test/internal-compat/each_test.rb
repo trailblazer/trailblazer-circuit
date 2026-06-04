@@ -41,9 +41,9 @@ class EachTest < Minitest::Spec
     }
 
     map = {
-        init: {nil => :fetch_value_from_dataset},
-        fetch_value_from_dataset: {nil => :a, "done" => nil},
-        a: {nil => :fetch_value_from_dataset},
+        init: Trailblazer::Circuit::Resolver::Fixed.new(:fetch_value_from_dataset),
+        fetch_value_from_dataset: {nil => [:a, nil], "done" => [nil, "done"]},
+        a: Trailblazer::Circuit::Resolver::Fixed.new(:fetch_value_from_dataset),
         finished: {}
       }
 

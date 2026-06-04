@@ -89,11 +89,11 @@ class WrapRuntimeTest < Minitest::Spec
     )
 
     create_circuit, _ = Trailblazer::Circuit::Builder.Circuit(
-      [:Model, model_tw, Trailblazer::Circuit::Processor, connections: {Right => :Save, Left => :failure}],
+      [:Model, model_tw, Trailblazer::Circuit::Processor, connections: {Right => [:Save, Right], Left => [:failure, Left]}],
       # [:Validate, validate_circuit, Trailblazer::Circuit::Processor], connections: {Right => :Validate, Left => :failure}]
-      [:Save, save_tw, Trailblazer::Circuit::Processor, connections: {Right => :success, Left => :failure}],
-      [:success, success_pipe, Trailblazer::Circuit::Processor, connections: {:Success => nil}],
-      [:failure, failure_pipe, Trailblazer::Circuit::Processor, connections: {:Failure => nil}]
+      [:Save, save_tw, Trailblazer::Circuit::Processor, connections: {Right => [:success, Right], Left => [:failure, Left]}],
+      [:success, success_pipe, Trailblazer::Circuit::Processor, connections: {:Success => [nil, :Success]}],
+      [:failure, failure_pipe, Trailblazer::Circuit::Processor, connections: {:Failure => [nil, :Failure]}]
     )
 
     create_tw = Trailblazer::Circuit::Builder.Pipeline(
@@ -141,8 +141,9 @@ class WrapRuntimeTest < Minitest::Spec
         # Called through WrapRuntime::Runner.
         def self.call(id:, **attrs)
           [
-            [:capture_before, Trailblazer::Circuit::Node[:capture_before, Capture.new(id, :before),  Trailblazer::Circuit::Task::Adapter::LibInterface], :before],
-            [:capture_after, Trailblazer::Circuit::Node[:capture_after,  Capture.new(id, :after),   Trailblazer::Circuit::Task::Adapter::LibInterface], :after],
+            # those Adds instructions will use the builder for Resolver::Fixed.
+            [:capture_before, Trailblazer::Circuit::Node[:capture_before, Capture.new(id, :before),  Trailblazer::Circuit::Task::Adapter::LibInterface], :before, nil],
+            [:capture_after, Trailblazer::Circuit::Node[:capture_after,  Capture.new(id, :after),   Trailblazer::Circuit::Task::Adapter::LibInterface], :after, nil],
           ]
         end
       end

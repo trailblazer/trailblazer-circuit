@@ -84,6 +84,10 @@ class PipelineBuilderTest < Minitest::Spec
 
     assert_equal Trailblazer::Circuit::Builder.Pipeline(*tasks), Trailblazer::Circuit::Builder::Pipeline.(*tasks)
   end
+
+  it "what" do
+    raise "test that we default resolver: Fixed for Pipeline!"
+  end
 end
 
 class CircuitBuilderTest < Minitest::Spec
@@ -91,10 +95,10 @@ class CircuitBuilderTest < Minitest::Spec
     my_tasks = T.def_tasks(:c, :d, :failure, :success, success_signal: Right)
 
     c_circuit = Trailblazer::Circuit::Builder.Circuit(
-      [:c, my_tasks.method(:c), connections: {Right => :d, Left => :failure}],
-      [:d, my_tasks.method(:d), Trailblazer::Circuit::Task::Adapter::LibInterface, connections: {Right => :success, Left => :failure}],
-      [:failure, my_tasks.method(:failure), connections: {Right => nil}], # :connections imply terminus.
-      [:success, my_tasks.method(:success), connections: {Right => nil}], # :connections imply terminus.
+      [:c, my_tasks.method(:c), connections: {Right => [:d, Right], Left => [:failure, Left]}],
+      [:d, my_tasks.method(:d), Trailblazer::Circuit::Task::Adapter::LibInterface, connections: {Right => [:success, Right], Left => [:failure, Left]}],
+      [:failure, my_tasks.method(:failure), connections: {Right => [nil, Right]}], # :connections imply terminus.
+      [:success, my_tasks.method(:success), connections: {Right => [nil, Right]}], # :connections imply terminus.
     )
 
     lib_ctx, flow_options = assert_run c_circuit, terminus: Right, seq: [:c, :d, :success]

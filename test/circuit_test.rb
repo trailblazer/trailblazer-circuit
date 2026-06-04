@@ -58,9 +58,9 @@ class CircuitTest < Minitest::Spec
 
   it "a Circuit doesn't have explicit termini set, if a signal points to {nil}, it terminates" do
     my_flow_map = {
-      a: {nil => :b},
-      b: {nil => :c, :Left => nil}, # the :Left signal points to nil, meaning it terminates here.
-      c: {nil => nil} # signal from  terminus pointing to nil terminates.
+      a: {nil => [:b, nil]},
+      b: {nil => [:c, nil], :Left => [nil, :Left]}, # the :Left signal points to nil, meaning it terminates here.
+      c: {nil => [nil, nil]} # signal from  terminus pointing to nil terminates.
     }
 
     circuit = Trailblazer::Circuit.build(
@@ -145,7 +145,7 @@ class CircuitResolveTest < Minitest::Spec
       b: Trailblazer::Circuit::Node[:b, method(:b), Trailblazer::Circuit::Task::Adapter::LibInterface],
     }
 
-    my_flow_map = {a: Resolver::Fixed.new(:b), b: Resolver::Fixed.new(nil)}
+    my_flow_map = {a: Trailblazer::Circuit::Resolver::Fixed.new(:b), b: Trailblazer::Circuit::Resolver::Fixed.new(nil)}
 
     my_circuit = Class.new(Trailblazer::Circuit) do
       def resolve(current_node_id, signal)
@@ -160,22 +160,14 @@ class CircuitResolveTest < Minitest::Spec
     assert_equal lib_ctx, {seq_in_lib_ctx: [:a, :b]}
   end
 
-  module Resolver
-    class Fixed < Struct.new(:next_node_id) # TODO: is it faster to use a simple PORO?
-      def fetch(_signal)
-        next_node_id
-      end
-    end
-  end
-
   # it's now possible to either use a "hardcore" signal mapping hash, but it IS also possible
   # to route without caring about the signal, etc.
   it "is possible to use a different resolving hash per node" do
     my_flow_map = {
-      a: {Right => :b, Left => :failure}, # normal Resolver from a circuit step.
-      b: Resolver::Fixed.new(:c), # like {<any> => :next_step}
-      c: Resolver::Fixed.new(nil), # terminate, but return the "original" signal.
-      failure: {Right => nil}
+      a: {Right => [:b, Right], Left => [:failure, Left]}, # normal Trailblazer::Circuit::Resolver from a circuit step.
+      b: Trailblazer::Circuit::Resolver::Fixed.new(:c), # like {<any> => :next_step}
+      c: Trailblazer::Circuit::Resolver::Fixed.new(nil), # terminate, but return the "original" signal.
+      failure: {Right => [nil, Right]}
     }
 
     my_exec_context = T.def_tasks(:a, :b, :c, :failure, success_signal: Right)
