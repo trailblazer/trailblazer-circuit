@@ -187,4 +187,43 @@ class CircuitResolveTest < Minitest::Spec
     # With a Reolver::Fixed, a terminating node can return any signal, but still terminates.
     assert_run my_circuit, terminus: :c_says_Right, seq: [:a, :b, :c], exec_context: my_exec_context, flow_options: {application_ctx: {seq: [], c: :c_says_Right}}
   end
+
+  it "by using a custom Resolver, we can implement (fast?) value-on-signal circuits" do
+    my_value_on_signal_resolver = Struct.new(:signals_to_next) do
+      def fetch(signal)
+        decision, signal = signal
+
+        return signals_to_next.fetch(decision), signal
+      end
+    end.new({Right => :d, Left => :e})
+
+    my_exec_context = Struct.new(:name) do
+      def call(lib_ctx, flow_options, signal, **)
+        signal += [name]
+
+        return lib_ctx, flow_options, signal
+      end
+    end
+
+    my_decider = ->(lib_ctx, flow_options, signal, **) do
+      signal += [:my_decider]
+
+      decision_signal = lib_ctx.fetch(:decision_signal)
+
+      return lib_ctx, flow_options, [decision_signal, signal]
+    end
+
+    # as a "representative benchmark circuit", i use something like a VariableMapping:::Conditional, a mix of pipe and decider.
+    my_circuit = Trailblazer::Circuit::Builder.Circuit(
+      [:a, my_exec_context.new(:a), Trailblazer::Circuit::Task::Adapter::LibInterface, connections: Trailblazer::Circuit::Resolver::Fixed.new(:b)],
+      [:b, my_exec_context.new(:b), Trailblazer::Circuit::Task::Adapter::LibInterface, connections: Trailblazer::Circuit::Resolver::Fixed.new(:c)],
+      [:c, my_decider, Trailblazer::Circuit::Task::Adapter::LibInterface, connections: my_value_on_signal_resolver],
+      [:d, my_exec_context.new(:d), Trailblazer::Circuit::Task::Adapter::LibInterface, connections: Trailblazer::Circuit::Resolver::Fixed.new(:f)],
+      [:e, my_exec_context.new(:e), Trailblazer::Circuit::Task::Adapter::LibInterface, connections: Trailblazer::Circuit::Resolver::Fixed.new(nil)],
+      [:f, my_exec_context.new(:f), Trailblazer::Circuit::Task::Adapter::LibInterface, connections: Trailblazer::Circuit::Resolver::Fixed.new(nil)],
+    )
+
+    assert_run my_circuit, terminus: [:a, :b, :my_decider, :d, :f], seq: [], decision_signal: Right, signal: []
+    assert_run my_circuit, terminus: [:a, :b, :my_decider, :e], seq: [], decision_signal: Left, signal: []
+  end
 end
