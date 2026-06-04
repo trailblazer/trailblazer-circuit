@@ -12,7 +12,7 @@ module Trailblazer
       # It is also used at compile-time, though.
       #
       # Feel free to benchmark and optimize this!
-      def call(circuit, *instructions)
+      def call(circuit, *instructions) # DISCUSS: should we allow {:outbound_signal} here?
         # TODO: evaluate if we can us  https://rubyapi.org/3.4/o/array#method-i-assoc
         flow_map  = circuit.flow_map
         nodes     = circuit.nodes
@@ -26,7 +26,7 @@ module Trailblazer
       end
 
       DEFAULT_RESOLVER_BUILDER = Class.new do
-        def self.call(outbound_signal, target_id)
+        def self.call(target_id, outbound_signal:, **)
           {outbound_signal => [target_id, outbound_signal]}
         end
       end
@@ -88,8 +88,8 @@ module Trailblazer
         nodes = nodes.merge(inserted_id => inserted_node) # DISCUSS: we kind of have to do that here.
       end
 
-      def build_resolver(target_id, outbound_signal:, resolver_builder: DEFAULT_RESOLVER_BUILDER)
-        resolver_builder.(outbound_signal, target_id) # outbound_connections.
+      def build_resolver(target_id, resolver_builder: DEFAULT_RESOLVER_BUILDER, **options)
+        resolver_builder.(target_id, **options) # outbound_connections.
       end
 
       # FIXME: remove?
