@@ -45,7 +45,7 @@ class CircuitAddsTest < Minitest::Spec
 
     my_new_pipe = Trailblazer::Circuit::Adds.(
       my_pipe,
-      [:a, _A::Circuit::Node[:a, my_exec_context.method(:a), _LibInterface], :before, nil, outbound_signal: Right]
+      [:a, _A::Circuit::Node[:a, my_exec_context.method(:a), _LibInterface], :before, nil]
     )
 
     assert_run my_new_pipe, seq: [:a], terminus: Right
@@ -96,7 +96,7 @@ class CircuitAddsTest < Minitest::Spec
       my_circuit,
       [:z, _A::Circuit::Node[:z, my_exec_context.method(:z), _LibInterface],
         :before, :b,
-        outbound_signal: Right, # TODO: default me. this is what goes into z's resolver.
+        outbound_signal: Right, resolver_builder: Trailblazer::Circuit::Adds::DEFAULT_HASH_RESOLVER_BUILDER
       ],
     )
 
@@ -130,7 +130,7 @@ class CircuitAddsTest < Minitest::Spec
 
     my_new_pipe = Trailblazer::Circuit::Adds.(
       my_pipe,
-      [:a, _A::Circuit::Node[:a, my_exec_context.method(:a), _LibInterface], :after, nil, outbound_signal: Right],
+      [:a, _A::Circuit::Node[:a, my_exec_context.method(:a), _LibInterface], :after, nil],
 
     )
     assert_run my_new_pipe, seq: [:a], terminus: Right
@@ -143,20 +143,20 @@ class CircuitAddsTest < Minitest::Spec
 
     my_new_pipe = Trailblazer::Circuit::Adds.(
       my_pipe,
-      [:z, _A::Circuit::Node[:z, my_exec_context.method(:z), _LibInterface], :after, nil, outbound_signal: Right],
+      [:z, _A::Circuit::Node[:z, my_exec_context.method(:z), _LibInterface], :after, nil],
 
     )
     assert_run my_new_pipe, seq: [:a, :z], terminus: Right
   end
 
-  it "{:after, :a} with [:a{Fixed}]" do
+  it "{:after, :a} with [:a{Fixed}], {resolver_builder:}" do
     my_pipe = Trailblazer::Circuit::Builder.Pipeline(
       [:a, my_exec_context.method(:a), _LibInterface],
     )
 
     my_new_pipe = Trailblazer::Circuit::Adds.(
       my_pipe,
-      [:z, _A::Circuit::Node[:z, my_exec_context.method(:z), _LibInterface], :after, :a, outbound_signal: Right],
+      [:z, _A::Circuit::Node[:z, my_exec_context.method(:z), _LibInterface], :after, :a, outbound_signal: Right, resolver_builder: Trailblazer::Circuit::Adds::DEFAULT_HASH_RESOLVER_BUILDER],
 
     )
 
@@ -174,7 +174,7 @@ class CircuitAddsTest < Minitest::Spec
 
     my_new_pipe = Trailblazer::Circuit::Adds.(
       my_pipe,
-      [:z, _A::Circuit::Node[:z, my_exec_context.method(:z), _LibInterface], :after, :a, outbound_signal: Right],
+      [:z, _A::Circuit::Node[:z, my_exec_context.method(:z), _LibInterface], :after, :a],
 
     )
 
@@ -191,7 +191,7 @@ class CircuitAddsTest < Minitest::Spec
 
     my_new_pipe = Trailblazer::Circuit::Adds.(
       my_pipe,
-      [:z, _A::Circuit::Node[:z, my_exec_context.method(:z), _LibInterface], :after, :a, outbound_signal: Right],
+      [:z, _A::Circuit::Node[:z, my_exec_context.method(:z), _LibInterface], :after, :a],
     )
 
     pp my_new_pipe
@@ -210,7 +210,7 @@ class CircuitAddsTest < Minitest::Spec
 
     my_new_pipe = Trailblazer::Circuit::Adds.(
       my_pipe,
-      [:z, _A::Circuit::Node[:z, my_exec_context.method(:z), _LibInterface], :after, :a, outbound_signal: Left],
+      [:z, _A::Circuit::Node[:z, my_exec_context.method(:z), _LibInterface], :after, :a, outbound_signal: Left, resolver_builder: Trailblazer::Circuit::Adds::DEFAULT_HASH_RESOLVER_BUILDER],
     )
 
     assert_raises KeyError do

@@ -25,9 +25,15 @@ module Trailblazer
         circuit.class.build(flow_map: flow_map, nodes: nodes) # this will recompute start and termini.
       end
 
-      DEFAULT_RESOLVER_BUILDER = Class.new do
+      DEFAULT_HASH_RESOLVER_BUILDER = Class.new do # DISCUSS: do we need/want this anywhere?
         def self.call(target_id, outbound_signal:, **)
           {outbound_signal => [target_id, outbound_signal]}
+        end
+      end
+
+      DEFAULT_RESOLVER_BUILDER = Class.new do
+        def self.call(target_id, **)
+          Resolver::Fixed.new(target_id)
         end
       end
 
@@ -38,7 +44,7 @@ module Trailblazer
       end
 
       # Place a new "node" on a connection by reconnecting the predecessor and then connecting new to "target".
-      def insert_for(flow_map, nodes, inserted_id, inserted_node, target_id, next_node_id, target_index, resolver: nil, **options)
+      def insert_for(flow_map, nodes, inserted_id, inserted_node, target_id, next_node_id, target_index, resolver: nil, **options) # TODO: update {kwarg defaulting} when the resolver: defaulting is sorted. make it resolver: build_resolver(...) somehow.
         nodes = add_node(nodes, inserted_id, inserted_node)
 
         unless resolver
