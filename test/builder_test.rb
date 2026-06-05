@@ -12,21 +12,41 @@ class PipelineBuilderTest < Minitest::Spec
     end
   end
 
+  def my_pollutor(lib_ctx, flow_options, signal, **)
+    flow_options[:application_ctx][:seq] << :my_pollutor
+
+    return lib_ctx.merge(pollute: true), # this will be discarded *if* this node is scoped.
+      flow_options, signal
+  end
+
   it "{scope: true} creates Node::Scoped" do
-    my_task = ->(lib_ctx, flow_options, signal, **) do
-      flow_options[:application_ctx][:seq] << :my_pollutor
-
-      return lib_ctx.merge(pollute: true), # this will be discarded *if* this node is scoped.
-        flow_options, signal
-    end
-
     my_circuit = Trailblazer::Circuit::Builder.Pipeline(
-      [:my_pollutor, my_task, scoped: true]
+      [:my_pollutor, method(:my_pollutor), scoped: true]
     )
 
     lib_ctx, _ = assert_run my_circuit, terminus: nil, seq: [:my_pollutor]
 
     assert_equal lib_ctx, {} # no pollution visible if it was scoped.
+  end
+
+  it "Pipeline creates a Scoped node when {:merge_to_lib_ctx} is given" do
+    my_circuit = Trailblazer::Circuit::Builder.Pipeline(
+      [:my_pollutor, :my_pollutor, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod, merge_to_lib_ctx: {exec_context: self}]
+    )
+
+    lib_ctx, _ = assert_run my_circuit, terminus: nil, seq: [:my_pollutor]
+
+    assert_equal lib_ctx, {} # no pollution as we're Scoped.
+  end
+
+  it "Pipeline creates an unscoped Node when no options given" do
+    my_circuit = Trailblazer::Circuit::Builder.Pipeline(
+      [:my_pollutor, method(:my_pollutor)]
+    )
+
+    lib_ctx, _ = assert_run my_circuit, terminus: nil, seq: [:my_pollutor]
+
+    assert_equal lib_ctx, {pollute: true}
   end
 
   it "{node: MyNode} allows passing a node directly without any DSL logic involved" do
