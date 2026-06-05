@@ -24,9 +24,7 @@
 
             result = run_step(task, target_ctx, **lib_ctx)
 
-            lib_ctx[:value] = result
-
-            return lib_ctx, flow_options, nil # TODO: test returning {nil}. we do that because this task is also used in Circuits, so we should have a well-defined returned signal.
+            return lib_ctx, flow_options, result # value-on-signal
           end
 
           def self.run_step(task, target_ctx, **)
