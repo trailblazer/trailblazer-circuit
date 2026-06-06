@@ -44,7 +44,7 @@ module Trailblazer
       end
 
       # Place a new "node" on a connection by reconnecting the predecessor and then connecting new to "target".
-      def insert_for(flow_map, nodes, inserted_id, inserted_node, target_id, next_node_id, target_index, resolver: nil, **options) # TODO: update {kwarg defaulting} when the resolver: defaulting is sorted. make it resolver: build_resolver(...) somehow.
+      def insert_for(flow_map, nodes, inserted_id, inserted_node, target_id, next_node_id, target_index, resolver: nil, inbound_signal: nil, **options) # TODO: update {kwarg defaulting} when the resolver: defaulting is sorted. make it resolver: build_resolver(...) somehow.
         nodes = add_node(nodes, inserted_id, inserted_node)
 
         unless resolver
@@ -56,7 +56,7 @@ module Trailblazer
           # reconnect the {predecessor --inbound_signal--> new_node}
 
           # Re-point the predecessor of target to the newly inserted.
-          flow_map = reconnect_predecessor(flow_map, target_id, inserted_id) # DISCUSS: for {:after} cases, we already know the predecessor!
+          flow_map = reconnect_predecessor(flow_map, target_id, inserted_id, inbound_signal) # DISCUSS: for {:after} cases, we already know the predecessor!
         end
 
         flow_map = insert_at(flow_map, target_index, [inserted_id, resolver])
@@ -120,11 +120,11 @@ module Trailblazer
       end
 
       # @private
-      def reconnect_predecessor(flow_map, target_id, new_id)
+      def reconnect_predecessor(flow_map, target_id, new_id, inbound_signal)
         # find the "first" predecessor.
         # TODO: we should allow here to precisely identify on which connection we want to place the new node (eg "from A to B on the Left signal")
         #       currently, we find the first appearance of any signal pointing to {target_id}. however, this will do the trick for pipelines.
-        predecessor_id, predecessor_resolver, signal_to_original_target = find_predecessor_with_signal(flow_map, target_id)
+        predecessor_id, predecessor_resolver, signal_to_original_target = find_predecessor_with_signal(flow_map, target_id, inbound_signal)
 
         # Re-point the predecessor of target to the newly inserted.
         to_merge = {predecessor_id => predecessor_resolver.merge(signal_to_original_target => [new_id, signal_to_original_target])}
@@ -132,16 +132,14 @@ module Trailblazer
         return flow_map.merge(to_merge)
       end
 
-      def find_predecessor_with_signal(flow_map, target_id)
-        flow_map.each { |id, resolver|
-          resolver.values.each { |next_node_id, signal|
-            if next_node_id == target_id
+      def find_predecessor_with_signal(flow_map, target_id, inbound_signal = nil)
+        flow_map.find { |id, resolver|
+          resolver.values.find { |next_node_id, signal|
+            if [next_node_id, signal] == [target_id, inbound_signal]
               return id, resolver, signal
             end
           }
         }
-
-        return nil
       end
 
       def delete(flow_map, nodes, _, _, target_id, inbound_signal:, **)
