@@ -9,6 +9,8 @@ Minitest::Spec.class_eval do
 
   Left = Class.new
   Right = Class.new
+
+  let(:lib_interface) { Trailblazer::Circuit::Task::Adapter::LibInterface }
 end
 
 # DISCUSS: maybe move to core-utils
