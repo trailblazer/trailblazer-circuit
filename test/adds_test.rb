@@ -135,7 +135,7 @@ class CircuitAddsTest < Minitest::Spec
     assert_run my_new_pipe, seq: [:a], terminus: Right
   end
 
-  it "{:after} with [:a{Fixed}]" do
+  it "{:after, nil} with [:a{Fixed}]" do
     my_pipe = Trailblazer::Circuit::Builder.Pipeline(
       [:a, my_exec_context.method(:a), lib_interface],
     )
@@ -145,6 +145,7 @@ class CircuitAddsTest < Minitest::Spec
       [:z, _A::Circuit::Node[:z, my_exec_context.method(:z), lib_interface], :after, nil],
 
     )
+
     assert_run my_new_pipe, seq: [:a, :z], terminus: Right
   end
 
@@ -193,7 +194,7 @@ class CircuitAddsTest < Minitest::Spec
       [:z, _A::Circuit::Node[:z, my_exec_context.method(:z), lib_interface], :after, :a, inbound_signal: Right],
     )
 
-    pp my_new_pipe
+    # pp my_new_pipe
 
     assert_run my_new_pipe, seq: [:a, :z, :b], terminus: Right
     assert_run my_new_pipe, seq: [:a], terminus: Left, flow_options: {application_ctx: {seq: [], a: Left}}
@@ -219,6 +220,22 @@ class CircuitAddsTest < Minitest::Spec
     assert_run my_new_pipe, seq: [:a, :z, :b], terminus: Right, flow_options: {application_ctx: {seq: [], z: Left}}
   end
 
+  it "problem with Adds, dISCUSS; " do
+    my_pipe = Trailblazer::Circuit::Builder.Circuit(
+      [:a, my_exec_context.method(:a), lib_interface, connections: {Right => [:b, Right], Left => [nil, Left]}],
+      [:b, my_exec_context.method(:b), lib_interface, connections: Trailblazer::Circuit::Resolver::Fixed.new(nil)],
+    )
+
+    my_new_pipe = Trailblazer::Circuit::Adds.(
+      my_pipe,
+      [:z, _A::Circuit::Node[:z, my_exec_context.method(:z), lib_interface],
+        :before, :b,
+        inbound_signal: Left, # the problem is, there is no (a or whatever)--L->b, but the current placing algorithm will try and find this.
+        resolver: Trailblazer::Circuit::Resolver::Fixed.new(:b),
+      ],
+    )
+  end
+
   it "{:inbound_signal} decides which path from predecessor we reconnect to the inserted node" do
     my_pipe = Trailblazer::Circuit::Builder.Circuit(
       [:a, my_exec_context.method(:a), lib_interface, connections: {Right => [:b, Right], Left => [:c, Left]}],
@@ -241,6 +258,28 @@ class CircuitAddsTest < Minitest::Spec
 
     assert_run my_new_pipe, seq: [:a, :z, :b], terminus: Right, flow_options: {application_ctx: {seq: []}}
     assert_run my_new_pipe, seq: [:a, :e, :c], terminus: Right, flow_options: {application_ctx: {seq: [], a: Left}}
+  end
+
+  it "Resolver::Conditional: {inbound_signal} decides how the predecessor resolver is altered" do
+    my_pipe = Trailblazer::Circuit::Builder.Circuit(
+      [:a, my_exec_context.method(:a), lib_interface, connections: Trailblazer::Circuit::Resolver::Conditional.new([Left], nil, :b)],
+      [:b, my_exec_context.method(:b), lib_interface, connections: Trailblazer::Circuit::Resolver::Fixed.new(nil)],
+    )
+
+    my_new_pipe = Trailblazer::Circuit::Adds.(
+      my_pipe,
+      [:z, _A::Circuit::Node[:z, my_exec_context.method(:z), lib_interface], :after, :a, # DISCUSS: after a means we know the predecessor which makes it much easier to change the resolver.
+        resolver: Trailblazer::Circuit::Resolver::Fixed.new(:b),
+        inbound_signal: Left # FIXME: rename to {:via}
+      ],
+    )
+
+    assert_run my_pipe, seq: [:a, :b], terminus: Right
+    assert_run my_pipe, seq: [:a], terminus: Left, flow_options: {application_ctx: {seq: [], a: Left}}
+
+    assert_run my_new_pipe, seq: [:a, :b], terminus: Right
+    assert_run my_new_pipe, seq: [:a, :z, :b], terminus: Right, flow_options: {application_ctx: {seq: [], a: Left}}
+    assert_run my_new_pipe, seq: [:a, :b], terminus: Right, flow_options: {application_ctx: {seq: [], a: Object}}
   end
 
   it "what" do
