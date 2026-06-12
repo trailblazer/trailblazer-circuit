@@ -66,6 +66,22 @@ class CircuitAddsTest < Minitest::Spec
     assert_run my_new_pipe, seq: [:z, :a], terminus: Right
   end
 
+  it "{before, nil} with [:a{Fixed}]" do
+    my_pipe = Trailblazer::Circuit::Builder.Pipeline(
+      [:a, my_exec_context.method(:a), lib_interface]
+    )
+
+    my_new_pipe = Trailblazer::Circuit::Adds.(
+      my_pipe,
+      [:z, _A::Circuit::Node[:z, my_exec_context.method(:z), lib_interface],
+        :before, nil,
+        outbound_signal: Right, # TODO: default me. this is what goes into z's resolver.
+      ],
+    )
+
+    assert_run my_new_pipe, seq: [:z, :a], terminus: Right
+  end
+
   it "{before, :b} with [:a{Fixed}, :b{Fixed}]" do
     my_pipe = Trailblazer::Circuit::Builder.Pipeline(
       [:a, my_exec_context.method(:a), lib_interface],
@@ -191,7 +207,7 @@ class CircuitAddsTest < Minitest::Spec
 
     my_new_pipe = Trailblazer::Circuit::Adds.(
       my_pipe,
-      [:z, _A::Circuit::Node[:z, my_exec_context.method(:z), lib_interface], :after, :a, inbound_signal: Right],
+      [:z, _A::Circuit::Node[:z, my_exec_context.method(:z), lib_interface], :after, :a, inbound_signal: Right, outbound_signal: Right],
     )
 
     # pp my_new_pipe

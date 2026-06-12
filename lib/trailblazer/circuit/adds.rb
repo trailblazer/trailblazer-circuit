@@ -38,24 +38,30 @@ module Trailblazer
       end
 
       def before(flow_map, nodes, inserted_id, inserted_node, target_id, **options)
-        target_id, target_index = find_target(flow_map, target_id, index_for_nil: 0)
-
-        insert_with_predecessor(flow_map, nodes, inserted_id, inserted_node, target_id, target_id, target_index, **options)
-      end
-
-
-      # FIXME: remove?
-      def find_insert_at_index(flow_map, target_id, index_for_nil:, offset: 0)
-        flow_ary_keys = flow_map.keys
-
-        if target_id.nil? # new start task coming.
-          target_index = index_for_nil
-          # target_id = flow_ary_keys[target_index]
-        else
-          target_index = flow_ary_keys.index(target_id) + offset
+        if flow_map.size == 0
+          return after(flow_map, nodes, inserted_id, inserted_node, target_id, **options)
         end
 
-        return target_index#, flow_ary_keys
+        if target_id.nil?
+          target_id = flow_map.keys.first # DISCUSS: this obviously only works correctly in "pipes".
+        end
+
+        # translate before to after.
+        target_index = find_insert_at_index(flow_map, target_id, offset: 0)
+
+        # Add a (new?) first element.
+        # We cannot use #after for that, so we gotta do it ourselves.
+        if target_index == 0
+          return insert_node_at(flow_map, nodes, inserted_id, inserted_node, target_id, 0, options, **options) # downstream-only.
+        end
+
+        target_id = flow_map.keys[target_index - 1] # FIXME: spreading knowledge about flow_map everywhere.
+
+        after(flow_map, nodes, inserted_id, inserted_node, target_id, **options)
+      end
+
+      def find_insert_at_index(flow_map, target_id, offset:)
+        flow_map.keys.index(target_id) + offset
       end
 
       # Place a new "node" on a connection by reconnecting the predecessor and then connecting new to "target".
@@ -92,6 +98,7 @@ module Trailblazer
       def after(flow_map, nodes, inserted_id, inserted_node, target_id, outbound_signal:, **options_for_resolver_builder)
         if flow_map.size == 0
           # TODO: check target_id, it must be nil!
+          # TODO: test if outbound_signal is passed through.
           return insert_node_at(flow_map, nodes, inserted_id, inserted_node, nil, 0, options_for_resolver_builder, **options_for_resolver_builder) # downstream-only.
         end
 
@@ -99,23 +106,16 @@ module Trailblazer
           target_id = flow_map.keys.last # DISCUSS: this obviously only works correctly in "pipes".
         end
 
-        insert_at_index = find_insert_at_index(flow_map, target_id, index_for_nil: flow_map.size, offset: 1)
-        # find the {successor_id}
         successor_id, _ = flow_map.fetch(target_id).fetch(outbound_signal) # where does the original {:a} point to via {Left}?
 
-
-        predecessor_id = target_id
-
         # find node after {target_id}.
-        insert_at_index = flow_map.keys.index(target_id) + 1 # 1 for after.
-        # has_predecessor = insert_at_index > 0
+        insert_at_index = find_insert_at_index(flow_map, target_id, offset: 1)
+        # insert_at_index = flow_map.keys.index(target_id) + 1 # 1 for after.
 
-        # next_node_id    = flow_map.keys[next_node_index] # might be {nil} if we're adding after the last node.
-puts "@@@@@ nex node #{successor_id.inspect}"
         raise "#{target_id} is not connected to #{successor_id}" unless flow_map[target_id].values.flatten.include?(successor_id) # FIXME: solve this somehow, but for now i can't be bothered.
 
         # You always have a predecessor with :after unless it's an empty pipe.
-        insert_with_predecessor(flow_map, nodes, inserted_id, inserted_node, successor_id, insert_at_index, predecessor_id: predecessor_id, **options_for_resolver_builder)
+        insert_with_predecessor(flow_map, nodes, inserted_id, inserted_node, successor_id, insert_at_index, predecessor_id: target_id, outbound_signal: outbound_signal, **options_for_resolver_builder)
       end
 
       class IllegalIdError < Exception
