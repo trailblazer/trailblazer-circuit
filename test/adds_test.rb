@@ -133,6 +133,7 @@ class CircuitAddsTest < Minitest::Spec
       [:z, _A::Circuit::Node[:z, my_exec_context.method(:z), lib_interface],
         :before, :b,
         resolver: {Right => [:b, Right], Left => [nil, Left]},
+        # we don't need an {:outbound_signal} since we're building the resolver manually here.
       ],
     )
 
@@ -193,6 +194,7 @@ class CircuitAddsTest < Minitest::Spec
       [:z, _A::Circuit::Node[:z, my_exec_context.method(:z), lib_interface], :after, :a],
 
     )
+    pp my_new_pipe
 
     assert_run my_new_pipe, seq: [:a, :z, :b], terminus: Right
   end
