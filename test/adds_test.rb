@@ -254,7 +254,7 @@ class CircuitAddsTest < Minitest::Spec
     )
   end
 
-  it "{:inbound_signal} decides which path from predecessor we reconnect to the inserted node" do
+  it "{:inbound_signal} decides which path from predecessor we reconnect to the inserted node, (and who is the (original) successor, see next test)" do
     my_pipe = Trailblazer::Circuit::Builder.Circuit(
       [:a, my_exec_context.method(:a), lib_interface, connections: {Right => [:b, Right], Left => [:c, Left]}],
       [:b, my_exec_context.method(:b), lib_interface, connections: Trailblazer::Circuit::Resolver::Fixed.new(nil)],
@@ -263,12 +263,12 @@ class CircuitAddsTest < Minitest::Spec
 
     my_new_pipe = Trailblazer::Circuit::Adds.(
       my_pipe,
-      [:z, _A::Circuit::Node[:z, my_exec_context.method(:z), lib_interface], :before, :b,
+      [:z, _A::Circuit::Node[:z, my_exec_context.method(:z), lib_interface], :after, :a,
         resolver: Trailblazer::Circuit::Resolver::Fixed.new(:b),
         inbound_signal: Right
       ],
 
-      [:e, _A::Circuit::Node[:e, my_exec_context.method(:e), lib_interface], :before, :c,
+      [:e, _A::Circuit::Node[:e, my_exec_context.method(:e), lib_interface], :after, :a,
         resolver: Trailblazer::Circuit::Resolver::Fixed.new(:c),
         inbound_signal: Left
       ],
