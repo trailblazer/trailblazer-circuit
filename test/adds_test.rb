@@ -265,7 +265,7 @@ class CircuitAddsTest < Minitest::Spec
       my_pipe,
       [:z, _A::Circuit::Node[:z, my_exec_context.method(:z), lib_interface], :after, :a,
         resolver: Trailblazer::Circuit::Resolver::Fixed.new(:b),
-        inbound_signal: Right
+        inbound_signal: Right # the signal going out of {:a} to the original successor.
       ],
 
       [:e, _A::Circuit::Node[:e, my_exec_context.method(:e), lib_interface], :after, :a,
@@ -276,6 +276,28 @@ class CircuitAddsTest < Minitest::Spec
 
     assert_run my_new_pipe, seq: [:a, :z, :b], terminus: Right, flow_options: {application_ctx: {seq: []}}
     assert_run my_new_pipe, seq: [:a, :e, :c], terminus: Right, flow_options: {application_ctx: {seq: [], a: Left}}
+  end
+
+  it "{:inbound_signal} dictates who is the successor of the new node, because it uses the original successor that was connected via {:inbound_signal}." do
+    my_pipe = Trailblazer::Circuit::Builder.Circuit(
+      [:a, my_exec_context.method(:a), lib_interface, connections: {Right => [:b, Right], Left => [nil, Left]}],
+      [:b, my_exec_context.method(:b), lib_interface, connections: Trailblazer::Circuit::Resolver::Fixed.new(nil)],
+      # [:c, my_exec_context.method(:c), lib_interface, connections: Trailblazer::Circuit::Resolver::Fixed.new(nil)],
+    )
+
+    # Let the DEFAULT_HASH_RESOLVER_BUILDER build the resolver hash, but with the correct successor.
+    my_new_pipe = Trailblazer::Circuit::Adds.(
+      my_pipe,
+      [:z, _A::Circuit::Node[:z, my_exec_context.method(:z), lib_interface], :after, :a,
+        inbound_signal: Right
+      ],
+      [:e, _A::Circuit::Node[:e, my_exec_context.method(:e), lib_interface], :after, :a,
+        inbound_signal: Left
+      ],
+    )
+
+    assert_run my_new_pipe, seq: [:a, :z, :b], terminus: Right, flow_options: {application_ctx: {seq: []}}
+    assert_run my_new_pipe, seq: [:a, :e], terminus: Right, flow_options: {application_ctx: {seq: [], a: Left}}
   end
 
   it "Resolver::Conditional: {inbound_signal} decides how the predecessor resolver is altered" do
