@@ -170,26 +170,36 @@ module Trailblazer
         return flow_map, nodes
       end
 
-      def replace(flow_map, nodes, inserted_id, inserted_node, target_id, inbound_signal:, **)
-        # Replace old key/args from nodes.
-        nodes = nodes.slice(*(nodes.keys - [target_id])) # FIXME: redundant with {delete} logic.
-        nodes = nodes.merge(inserted_id => inserted_node)
+      def replace(flow_map, nodes, inserted_id, inserted_node, target_id, reuse_resolver: true, **options)
+        predecessors_with_signal = find_predecessors(flow_map, target_id)
 
-        flow_ary_keys = flow_map.keys
-        target_index = flow_ary_keys.index(target_id) # TODO: cleanup this!
+        flow_map_updates = predecessors_with_signal.collect do |id, resolver, signal_to_target|
+          [id, resolver.merge(signal_to_target => [inserted_id, signal_to_target])]
+        end.to_h
 
-        target_connections = flow_map[target_id] # FIXME: redundant to {after} logic.
+        # all predecessors of (target_id) now point to the new node.
+        flow_map = flow_map.merge(flow_map_updates) # #merge preserves positions. # TODO: test!
 
-        if target_index > 0
-          flow_map = reconnect_predecessor(flow_map, flow_ary_keys, target_id, inbound_signal, inserted_id)
+        if reuse_resolver # TODO: allow your own resolver (where do we need that?).
+          resolver_from_target = flow_map.fetch(target_id)
         end
 
-        # delete old key.
-        flow_map = flow_map.slice(*(flow_ary_keys - [target_id])) # FIXME: redundant to {delete} logic.
+        insert_at_index = find_insert_at_index(flow_map, target_id, offset: 0)
+        flow_map, nodes = insert_node_at(flow_map, nodes, inserted_id, inserted_node, target_id, insert_at_index, {}, resolver: resolver_from_target)
 
-        flow_map = insert_at(flow_map, target_index, [inserted_id, target_connections])
+        # delete old key.
+        flow_map = flow_map.slice(*(flow_map.keys - [target_id])) # FIXME: redundant to {delete} logic.
+        nodes    = nodes.slice(*(nodes.keys - [target_id])) # FIXME: redundant with {delete} logic.
 
         return flow_map, nodes
+      end
+
+      def find_predecessors(flow_map, target_id)
+        flow_map.flat_map { |id, resolver|
+          resolver.values.collect { |successor_id, signal|
+            successor_id == target_id ? [id, resolver, signal] : nil
+          }
+        }.compact
       end
     end
   end # Circuit

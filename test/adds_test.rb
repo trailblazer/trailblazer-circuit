@@ -377,15 +377,61 @@ class CircuitAddsTest < Minitest::Spec
     raise "# FIXME, we have to make sure that the next node is actually connected to the target_id?"
   end
 
+  it "{:replace} on first node" do
+    my_pipe = Trailblazer::Circuit::Builder.Circuit(
+      [:a, my_exec_context.method(:a), lib_interface, connections: {Right => [:b, Right], Left => [nil, Left]}],
+      [:b, my_exec_context.method(:b), lib_interface, connections: Trailblazer::Circuit::Resolver::Fixed.new(nil)],
+    )
+
+    my_new_pipe = Trailblazer::Circuit::Adds.(
+      my_pipe,
+      [:z, z_node, :replace, :a],
+    )
+
+    assert_run my_new_pipe, seq: [:z, :b], terminus: Right
+    # TODO: test more
+
+  #   assert_equal extended_tw_pipe.to_a[0].keys, [:z, :b, :c] # TODO: do that everywhere!
+  end
+
+  it "{:replace} on middle node" do
+    my_pipe = Trailblazer::Circuit::Builder.Circuit(
+      [:a, my_exec_context.method(:a), lib_interface, connections: {Right => [:b, Right], Left => [nil, Left]}],
+      [:b, my_exec_context.method(:b), lib_interface, connections: Trailblazer::Circuit::Resolver::Fixed.new(nil)],
+    )
+
+    my_new_pipe = Trailblazer::Circuit::Adds.(
+      my_pipe,
+      [:z, z_node, :replace, :b],
+      # reuse_resolver: true
+    )
+
+    assert_run my_new_pipe, seq: [:a, :z], terminus: Right
+
+    assert_equal my_new_pipe.to_h[:flow_map].keys, [:a, :z]
+  end
+
+  it "{:replace} where multiple nodes point to {:a}" do
+    my_pipe = Trailblazer::Circuit::Builder.Circuit(
+      [:a, my_exec_context.method(:a), lib_interface, connections: {Right => [:d, Right], Left => [:c, Left]}],
+      [:b, my_exec_context.method(:b), lib_interface, connections: Trailblazer::Circuit::Resolver::Fixed.new(:d)],
+      [:d, my_exec_context.method(:d), lib_interface, connections: Trailblazer::Circuit::Resolver::Fixed.new(nil)],
+      [:c, my_exec_context.method(:c), lib_interface, connections: Trailblazer::Circuit::Resolver::Fixed.new(:b)],
+    )
+
+    my_new_pipe = Trailblazer::Circuit::Adds.(
+      my_pipe,
+      [:z, z_node, :replace, :b],
+      # reuse_resolver: true
+    )
+
+    assert_run my_new_pipe, seq: [:a, :d, ], terminus: Right
+    assert_run my_new_pipe, seq: [:a, :c, :z, :d], terminus: Right, flow_options: {application_ctx: {seq: [], a: Left}}
+  end
+
   it "" do
-    raise "delete, replace need tests"
+    raise "delete need tests"
   end
-
-  it "what" do
-    raise "how does replace work with its resolver?"
-  end
-
-
 
 
   # it "{:before} and {:after} with a non-Resolver, outgoing signals hash, empty pipe" do
