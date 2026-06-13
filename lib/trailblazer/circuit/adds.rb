@@ -75,12 +75,7 @@ module Trailblazer
 
         # find out where the predecessor orginally pointed to via inbound_signal,
         # as that's the signal we're repointing.
-        successor_id, _ = predecessor_resolver.fetch(inbound_signal)# find_successor_id(flow_map, target_id, inbound_signal: inbound_signal)
-
-        # find the "first" predecessor.
-        # TODO: we should allow here to precisely identify on which connection we want to place the new node (eg "from A to B on the Left signal")
-        #       currently, we find the first appearance of any signal pointing to {target_id}. however, this will do the trick for pipelines.
-
+        successor_id, _ = predecessor_resolver.fetch(inbound_signal)
 
         # Re-point the predecessor of target to the newly inserted.
         flow_map = reconnect_predecessor(flow_map, inserted_id, predecessor_id, predecessor_resolver, signal_from_predecessor)
@@ -112,15 +107,10 @@ module Trailblazer
           target_id = flow_map.keys.last # DISCUSS: this obviously only works correctly in "pipes".
         end
 
-        # successor_id = find_successor_id(flow_map, target_id, **options)
-
         # find node after {target_id}.
         insert_at_index = find_insert_at_index(flow_map, target_id, offset: 1)
-        # insert_at_index = flow_map.keys.index(target_id) + 1 # 1 for after.
 
-        # raise "#{target_id} is not connected to #{successor_id}" unless flow_map[target_id].values.flatten.include?(successor_id) # FIXME: solve this somehow, but for now i can't be bothered.
-
-        # You always have a predecessor with :after unless it's an empty pipe.
+        # You always have a predecessor with {:after} unless it's an empty pipe.
         insert_with_predecessor(flow_map, nodes, inserted_id, inserted_node, insert_at_index, predecessor_id: target_id, **options)
       end
 
@@ -152,15 +142,16 @@ module Trailblazer
         return flow_map.merge(to_merge)
       end
 
-      def find_predecessor_with_signal(flow_map, target_id, signal_from_predecessor = nil)
-        flow_map.find { |id, resolver|
-          resolver.values.find { |next_node_id, signal|
-            if [next_node_id, signal] == [target_id, signal_from_predecessor]
-              return id, resolver, signal
-            end
-          }
-        }
-      end
+      # TODO: this could be the predecessor search algorithm for {:before}
+      # def find_predecessor_with_signal(flow_map, target_id, signal_from_predecessor = nil)
+      #   flow_map.find { |id, resolver|
+      #     resolver.values.find { |next_node_id, signal|
+      #       if [next_node_id, signal] == [target_id, signal_from_predecessor]
+      #         return id, resolver, signal
+      #       end
+      #     }
+      #   }
+      # end
 
       def delete(flow_map, nodes, _, _, target_id, inbound_signal:, **)
         nodes = nodes.slice(*(nodes.keys - [target_id]))

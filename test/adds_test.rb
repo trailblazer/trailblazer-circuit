@@ -282,7 +282,6 @@ class CircuitAddsTest < Minitest::Spec
     my_pipe = Trailblazer::Circuit::Builder.Circuit(
       [:a, my_exec_context.method(:a), lib_interface, connections: {Right => [:b, Right], Left => [nil, Left]}],
       [:b, my_exec_context.method(:b), lib_interface, connections: Trailblazer::Circuit::Resolver::Fixed.new(nil)],
-      # [:c, my_exec_context.method(:c), lib_interface, connections: Trailblazer::Circuit::Resolver::Fixed.new(nil)],
     )
 
     # Let the DEFAULT_HASH_RESOLVER_BUILDER build the resolver hash, but with the correct successor.
@@ -298,6 +297,26 @@ class CircuitAddsTest < Minitest::Spec
 
     assert_run my_new_pipe, seq: [:a, :z, :b], terminus: Right, flow_options: {application_ctx: {seq: []}}
     assert_run my_new_pipe, seq: [:a, :e], terminus: Right, flow_options: {application_ctx: {seq: [], a: Left}}
+  end
+
+  let(:z_node) { _A::Circuit::Node[:z, my_exec_context.method(:z), lib_interface] }
+
+  it ":before with {:inbound_signal} fails when the signal is not found in the {index-1} predecessor" do
+    my_pipe = Trailblazer::Circuit::Builder.Circuit(
+      [:a, my_exec_context.method(:a), lib_interface, connections: {Right => [:b, Right], Left => [nil, Left]}],
+      [:b, my_exec_context.method(:b), lib_interface, connections: Trailblazer::Circuit::Resolver::Fixed.new(nil)],
+    )
+
+    exception = assert_raises KeyError do
+      Trailblazer::Circuit::Adds.(
+        my_pipe,
+        [:z, z_node, :before, :b,
+          inbound_signal: Object # {:a} doesn't emit this signal.
+        ]
+      )
+    end
+
+    assert_equal exception.message, "key not found: Object"
   end
 
   it "Resolver::Conditional: {inbound_signal} decides how the predecessor resolver is altered" do
@@ -322,8 +341,35 @@ class CircuitAddsTest < Minitest::Spec
     assert_run my_new_pipe, seq: [:a, :b], terminus: Right, flow_options: {application_ctx: {seq: [], a: Object}}
   end
 
-  it "what" do
-    raise "test that we default {outbound_signal: nil}"
+  it "{:resolver_builder} we default {outbound_signal: nil}" do
+    my_b = ->(*args) { args }
+
+    my_pipe = Trailblazer::Circuit::Builder.Circuit(
+      [:a, my_exec_context.method(:a), lib_interface, connections: Trailblazer::Circuit::Resolver::Fixed.new(:b)],
+      [:b, my_b, lib_interface, connections: Trailblazer::Circuit::Resolver::Fixed.new(nil)],
+    )
+
+    # Test that we receive correct {successor_id} and {outbound_signal}.
+    my_resolver_builder = ->(successor_id, outbound_signal:, **) do
+      {outbound_signal => [successor_id, outbound_signal]}
+    end
+
+    my_z = ->(lib_ctx, flow_options, signal, **) do
+      flow_options[:application_ctx][:seq] << :z
+
+      return lib_ctx, flow_options, Object
+    end
+
+    my_new_pipe = Trailblazer::Circuit::Adds.(
+      my_pipe,
+      [:z, _A::Circuit::Node[:z, my_z, lib_interface], :after, :a,
+        resolver_builder: my_resolver_builder,
+        inbound_signal: Right,
+        outbound_signal: Object, # FIXME: this is actually defaulted.
+      ],
+    )
+
+    assert_run my_new_pipe, seq: [:a, :z], terminus: Object # {outbound_signal} was defaulted to {nil}.
   end
 
   it "what" do
