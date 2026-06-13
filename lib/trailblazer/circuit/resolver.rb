@@ -26,6 +26,28 @@ module Trailblazer
 
           return id_for_else, value
         end
+
+        def merge(hsh)
+          # signal, next_node_hsh = hsh.to_a[0] # DISCUSS: we're only allowing one merged signal.
+          next_node_id, signal = hsh.to_a[0][1] # incoming: {Left => [:a, Left]}
+
+          if known_signals.include?(signal)
+            return self.class.new([signal], next_node_id, id_for_else)
+          end
+
+          if signal.nil?
+            return self.class.new(known_signals, id_for_known_signal, next_node_id)
+          end
+
+          raise "unknown outbound signal #{signal}"
+        end
+
+        def values
+          [
+            *known_signals.collect { |signal| [id_for_known_signal, signal] },
+            [id_for_else, nil]
+          ]
+        end
       end
     end # Resolver
   end
