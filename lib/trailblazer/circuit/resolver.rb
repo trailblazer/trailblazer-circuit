@@ -10,7 +10,7 @@ module Trailblazer
         def merge(element) # NOTE: experimental, needed in Adds. # DISCUSS: make it Adds:: ?
           next_node_id, _signal = element.values[0]
 
-          Fixed.new(next_node_id) # TODO: test me
+          Fixed.new(next_node_id)
         end
 
         def values # NOTE: experimental, needed in Adds. # DISCUSS: make it Adds:: ?

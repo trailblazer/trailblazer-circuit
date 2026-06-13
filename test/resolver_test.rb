@@ -95,9 +95,17 @@ class ConditionalResolverTest < Minitest::Spec
 end
 
 class FixedResolverTest < Minitest::Spec
-  it "implements Adds interface" do
-    assert_equal my_resolver.values, [[[:a, Object], [:a, Module], [:b, nil]]]
+  let(:my_resolver) { Trailblazer::Circuit::Resolver::Fixed.new(:a) }
 
-  raise "adds interface"
+  it "implements {#fetch} and always returns {:a} along with the resolved/queried signal" do
+    assert_equal my_resolver.fetch(Object), [:a, Object]
+    assert_equal my_resolver.fetch(nil), [:a, nil]
+  end
+
+  it "implements Adds interface: {#merge}" do
+    my_new_resolver = my_resolver.merge(nil => [:b, nil])
+
+    assert_equal my_resolver.values, [[:a, nil]]
+    assert_equal my_new_resolver.values, [[:b, nil]]
   end
 end
