@@ -11,18 +11,12 @@ my_input_pipe = Trailblazer::Circuit::Builder.Pipeline(
   [:d, :d, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod, merge_to_lib_ctx: {exec_context: my_exec_context}],
   [:e, :e, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod, merge_to_lib_ctx: {exec_context: my_exec_context}],
 )
+my_node_with_merge = Trailblazer::Circuit::Node[nil, my_input_pipe, Trailblazer::Circuit::Processor]
 
-def run_instance_method(pipe, exec_context)
-  lib_ctx, flow_options, signal = Trailblazer::Circuit::Processor.(
-    pipe,
-    {exec_context: exec_context},
-    {application_ctx: {seq: []}},
-    nil,
-    context_implementation: Trailblazer::Circuit::Context,
-    runner: Trailblazer::Circuit::Node::Runner,
-  )
-end
-
+#
+# Reference the method of a particular exec_context that holds the configuration state for this pipe.
+# NOTE: it would be interesting to see memory consumption here.
+#
 my_input_pipe_with_method_refs = Trailblazer::Circuit::Builder.Pipeline(
   [:a, my_exec_context.method(:a), Trailblazer::Circuit::Task::Adapter::LibInterface],
   [:b, my_exec_context.method(:b), Trailblazer::Circuit::Task::Adapter::LibInterface],
@@ -30,6 +24,8 @@ my_input_pipe_with_method_refs = Trailblazer::Circuit::Builder.Pipeline(
   [:d, my_exec_context.method(:d), Trailblazer::Circuit::Task::Adapter::LibInterface],
   [:e, my_exec_context.method(:e), Trailblazer::Circuit::Task::Adapter::LibInterface],
 )
+my_node_with_method_refs = Trailblazer::Circuit::Node[nil, my_input_pipe_with_method_refs, Trailblazer::Circuit::Processor]
+
 
 my_input_pipe_with_instance_but_no_scope = Trailblazer::Circuit::Builder.Pipeline(
   [:a, :a, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod],
@@ -38,28 +34,43 @@ my_input_pipe_with_instance_but_no_scope = Trailblazer::Circuit::Builder.Pipelin
   [:d, :d, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod],
   [:e, :e, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod],
 )
+my_node_with_instance_method_and_scoped = Trailblazer::Circuit::Node::Scoped[nil, my_input_pipe_with_instance_but_no_scope, Trailblazer::Circuit::Processor,
+  merge_to_lib_ctx: {exec_context: my_exec_context}
+]
 
-# lib_ctx, flow_options = run_instance_method(my_input_pipe_with_instance_but_no_scope, my_exec_context)
-# raise flow_options.inspect
+# we can also pass the {:exec_context} in the call, just to see how that performs.
+my_node_with_instance_method_and_not_scoped = Trailblazer::Circuit::Node[nil, my_input_pipe_with_instance_but_no_scope, Trailblazer::Circuit::Processor]
+
+# lib_ctx, flow_options = Benchmark.run_node(my_node_with_merge, lib_ctx: {}, flow_options: {application_ctx: {seq: []}})
+# lib_ctx, flow_options = Benchmark.run_node(my_node_with_method_refs, lib_ctx: {}, flow_options: {application_ctx: {seq: []}})
+# lib_ctx, flow_options = Benchmark.run_node(my_node_with_instance_method_and_scoped, lib_ctx: {}, flow_options: {application_ctx: {seq: []}})
+# lib_ctx, flow_options = Benchmark.run_node(my_node_with_instance_method_and_not_scoped, lib_ctx: {exec_context: my_exec_context}, flow_options: {application_ctx: {seq: []}})
+#  raise flow_options.inspect
+
 
 
 # Comparison:
-#             no merge:   160634.9 i/s
-#                  new:   156270.5 i/s - 1.03x  slower
-#                  cix:    98281.9 i/s - 1.63x  slower
+#           not scoped:   144965.7 i/s
+#          method refs:   142825.2 i/s - 1.01x  slower
+#               scoped:   125197.7 i/s - 1.16x  slower
+#       merge per step:    84383.9 i/s - 1.72x  slower
 
 
 Benchmark.ips do |x|
-  x.report("cix") {
-    run_instance_method(my_input_pipe, my_exec_context)
+  x.report("merge per step") {
+    Benchmark.run_node(my_node_with_merge, lib_ctx: {}, flow_options: {application_ctx: {seq: []}})
   }
 
-  x.report("new") {
-    run_instance_method(my_input_pipe_with_method_refs, my_exec_context)
+  x.report("method refs") {
+    Benchmark.run_node(my_node_with_method_refs, lib_ctx: {}, flow_options: {application_ctx: {seq: []}})
   }
 
-  x.report("no merge") {
-    run_instance_method(my_input_pipe_with_instance_but_no_scope, my_exec_context)
+  x.report("scoped") {
+    Benchmark.run_node(my_node_with_instance_method_and_scoped, lib_ctx: {}, flow_options: {application_ctx: {seq: []}})
+  }
+
+  x.report("not scoped") {
+    Benchmark.run_node(my_node_with_instance_method_and_not_scoped, lib_ctx: {exec_context: my_exec_context}, flow_options: {application_ctx: {seq: []}})
   }
 
   x.compare!
