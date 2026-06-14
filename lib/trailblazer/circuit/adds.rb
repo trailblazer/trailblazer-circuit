@@ -184,12 +184,16 @@ module Trailblazer
           resolver_from_target = flow_map.fetch(target_id)
         end
 
+        # delete replaced node. this must be done before we insert, in order to avoid an exception in #add_node (WIP?).
+        nodes    = nodes.slice(*(nodes.keys - [target_id])) # FIXME: redundant with {delete} logic.
+
         insert_at_index = find_insert_at_index(flow_map, target_id, offset: 0)
         flow_map, nodes = insert_node_at(flow_map, nodes, inserted_id, inserted_node, target_id, insert_at_index, {}, resolver: resolver_from_target)
 
         # delete old key.
-        flow_map = flow_map.slice(*(flow_map.keys - [target_id])) # FIXME: redundant to {delete} logic.
-        nodes    = nodes.slice(*(nodes.keys - [target_id])) # FIXME: redundant with {delete} logic.
+        unless inserted_id == target_id
+          flow_map = flow_map.slice(*(flow_map.keys - [target_id])) # FIXME: redundant to {delete} logic.
+        end
 
         return flow_map, nodes
       end

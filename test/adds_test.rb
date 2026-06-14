@@ -427,6 +427,22 @@ class CircuitAddsTest < Minitest::Spec
 
     assert_run my_new_pipe, seq: [:a, :d, ], terminus: Right
     assert_run my_new_pipe, seq: [:a, :c, :z, :d], terminus: Right, flow_options: {application_ctx: {seq: [], a: Left}}
+    assert_equal my_new_pipe.to_h[:flow_map].keys, [:a, :z, :d, :c]
+  end
+
+  it "{:replace} with the same ID" do
+    my_pipe = Trailblazer::Circuit::Builder.Circuit(
+      [:a, my_exec_context.method(:a), lib_interface, connections: {Right => [:b, Right], Left => [nil, Left]}],
+      [:b, my_exec_context.method(:b), lib_interface, connections: Trailblazer::Circuit::Resolver::Fixed.new(nil)],
+    )
+
+    my_new_pipe = Trailblazer::Circuit::Adds.(
+      my_pipe,
+      [:a, z_node, :replace, :a],
+    )
+
+    assert_run my_new_pipe, seq: [:z, :b], terminus: Right
+    assert_equal my_new_pipe.to_h[:flow_map].keys, [:a, :b]
   end
 
   it "" do
