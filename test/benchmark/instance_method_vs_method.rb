@@ -55,6 +55,7 @@ class MyFasterNode < Trailblazer::Circuit::Node::Scoped
   # @private
   def unscope(lib_ctx, outer_ctx, signal, outer_signal, **)
     # raise lib_ctx.inspect
+    return lib_ctx, outer_signal # in this case we don't care if the :exec_context "pollutes" since the next filter "knows" that.
     return {aggregate: 1}, outer_signal # this would be aggregate
   end
 end
@@ -64,20 +65,55 @@ my_node_with_instance_method_and_faster_scoped = MyFasterNode[nil, my_input_pipe
   merge_to_lib_ctx: {exec_context: my_exec_context}
 ]
 
+#
+# And another attempt where we transport the {:exec_context} in {circuit_options}, making
+# it more of a library/TRB core concept.
+#
+
+class MyNodeWhereCircuitOptionsTransportTheExecContext < Struct.new(:id, :task, :interface, :merge_to_circuit_options)
+  include Trailblazer::Circuit::Node::Call
+
+  def call(lib_ctx, flow_options, signal, **circuit_options)
+    super(lib_ctx, flow_options, signal, **circuit_options, **merge_to_circuit_options)
+  end
+end
+
+class MyLibInterface_InstanceMethod
+  # def self.call(task, ctx, flow_options, signal, exec_context:, **circuit_options) # DISCUSS: this makes it slower from 1.06x to 1.21x
+  def self.call(task, ctx, flow_options, signal, **circuit_options)
+    exec_context = circuit_options[:exec_context]
+    exec_context.send(task, ctx, flow_options, signal, **ctx)
+  end
+end
+my_pipe_with_circuit_options = Trailblazer::Circuit::Builder.Pipeline(
+  [:a, :a, MyLibInterface_InstanceMethod],
+  [:b, :b, MyLibInterface_InstanceMethod],
+  [:c, :c, MyLibInterface_InstanceMethod],
+  [:d, :d, MyLibInterface_InstanceMethod],
+  [:e, :e, MyLibInterface_InstanceMethod],
+)
+my_node_with_with_circuit_options = MyNodeWhereCircuitOptionsTransportTheExecContext[nil, my_pipe_with_circuit_options,
+  Trailblazer::Circuit::Processor,
+  {exec_context: my_exec_context}.freeze
+]
+
 # lib_ctx, flow_options = Benchmark.run_node(my_node_with_merge, lib_ctx: {}, flow_options: {application_ctx: {seq: []}})
 # lib_ctx, flow_options = Benchmark.run_node(my_node_with_method_refs, lib_ctx: {}, flow_options: {application_ctx: {seq: []}})
 # lib_ctx, flow_options = Benchmark.run_node(my_node_with_instance_method_and_scoped, lib_ctx: {}, flow_options: {application_ctx: {seq: []}})
 # lib_ctx, flow_options = Benchmark.run_node(my_node_with_instance_method_and_not_scoped, lib_ctx: {exec_context: my_exec_context}, flow_options: {application_ctx: {seq: []}})
 # lib_ctx, flow_options = Benchmark.run_node(my_node_with_instance_method_and_faster_scoped, lib_ctx: {}, flow_options: {application_ctx: {seq: []}})
+# lib_ctx, flow_options = Benchmark.run_node(my_node_with_with_circuit_options, lib_ctx: {}, flow_options: {application_ctx: {seq: []}})
 #  raise flow_options.inspect
 
 
 # Comparison:
-#           not scoped:   145257.5 i/s
-#          method refs:   140706.1 i/s - 1.03x  slower
-#        faster scoped:   133354.9 i/s - 1.09x  slower
-#               scoped:   126091.3 i/s - 1.15x  slower
-#       merge per step:    83178.6 i/s - 1.75x  slower
+#           not scoped:   143770.4 i/s
+#          method refs:   140793.8 i/s - 1.02x  slower
+# circuit_options scoped:   135652.7 i/s - 1.06x  slower
+#        faster scoped:   131205.9 i/s - 1.10x  slower
+#               scoped:   124631.4 i/s - 1.15x  slower
+#       merge per step:    82913.7 i/s - 1.73x  slower
+
 
 
 Benchmark.ips do |x|
@@ -99,6 +135,10 @@ Benchmark.ips do |x|
 
   x.report("faster scoped") {
     Benchmark.run_node(my_node_with_instance_method_and_faster_scoped, lib_ctx: {}, flow_options: {application_ctx: {seq: []}})
+  }
+
+  x.report("circuit_options scoped") {
+    Benchmark.run_node(my_node_with_with_circuit_options, lib_ctx: {}, flow_options: {application_ctx: {seq: []}})
   }
 
   x.compare!
