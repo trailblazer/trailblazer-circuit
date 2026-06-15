@@ -74,7 +74,7 @@ class MyNodeWhereCircuitOptionsTransportTheExecContext < Struct.new(:id, :task, 
   include Trailblazer::Circuit::Node::Call
 
   def call(lib_ctx, flow_options, signal, **circuit_options)
-    super(lib_ctx, flow_options, signal, **circuit_options, **merge_to_circuit_options)
+    super(lib_ctx, flow_options, signal, **circuit_options.merge, **merge_to_circuit_options)
   end
 end
 
@@ -106,6 +106,8 @@ my_node_with_with_circuit_options = MyNodeWhereCircuitOptionsTransportTheExecCon
 #  raise flow_options.inspect
 
 
+# 3.3.6
+
 # Comparison:
 #           not scoped:   143770.4 i/s
 #          method refs:   140793.8 i/s - 1.02x  slower
@@ -114,6 +116,26 @@ my_node_with_with_circuit_options = MyNodeWhereCircuitOptionsTransportTheExecCon
 #               scoped:   124631.4 i/s - 1.15x  slower
 #       merge per step:    82913.7 i/s - 1.73x  slower
 
+
+# 3.4.7
+
+# Comparison:
+#           not scoped:   138434.8 i/s
+#          method refs:   137793.5 i/s - same-ish: difference falls within error
+#        faster scoped:   126578.8 i/s - 1.09x  slower
+# circuit_options scoped:   125732.9 i/s - 1.10x  slower
+#               scoped:   120199.0 i/s - 1.15x  slower
+#       merge per step:    87738.6 i/s - 1.58x  slower
+
+# 4.0.5
+
+# Comparison:
+#          method refs:   154711.7 i/s
+#           not scoped:   154527.7 i/s - same-ish: difference falls within error
+#        faster scoped:   139564.0 i/s - 1.11x  slower
+# circuit_options scoped:   138696.7 i/s - 1.12x  slower
+#               scoped:   134828.4 i/s - 1.15x  slower
+#       merge per step:    94496.8 i/s - 1.64x  slower
 
 
 Benchmark.ips do |x|
