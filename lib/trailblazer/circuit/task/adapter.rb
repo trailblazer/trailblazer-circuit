@@ -15,6 +15,14 @@
               exec_context.send(task, ctx, flow_options, signal, **ctx)
             end
           end
+
+          class InstanceMethod_CircuitOptions # FIXME: make canonical
+            def self.call(task, ctx, flow_options, signal, **circuit_options)
+              exec_context = circuit_options.fetch(:exec_context)
+
+              exec_context.send(task, ctx, flow_options, signal, **ctx)
+            end
+          end
         end
 
         # The step interface is only used on the application level.

@@ -70,29 +70,15 @@ my_node_with_instance_method_and_faster_scoped = MyFasterNode[nil, my_input_pipe
 # it more of a library/TRB core concept.
 #
 
-class MyNodeWhereCircuitOptionsTransportTheExecContext < Struct.new(:id, :task, :interface, :merge_to_circuit_options)
-  include Trailblazer::Circuit::Node::Call
 
-  def call(lib_ctx, flow_options, signal, **circuit_options)
-    super(lib_ctx, flow_options, signal, **circuit_options.merge, **merge_to_circuit_options)
-  end
-end
-
-class MyLibInterface_InstanceMethod
-  # def self.call(task, ctx, flow_options, signal, exec_context:, **circuit_options) # DISCUSS: this makes it slower from 1.06x to 1.21x
-  def self.call(task, ctx, flow_options, signal, **circuit_options)
-    exec_context = circuit_options[:exec_context]
-    exec_context.send(task, ctx, flow_options, signal, **ctx)
-  end
-end
 my_pipe_with_circuit_options = Trailblazer::Circuit::Builder.Pipeline(
-  [:a, :a, MyLibInterface_InstanceMethod],
-  [:b, :b, MyLibInterface_InstanceMethod],
-  [:c, :c, MyLibInterface_InstanceMethod],
-  [:d, :d, MyLibInterface_InstanceMethod],
-  [:e, :e, MyLibInterface_InstanceMethod],
+  [:a, :a, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod_CircuitOptions],
+  [:b, :b, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod_CircuitOptions],
+  [:c, :c, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod_CircuitOptions],
+  [:d, :d, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod_CircuitOptions],
+  [:e, :e, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod_CircuitOptions],
 )
-my_node_with_with_circuit_options = MyNodeWhereCircuitOptionsTransportTheExecContext[nil, my_pipe_with_circuit_options,
+my_node_with_with_circuit_options = Trailblazer::Circuit::Node::MergeToCircuitOptions[nil, my_pipe_with_circuit_options,
   Trailblazer::Circuit::Processor,
   {exec_context: my_exec_context}.freeze
 ]
