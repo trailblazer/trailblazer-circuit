@@ -35,4 +35,8 @@ class ProcessorTest < Minitest::Spec
       [:model, create_circuit.nodes[:model]],
     ]
   end
+
+  it "{:start_tuple} is not passed to the nodes" do
+    raise ":start_tuple test!!!"
+  end
 end

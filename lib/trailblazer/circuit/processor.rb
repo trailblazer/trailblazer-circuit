@@ -5,18 +5,19 @@
     # keyed by a signal.
     class Processor
       # TODO: this can still be optimized for runtime speed, even though I spent days on it already.
-      def self.call(circuit, lib_ctx, flow_options, signal, runner:, start_tuple: circuit.start_tuple, **circuit_options) # FIXME: allow {:start_task}.
+      def self.call(circuit, lib_ctx, flow_options, signal, runner:, start_tuple: circuit.start_tuple, **circuit_options)
         id, node = start_tuple
 
         loop do
           # puts ">>>Processor #{id.inspect} <<<#{signal.inspect}>>> #{node.class}"
-          circuit_options = {
-            **circuit_options,
+          circuit_options = circuit_options.merge(
+            # **circuit_options,
             runner: runner,
             node:   node # NOTE: you can access the current node in a task via the CircuitInterface.
-          }
+          )
 
-          lib_ctx, flow_options, signal = runner.(node, lib_ctx, flow_options, signal, **circuit_options)
+          lib_ctx, flow_options, signal = runner.(node, lib_ctx, flow_options, signal, circuit_options)
+
           id, node, signal = circuit.resolve(id, signal) # DISCUSS: pass id and node? DISCUSS: allow returning the {signal} from resolve?
 
           return lib_ctx, flow_options, signal unless node

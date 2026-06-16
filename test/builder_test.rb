@@ -51,7 +51,7 @@ class PipelineBuilderTest < Minitest::Spec
 
   it "{node: MyNode} allows passing a node directly without any DSL logic involved" do
     my_node_with_circuit_interface = Class.new do
-      def self.call(lib_ctx, flow_options, signal, **circuit_options)
+      def self.call(lib_ctx, flow_options, signal, circuit_options)
         flow_options[:application_ctx][:seq] << :e
 
         return lib_ctx, flow_options, signal
@@ -67,6 +67,10 @@ class PipelineBuilderTest < Minitest::Spec
       seq: [:e]
 
     assert_equal lib_ctx, {}
+  end
+
+  it "TODO: :connections should be :resolver" do
+
   end
 
   it "provides defaulting" do

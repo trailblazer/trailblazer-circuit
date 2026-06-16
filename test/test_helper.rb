@@ -56,8 +56,10 @@ module Benchmark
       lib_ctx,
       flow_options,
       signal,
-      context_implementation: Trailblazer::Circuit::Context,
-      runner: Trailblazer::Circuit::Node::Runner,
+      {
+        context_implementation: Trailblazer::Circuit::Context,
+        runner: Trailblazer::Circuit::Node::Runner,
+      }
     )
   end
 end

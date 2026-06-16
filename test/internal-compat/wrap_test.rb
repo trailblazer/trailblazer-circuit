@@ -18,7 +18,7 @@ class WrapTest < Minitest::Spec
     )
 
     my_node_with_wrap = Class.new(_A::Circuit::Node::Scoped) do
-      def call(lib_ctx, flow_options, signal, **)
+      def call(lib_ctx, flow_options, signal, circuit_options)
       begin
         lib_ctx, flow_options, signal = super
       rescue

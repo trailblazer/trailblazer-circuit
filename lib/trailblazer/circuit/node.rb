@@ -11,7 +11,8 @@ module Trailblazer
       end
 
       module Call
-        def call(ctx, flow_options, signal, **circuit_options)
+        def call(ctx, flow_options, signal, circuit_options)
+          # Note that the circuit_options are passed as keyword arguments to the Adapter.
           interface.(task, ctx, flow_options, signal, **circuit_options) # DISCUSS: could we pass node_processor_options to Processor.() to set a differing start task?
         end
       end

@@ -10,8 +10,8 @@
       # It automatically merges "scoping options/configuration" at runtime, so this can be extended, too
       # (e.g. for tracing).
       class Runner
-        def self.call(node, ctx, lib_ctx, signal, **circuit_options)
-          node.(ctx, lib_ctx, signal, **circuit_options) # NOTE: runner calls node with the circuit interface.
+        def self.call(node, ctx, lib_ctx, signal, circuit_options)
+          node.(ctx, lib_ctx, signal, circuit_options) # NOTE: runner calls node with the circuit interface.
         end
       end
     end

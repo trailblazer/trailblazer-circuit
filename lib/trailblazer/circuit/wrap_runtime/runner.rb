@@ -11,7 +11,9 @@ module Trailblazer
       # This Runner is passed via circuit_options's :runner kwarg. It extends the original
       # runner and extends pipelines throuh the configured {Extension}s.
       class Runner < Node::Runner
-        def self.call(node, lib_ctx, flow_options, signal, wrap_runtime:, **circuit_options)
+        def self.call(node, lib_ctx, flow_options, signal, circuit_options)
+          wrap_runtime = circuit_options.fetch(:wrap_runtime)
+
           node_attrs = node.to_h
 
           # if node.task.instance_of?(Trailblazer::Circuit)

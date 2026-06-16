@@ -227,8 +227,6 @@ class CircuitResolveTest < Minitest::Spec
     assert_run node_value_on_signal, node: true, terminus: [:a, :b, :my_decider, :d, :f], seq: [], decision_signal: Right, signal: []
     assert_run node_value_on_signal, node: true, terminus: [:a, :b, :my_decider, :e], seq: [], decision_signal: Left, signal: []
 
-
-
 =begin
     #
     # benchmarking time
