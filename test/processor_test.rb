@@ -34,11 +34,25 @@ class ProcessorTest < Minitest::Spec
     ]
   end
 
-  it "{:start_tuple} is not passed to the nodes" do
-    raise ":start_tuple test!!!"
-  end
-
   it "we don't pass {:start_tuple} to the child nodes of the current circuit" do
+    my_task_with_circuit_interface = Class.new do
+      def call(lib_ctx, flow_options, signal, **circuit_options) # MyCircuitInterface.
+        lib_ctx[:ary] << circuit_options.keys
 
+        return lib_ctx, flow_options, signal
+      end
+    end
+
+    my_circuit = Pipeline(
+      [1, my_task_with_circuit_interface.new, MyCircuitInterface],
+      [2, my_task_with_circuit_interface.new, MyCircuitInterface],
+    )
+
+    lib_ctx, _ = assert_run my_circuit, seq: [], ary: []
+
+    assert_equal lib_ctx[:ary], [
+      [:context_implementation, :runner, :node],
+      [:context_implementation, :runner, :node]
+    ]
   end
 end
