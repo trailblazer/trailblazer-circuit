@@ -124,6 +124,32 @@ my_node_with_with_circuit_options = Trailblazer::Circuit::Node::MergeToCircuitOp
 #       merge per step:    94496.8 i/s - 1.64x  slower
 
 
+
+
+# 3.4.7
+# (this is with **circuit_options)
+#
+# Comparison:
+#           not scoped:   139794.8 i/s
+#          method refs:   138686.9 i/s - same-ish: difference falls within error
+#        faster scoped:   127222.3 i/s - 1.10x  slower
+# circuit_options scoped:   125374.5 i/s - 1.12x  slower
+#               scoped:   121251.0 i/s - 1.15x  slower
+#       merge per step:    87907.6 i/s - 1.59x  slower
+#
+#
+# (this is with circuit_options positional)
+#
+# Comparison:
+#          method refs:   148621.6 i/s
+#           not scoped:   147859.6 i/s - same-ish: difference falls within error
+#        faster scoped:   135360.6 i/s - 1.10x  slower
+# circuit_options scoped:   135174.8 i/s - 1.10x  slower
+#               scoped:   130431.7 i/s - 1.14x  slower
+#       merge per step:    94058.2 i/s - 1.58x  slower
+
+
+
 Benchmark.ips do |x|
   x.report("merge per step") {
     Benchmark.run_node(my_node_with_merge, lib_ctx: {}, flow_options: {application_ctx: {seq: []}})
