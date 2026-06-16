@@ -46,9 +46,10 @@ class ProcessorTest < Minitest::Spec
     my_circuit = Pipeline(
       [1, my_task_with_circuit_interface.new, MyCircuitInterface],
       [2, my_task_with_circuit_interface.new, MyCircuitInterface],
+      [3, my_task_with_circuit_interface.new, MyCircuitInterface],
     )
 
-    lib_ctx, _ = assert_run my_circuit, seq: [], ary: []
+    lib_ctx, _ = assert_run my_circuit, seq: [], ary: [], circuit_options: {start_tuple: [2, my_circuit.nodes[2]]}
 
     assert_equal lib_ctx[:ary], [
       [:context_implementation, :runner, :node],
