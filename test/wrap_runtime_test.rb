@@ -110,13 +110,14 @@ class WrapRuntimeTest < Minitest::Spec
 
     lib_ctx, flow_options, signal = Trailblazer::Circuit::Node::Runner.(
       my_create_node,
-      {exec_context: create_instance},
+      {},
       {
         application_ctx: {params: {id: 1, title: "Rancid"}},
       },
       nil,
       runner: Trailblazer::Circuit::Node::Runner,
       context_implementation: Trailblazer::Circuit::Context,
+      exec_context: create_instance
     )
 
     assert_equal signal, :Success
@@ -163,7 +164,7 @@ class WrapRuntimeTest < Minitest::Spec
 
     lib_ctx, flow_options, signal = Trailblazer::Circuit::WrapRuntime::Runner.(
       my_create_node,
-      {exec_context: create_instance},
+      {},
       {
         application_ctx: {params: {id: 1, title: "Uwe"}},
         stack: [].freeze,
@@ -172,6 +173,7 @@ class WrapRuntimeTest < Minitest::Spec
       runner: Trailblazer::Circuit::WrapRuntime::Runner,
       wrap_runtime: Hash.new(my_extensions),
       context_implementation: Trailblazer::Circuit::Context,
+      exec_context: create_instance
     )
 
     assert_equal signal, :Success

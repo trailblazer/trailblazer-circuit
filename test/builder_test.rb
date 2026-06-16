@@ -12,10 +12,10 @@ class PipelineBuilderTest < Minitest::Spec
     end
   end
 
-  def my_pollutor(lib_ctx, flow_options, signal, **)
-    flow_options[:application_ctx][:seq] << :my_pollutor
+  def my_pollutor(lib_ctx, flow_options, signal, pollute:, **)
+    flow_options[:application_ctx][:seq] << pollute
 
-    return lib_ctx.merge(pollute: true), # this will be discarded *if* this node is scoped.
+    return lib_ctx.merge(pollute => true), # this will be discarded *if* this node is scoped.
       flow_options, signal
   end
 
@@ -24,19 +24,33 @@ class PipelineBuilderTest < Minitest::Spec
       [:my_pollutor, method(:my_pollutor), scoped: true]
     )
 
-    lib_ctx, _ = assert_run my_circuit, terminus: nil, seq: [:my_pollutor]
+    lib_ctx, _ = assert_run my_circuit, terminus: nil, seq: [1], pollute: 1
 
-    assert_equal lib_ctx, {} # no pollution visible if it was scoped.
+    assert_equal lib_ctx, {pollute: 1} # only the original lib_ctx is here.
   end
 
   it "Pipeline creates a Scoped node when {:merge_to_lib_ctx} is given" do
     my_circuit = Trailblazer::Circuit::Builder.Pipeline(
-      [:my_pollutor, :my_pollutor, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod, merge_to_lib_ctx: {exec_context: self}]
+      [:ying, method(:my_pollutor), Trailblazer::Circuit::Task::Adapter::LibInterface, merge_to_lib_ctx: {pollute: 1}],
+      [:yang, method(:my_pollutor), Trailblazer::Circuit::Task::Adapter::LibInterface, merge_to_lib_ctx: {pollute: 2}],
     )
 
-    lib_ctx, _ = assert_run my_circuit, terminus: nil, seq: [:my_pollutor]
+    lib_ctx, _ = assert_run my_circuit, terminus: nil, seq: [1, 2]
 
     assert_equal lib_ctx, {} # no pollution as we're Scoped.
+  end
+
+  it "creates a {MergeToCircuitOptions} node when {:exec_context} is given" do
+    my_exec_context = T.def_tasks(:a, :b, success_signal: Right)
+
+    my_circuit = Trailblazer::Circuit::Builder.Pipeline(
+      [:a, :a, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod, exec_context: my_exec_context],
+      [:b, :b, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod, exec_context: my_exec_context],
+    )
+
+    lib_ctx, _ = assert_run my_circuit, terminus: Right, seq: [:a, :b]
+
+    assert_equal lib_ctx, {}
   end
 
   it "Pipeline creates an unscoped Node when no options given" do
@@ -44,9 +58,9 @@ class PipelineBuilderTest < Minitest::Spec
       [:my_pollutor, method(:my_pollutor)]
     )
 
-    lib_ctx, _ = assert_run my_circuit, terminus: nil, seq: [:my_pollutor]
+    lib_ctx, _ = assert_run my_circuit, terminus: nil, seq: [1], pollute: 1
 
-    assert_equal lib_ctx, {pollute: true}
+    assert_equal lib_ctx, {pollute: 1, 1 => true}
   end
 
   it "{node: MyNode} allows passing a node directly without any DSL logic involved" do
@@ -82,7 +96,7 @@ class PipelineBuilderTest < Minitest::Spec
 
     circuit = Trailblazer::Circuit::Builder.Pipeline(
       # instance method with lib interface.
-      [:a, :a, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod, merge_to_lib_ctx: {exec_context: T.def_tasks(:a, success_signal: nil)}],
+      [:a, :a, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod, exec_context: T.def_tasks(:a, success_signal: nil)],
 
       # callable with step interface, we don't get defaulting here.
       [:b, my_tasks.method(:b), Trailblazer::Circuit::Task::Adapter::LibInterface],

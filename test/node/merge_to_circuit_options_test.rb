@@ -30,7 +30,7 @@ class MergeToCircuitOptions_IntegrationTest < Minitest::Spec
 
     my_pipe_3 = Trailblazer::Circuit::Builder.Pipeline(
       [:c, :c, lib_interface::InstanceMethod, exec_context: my_exec_context_c],
-      [:v, :v, lib_interface::InstanceMethod],
+      [:v, :v, lib_interface::InstanceMethod], # we use our parent pipe's {:exec_context} that was set in {my_pipe_1}!
     )
 
     my_pipe_2 = Trailblazer::Circuit::Builder.Pipeline(

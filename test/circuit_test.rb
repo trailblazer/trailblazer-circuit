@@ -181,11 +181,11 @@ class CircuitResolveTest < Minitest::Spec
 
     my_circuit = Trailblazer::Circuit.build(flow_map: my_flow_map, nodes: my_nodes)
 
-    assert_run my_circuit, terminus: Right, seq: [:a, :b, :c], exec_context: my_exec_context
-    assert_run my_circuit, terminus: Right, seq: [:a, :failure], exec_context: my_exec_context, flow_options: {application_ctx: {seq: [], a: Left}}
+    assert_run my_circuit, terminus: Right, seq: [:a, :b, :c], circuit_options: {exec_context: my_exec_context}
+    assert_run my_circuit, terminus: Right, seq: [:a, :failure], circuit_options: {exec_context: my_exec_context}, flow_options: {application_ctx: {seq: [], a: Left}}
 
     # With a Reolver::Fixed, a terminating node can return any signal, but still terminates.
-    assert_run my_circuit, terminus: :c_says_Right, seq: [:a, :b, :c], exec_context: my_exec_context, flow_options: {application_ctx: {seq: [], c: :c_says_Right}}
+    assert_run my_circuit, terminus: :c_says_Right, seq: [:a, :b, :c], circuit_options: {exec_context: my_exec_context}, flow_options: {application_ctx: {seq: [], c: :c_says_Right}}
   end
 
   it "by using a custom Resolver, we can implement (fast?) value-on-signal circuits" do

@@ -9,17 +9,7 @@
           end
 
           class InstanceMethod
-            def self.call(task, ctx, flow_options, signal, **)
-              exec_context = ctx.fetch(:exec_context)
-
-              exec_context.send(task, ctx, flow_options, signal, **ctx)
-            end
-          end
-
-          class InstanceMethod_CircuitOptions # FIXME: make canonical
-            def self.call(task, ctx, flow_options, signal, **circuit_options)
-              exec_context = circuit_options.fetch(:exec_context)
-
+            def self.call(task, ctx, flow_options, signal, exec_context:, **)
               exec_context.send(task, ctx, flow_options, signal, **ctx)
             end
           end
@@ -30,7 +20,7 @@
           def self.call(task, lib_ctx, flow_options, signal, **circuit_options)
             target_ctx = lib_ctx.fetch(:target_ctx) # TODO: introduce second kwargs method that calls {#run_step}.
 
-            result = run_step(task, target_ctx, **lib_ctx)
+            result = run_step(task, target_ctx, **circuit_options)
 
             return lib_ctx, flow_options, result # value-on-signal
           end

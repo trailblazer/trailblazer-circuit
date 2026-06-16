@@ -49,7 +49,9 @@ class AdapterTest < Minitest::Spec
       context_implementation: Trailblazer::Circuit::Context,
     )
 
-    assert_equal signal, nil
+    expected_capture = Captured.new(["{:params=>{:id=>1}, :slug=>9}", "{:id=>1}", "{:slug=>9}"]).freeze
+
+    assert_equal signal, expected_capture
     assert_equal ctx, {aggregate: [], target_ctx: application_ctx}
     assert_equal flow_options, {
       :trace_ctx=>{:stack=>[]}
@@ -58,7 +60,7 @@ class AdapterTest < Minitest::Spec
     assert_equal application_ctx, {
       params: {:id=>1},
       slug: 9,
-      model:  Captured.new(["{:params=>{:id=>1}, :slug=>9}", "{:id=>1}", "{:slug=>9}"]),
+      model:  expected_capture,
     }
   end
 
@@ -97,25 +99,25 @@ class AdapterTest < Minitest::Spec
   end
 
   it "StepInterface::InstanceMethod" do
-    node = _A::Circuit::Node::Scoped[:my_model, :my_model, _A::Circuit::Task::Adapter::StepInterface::InstanceMethod, merge_to_lib_ctx: {exec_context: my_step_interface_exec_context}]
+    node = _A::Circuit::Node::MergeToCircuitOptions[nil, :my_model, _A::Circuit::Task::Adapter::StepInterface::InstanceMethod, exec_context: my_step_interface_exec_context]
 
     assert_step_interface(node)
   end
 
   it "StepInterface" do
-    node = _A::Circuit::Node::Scoped[:my_model, my_step_interface_exec_context.method(:my_model), _A::Circuit::Task::Adapter::StepInterface]
+    node = _A::Circuit::Node[:my_model, my_step_interface_exec_context.method(:my_model), _A::Circuit::Task::Adapter::StepInterface]
 
     assert_step_interface(node)
   end
 
   it "LibInterface::InstanceMethod" do
-    node = _A::Circuit::Node::Scoped[:my_model_input, :my_model_input, _A::Circuit::Task::Adapter::LibInterface::InstanceMethod, merge_to_lib_ctx: {exec_context: my_lib_interface_exec_context}, copy_to_outer_ctx: [:captured]]
+    node = _A::Circuit::Node::MergeToCircuitOptions[:my_model_input, :my_model_input, _A::Circuit::Task::Adapter::LibInterface::InstanceMethod, exec_context: my_lib_interface_exec_context]
 
-    assert_lib_interface(node, original_ctx: {aggregate: [], exec_context: my_lib_interface_exec_context})
+    assert_lib_interface(node, original_ctx: {aggregate: []})
   end
 
   it "LibInterface" do
-    node = _A::Circuit::Node::Scoped[:my_model_input, my_lib_interface_exec_context.method(:my_model_input), _A::Circuit::Task::Adapter::LibInterface, copy_to_outer_ctx: [:captured]]
+    node = _A::Circuit::Node[:my_model_input, my_lib_interface_exec_context.method(:my_model_input), _A::Circuit::Task::Adapter::LibInterface]
 
     assert_lib_interface(node, original_ctx: ctx = {aggregate: []})
   end

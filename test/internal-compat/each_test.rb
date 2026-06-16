@@ -34,10 +34,10 @@ class EachTest < Minitest::Spec
 
   it do
     nodes = {
-      init: Trailblazer::Circuit::Node[:init, :init, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod],
-      fetch_value_from_dataset: Trailblazer::Circuit::Node[:fetch_value_from_dataset, :fetch_value_from_dataset, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod],
-      a: Trailblazer::Circuit::Node::Scoped[:a, :my_task_a, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod, merge_to_lib_ctx: {exec_context: self}],
-      finished: Trailblazer::Circuit::Node[:finished, :finished, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod],
+      init: Trailblazer::Circuit::Node[:init, :init, lib_interface::InstanceMethod],
+      fetch_value_from_dataset: Trailblazer::Circuit::Node[:fetch_value_from_dataset, :fetch_value_from_dataset, lib_interface::InstanceMethod],
+      a: Trailblazer::Circuit::Node::MergeToCircuitOptions[:a, :my_task_a, lib_interface::InstanceMethod, exec_context: self],
+      finished: Trailblazer::Circuit::Node[:finished, :finished, lib_interface::InstanceMethod],
     }
 
     map = {
@@ -49,7 +49,7 @@ class EachTest < Minitest::Spec
 
     circuit = Trailblazer::Circuit.build(flow_map: map, nodes: nodes)
 
-    assert_run circuit, exec_context: MyEach, application_ctx: {dataset: [1,2,3]},
+    assert_run circuit, circuit_options: {exec_context: MyEach}, application_ctx: {dataset: [1,2,3]},
       seq: [[0, 1], [1, 2], [2, 3]],
       terminus: "done"
   end
