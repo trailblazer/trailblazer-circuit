@@ -40,11 +40,11 @@ class AdapterTest < Minitest::Spec
 
     ctx, flow_options, signal = _A::Circuit::Node::Runner.(
       node,
-      {aggregate: [], target_ctx: application_ctx}, # let's assume this is part of the local processing pipeline and from one of the recent steps.
+      {aggregate: []}, # let's assume this is part of the local processing pipeline and from one of the recent steps.
       {
         trace_ctx: {stack: []},
       },
-      nil,
+      application_ctx,
       runner: _A::Circuit::Node::Runner,
       context_implementation: Trailblazer::Circuit::Context,
     )
@@ -52,7 +52,7 @@ class AdapterTest < Minitest::Spec
     expected_capture = Captured.new(["{:params=>{:id=>1}, :slug=>9}", "{:id=>1}", "{:slug=>9}"]).freeze
 
     assert_equal signal, expected_capture
-    assert_equal ctx, {aggregate: [], target_ctx: application_ctx}
+    assert_equal ctx, {aggregate: []}
     assert_equal flow_options, {
       :trace_ctx=>{:stack=>[]}
     }
