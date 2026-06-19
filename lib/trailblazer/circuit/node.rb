@@ -6,7 +6,7 @@ module Trailblazer
       end
 
       # DISCUSS: do we like builder code here?
-      def self.[](id, task, interface)
+      def self.[](id, task, interface, **)
         new(id: id, task: task, interface: interface)
       end
 

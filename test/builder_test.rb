@@ -29,6 +29,17 @@ class PipelineBuilderTest < Minitest::Spec
     assert_equal lib_ctx, {pollute: 1} # only the original lib_ctx is here.
   end
 
+  it "{scope: true} with {:connections}" do
+    my_circuit = Trailblazer::Circuit::Builder.Pipeline(
+      [:my_pollutor, method(:my_pollutor), scoped: true, connections: {Right => [nil, Right], Left => [:b, "my left"]}]
+    )
+
+    lib_ctx, _ = assert_run my_circuit, terminus: Right, seq: [1], pollute: 1, signal: Right
+    assert_equal lib_ctx, {pollute: 1} # only the original lib_ctx is here.
+    lib_ctx, _ = assert_run my_circuit, terminus: "my left", seq: [1], pollute: 1, signal: Left
+    assert_equal lib_ctx, {pollute: 1} # only the original lib_ctx is here.
+  end
+
   it "Pipeline creates a Scoped node when {:merge_to_lib_ctx} is given" do
     my_circuit = Trailblazer::Circuit::Builder.Pipeline(
       [:ying, method(:my_pollutor), Trailblazer::Circuit::Task::Adapter::LibInterface, merge_to_lib_ctx: {pollute: 1}],
@@ -115,16 +126,58 @@ class PipelineBuilderTest < Minitest::Spec
     assert_equal lib_ctx, {exec_context: exec_context_for_d}
   end
 
+  it "when omitting {:connections} it builds a Pipeline node (with a Fixed resolver to next element)" do
+    my_exec_context = T.def_tasks(:a, :b, :c, success_signal: Right)
+    my_exec_context_2 = T.def_tasks(:d, success_signal: Right)
+
+    # defaulting for {:connections}.
+    my_circuit = Trailblazer::Circuit::Builder.Pipeline(
+      # We're omitting {:connections} but provide additional options.
+      [:a, :a, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod, exec_context: my_exec_context],
+
+      # defaulting for {:connections} and {interface}.
+      [:b, my_exec_context.method(:b)],
+
+      # provide the interface.
+      [:c, :c, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod],
+
+      # provide the interface and additional options.
+      [:d, :d, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod,
+        exec_context: my_exec_context_2,
+        connections: {Left => [nil, Left]}
+      ],
+    )
+
+    lib_ctx, flow_options = assert_run my_circuit, terminus: Left, seq: [:a, :b, :c, :d],
+      circuit_options: {exec_context: my_exec_context},
+      flow_options: {application_ctx: {seq: [], d: Left}}
+
+    assert_equal lib_ctx, {}
+  end
+
+  it "we can pass resolvers as {:connections}" do
+    my_exec_context = T.def_tasks(:a, :b, :c, success_signal: Right)
+
+    my_circuit = Trailblazer::Circuit::Builder.Circuit(
+      # hash resolver.
+      [:a, my_exec_context.method(:a), connections: {Right => [:b, Right], Left => [nil, Left]}],
+      [:b, my_exec_context.method(:b), connections: Trailblazer::Circuit::Resolver::Fixed.new(:c)],
+      # a Fixed resolver, used in pipelines.
+      [:c, my_exec_context.method(:c), connections: Trailblazer::Circuit::Resolver::Fixed.new(nil)],
+    )
+
+    assert_run my_circuit, terminus: Left, seq: [:a], application_ctx: {a: Left}
+    assert_run my_circuit, terminus: Right, seq: [:a, :b, :c]#, application_ctx: {a: Left}
+    # test that the Fixed resolver does its job.
+    assert_run my_circuit, terminus: Right, seq: [:a, :b, :c], application_ctx: {b: Object}
+  end
+
   it "{Builder.Pipeline} and {Builder::Pipeline.call} are identical" do
     tasks = [
       [:a, :a]
     ]
 
-    assert_equal Trailblazer::Circuit::Builder.Pipeline(*tasks), Trailblazer::Circuit::Builder::Pipeline.(*tasks)
-  end
-
-  it "what" do
-    raise "test that we default resolver: Fixed for Pipeline!"
+    assert_equal Trailblazer::Circuit::Builder.Pipeline(*tasks), Trailblazer::Circuit::Builder::Pipeline.(*tasks, pipe_FIXME: true)
   end
 end
 
@@ -132,33 +185,29 @@ class CircuitBuilderTest < Minitest::Spec
   it "what" do
     my_tasks = T.def_tasks(:c, :d, :failure, :success, success_signal: Right)
 
-    c_circuit = Trailblazer::Circuit::Builder.Circuit(
+    my_circuit = Trailblazer::Circuit::Builder.Circuit(
       [:c, my_tasks.method(:c), connections: {Right => [:d, Right], Left => [:failure, Left]}],
       [:d, my_tasks.method(:d), Trailblazer::Circuit::Task::Adapter::LibInterface, connections: {Right => [:success, Right], Left => [:failure, Left]}],
       [:failure, my_tasks.method(:failure), connections: {Right => [nil, Right]}], # :connections imply terminus.
       [:success, my_tasks.method(:success), connections: {Right => [nil, Right]}], # :connections imply terminus.
     )
 
-    lib_ctx, flow_options = assert_run c_circuit, terminus: Right, seq: [:c, :d, :success]
+    lib_ctx, flow_options = assert_run my_circuit, terminus: Right, seq: [:c, :d, :success]
     assert_equal lib_ctx, {}
 
-    lib_ctx, flow_options = assert_run c_circuit, terminus: Right, seq: [:c, :failure], application_ctx: {c: Left}
+    lib_ctx, flow_options = assert_run my_circuit, terminus: Right, seq: [:c, :failure], application_ctx: {c: Left}
     assert_equal lib_ctx, {}
 
 
-    lib_ctx, flow_options = assert_run c_circuit, terminus: Right, seq: [:c, :d, :failure], application_ctx: {d: Left}
+    lib_ctx, flow_options = assert_run my_circuit, terminus: Right, seq: [:c, :d, :failure], application_ctx: {d: Left}
     assert_equal lib_ctx, {}
   end
 
-  it "{Builder.Circuit} and {Builder::Circuit.call} are identical" do
+  it "{Builder.Circuit} and {Builder::Pipeline.call} are identical" do
     tasks = [
       [:a, :a, connections: {nil => nil}]
     ]
 
-    assert_equal Trailblazer::Circuit::Builder.Circuit(*tasks), Trailblazer::Circuit::Builder::Circuit.(*tasks)
-  end
-
-  it "" do
-    raise "test that :connections can be Resolver::Fixed"
+    assert_equal Trailblazer::Circuit::Builder.Circuit(*tasks), Trailblazer::Circuit::Builder::Pipeline.(*tasks, pipe_FIXME: true)
   end
 end

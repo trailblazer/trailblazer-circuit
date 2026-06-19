@@ -4,58 +4,50 @@ module Trailblazer
     module Builder
       # Pipeline is just another circiut, where each step has only one output.
       def self.Pipeline(*args)
-        Builder::Pipeline.(*args)
+        Builder::Pipeline.(*args, pipe_FIXME: true)
       end
 
       def self.Circuit(*args)
-        Builder::Circuit.(*args)
+        Builder::Pipeline.(*args, pipe_FIXME: false)
       end
 
       module Pipeline
         module_function
 
-        def call(*task_cfgs)
-          nodes = Pipeline.build_node_from_dsl(task_cfgs)
+        def call(*rows_from_user, pipe_FIXME:)
+          matrix = rows_from_user.collect.with_index do |(*args, options), i|
+            next_task_id, next_task = rows_from_user[i + 1]
 
-          map = task_cfgs.collect.with_index do |(id, _), i|
-            next_task = task_cfgs[i + 1]
-            signal = nil
+            args, options = [*args, options], {} unless options.is_a?(Hash)
+
+            resolver, options = normalize_resolver(next_task_id, **options)
+
+            id, node = build_node_for(*args, **options)
 
             [
-              id,
-              Resolver::Fixed.new(next_task ? next_task[0] : nil)
+              [id, node],
+              [id, resolver]
             ]
-          end.to_h
+          end
+
+          nodes, flow_map = matrix.transpose # fancy!
 
           Trailblazer::Circuit.build(
-            flow_map: map,
-            nodes:   nodes,
+            flow_map: flow_map.to_h,
+            nodes:    nodes.to_h,
           ).tap do |pipe|
-            pipe.instance_variable_set(:@pipe, true) # FIXME: WE MARK THE CIRCUIT AS A PIPE FOR TW TRACING
+            pipe.instance_variable_set(:@pipe, pipe_FIXME) # FIXME: WE MARK THE CIRCUIT AS A PIPE FOR TW TRACING
           end
         end
 
-        # Produces a set of {Node}s, currently called "nodes".
-        def build_node_from_dsl(task_cfgs)
-          # Disect the incoming DSL bogus into input for #build_node_from_dsl.
-          task_cfgs.collect do |id, task, *args|
-            node =
-              if task.is_a?(Hash)
-                task.fetch(:node)
-              else
-                args, options_for_node = args
-                options_for_node ||= {}
+        def build_node_for(id, *args, node: nil, **options)
+          return id, node if node
 
-                # Handle the [id, task, scoped: true] case, which is perfectly legal.
-                if options_for_node.empty? && args.is_a?(Hash)
-                  args, options_for_node = [], args
-                end
+          create_node(id, *args, **options)
+        end
 
-                create_node(id, task, *args, **options_for_node)
-              end
-
-            [id, node]
-          end.to_h
+        def normalize_resolver(next_task_id, connections: Resolver::Fixed.new(next_task_id), **options)
+          return connections, options
         end
 
         # Defaulting happens here.
@@ -70,47 +62,7 @@ module Trailblazer
             options_for_node = {exec_context: exec_context, **options_for_node}
           end
 
-          node_class[id, task, interface, **options_for_node]
-        end
-      end
-
-      module Circuit
-        module_function
-
-        def self.call(*task_rows)
-          # Disect [:id, method(...), Adapter, connections: {}, scoped: true], the {:connections} key
-          # has to be removed, the rest can go straight to {Builder.Pipeline}.
-          tasks_hsh = task_rows.collect do |task_cfg|
-            args, options = task_cfg.last.is_a?(Hash) ?
-              [task_cfg[0..-2], task_cfg[-1]] :
-              [task_cfg,  {}]
-
-            Circuit.normalize_dsl_row(*args, **options)
-          end.to_h
-
-          task_cfgs = tasks_hsh.keys
-          id_to_connections = tasks_hsh.values.to_h
-
-          nodes = Pipeline.build_node_from_dsl(task_cfgs)
-
-          flow_map = nodes.collect do |id, node|
-            connections = id_to_connections[id]
-
-            [id, connections]
-          end.to_h
-
-          return Trailblazer::Circuit.new(
-              flow_map,
-              nodes.to_a[0],
-              nodes,
-            )
-        end
-
-        def normalize_dsl_row(id, *args, connections:, **options)
-          [
-            [id, *args, options],
-            [id, connections]
-          ]
+          return id, node_class[id, task, interface, **options_for_node]
         end
       end
 
@@ -121,25 +73,6 @@ module Trailblazer
         raise "no call_task provided!" unless nodes_options.find { |(id, _)| id == :"task_wrap.call_task" }
 
         Pipeline(*nodes_options)
-      end
-
-      # DISCUSS: should that sit in Activity? it's higher level than Circuit.
-      # TODO: test me.
-      # DISCUSS: this is a "std-lib" component. move this to {activity}.
-      module Step # FIXME: move to activity/remove
-        def self.InstanceMethod(method_name)
-          Builder.Pipeline(
-            [:invoke_instance_method, method_name, Task::Adapter::StepInterface::InstanceMethod], # FIXME: we're currenly assuming that exec_context is passed down.
-            [:compute_binary_signal, Activity::Step::ComputeBinarySignal, Task::Adapter::LibInterface],
-          )
-        end
-
-        def self.Callable(callable)
-          Builder.Pipeline(
-            [:invoke_callable, callable, Trailblazer::Activity::Circuit::Task::Adapter::StepInterface],
-            [:compute_binary_signal, Activity::Step::ComputeBinarySignal, Trailblazer::Activity::Circuit::Task::Adapter::LibInterface],
-          )
-        end
       end
     end # Builder
   end

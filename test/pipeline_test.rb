@@ -38,10 +38,10 @@ class PipelineTest < Minitest::Spec
     }
   end
 
-  it "internally set variables can be exposed to the follower via :copy_to_outer_ctx" do
+  it "internally set variables can be exposed to the follower via {:copy_to_outer_ctx}" do
     pipe = _A::Circuit::Builder.Pipeline(
-      [:a, Capture.new(:a, pollute: true), {}, scoped: true, copy_to_outer_ctx: [:pollute]],
-      [:b, Capture.new(:b), {}, scoped: true, ],  # sees :pollute
+      [:a, Capture.new(:a, pollute: true), scoped: true, copy_to_outer_ctx: [:pollute]],
+      [:b, Capture.new(:b), scoped: true, ],  # sees :pollute
     )
 
     lib_ctx, flow_options = assert_run pipe, terminus: nil, seq: []

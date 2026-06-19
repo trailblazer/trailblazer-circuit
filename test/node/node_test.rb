@@ -46,5 +46,15 @@ class NodeTest < Minitest::Spec
         :interface=>MyInterface
       }
     end
+
+    it "discards keyword arguments" do
+      my_node = Trailblazer::Circuit::Node[:a, :method_a, MyInterface, **{}]
+
+      assert_equal my_node.to_h, {
+        :id=>:a,
+        :task=>:method_a,
+        :interface=>MyInterface
+      }
+    end
   end
 end
