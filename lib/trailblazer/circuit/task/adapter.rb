@@ -17,21 +17,23 @@
 
         # The step interface is only used on the application level.
         class StepInterface
-          def self.call(task, lib_ctx, flow_options, signal, **circuit_options)
-            target_ctx = lib_ctx.fetch(:target_ctx) # TODO: introduce second kwargs method that calls {#run_step}.
-
-            result = run_step(task, target_ctx, **circuit_options)
+          def self.call(provider, lib_ctx, flow_options, signal, **circuit_options)
+            result = compute_result(provider, circuit_options, **lib_ctx)
 
             return lib_ctx, flow_options, result # value-on-signal
           end
 
-          def self.run_step(task, target_ctx, **)
-            task.(target_ctx, **target_ctx.to_h)
+          def self.compute_result(provider, circuit_options, target_ctx:, **)
+            invoke_provider(provider, target_ctx, **circuit_options)
+          end
+
+          def self.invoke_provider(provider, target_ctx, **)
+            provider.(target_ctx, **target_ctx.to_h)
           end
 
           class InstanceMethod < StepInterface
-            def self.run_step(task, target_ctx, exec_context:, **)
-              exec_context.send(task, target_ctx, **target_ctx.to_h)
+            def self.invoke_provider(provider, target_ctx, exec_context:, **)
+              exec_context.send(provider, target_ctx, **target_ctx.to_h)
             end
           end
         end # StepInterface
