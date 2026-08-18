@@ -116,9 +116,9 @@ class CircuitAddsTest < Minitest::Spec
     )
 
     assert_run my_new_pipe, seq: [:a, :z, :b], terminus: Right
-    assert_run my_new_pipe, seq: [:a], terminus: Left, flow_options: {application_ctx: {seq: [], a: Left}}
+    assert_run my_new_pipe, seq: [:a], terminus: Left, target_ctx: {seq: [], a: Left}
     assert_raises KeyError do
-      assert_run my_new_pipe, seq: [:a], terminus: Left, flow_options: {application_ctx: {seq: [], z: Left}}
+      assert_run my_new_pipe, seq: [:a], terminus: Left, target_ctx: {seq: [], z: Left}
     end
   end
 
@@ -138,7 +138,7 @@ class CircuitAddsTest < Minitest::Spec
     )
 
     assert_run my_new_pipe, seq: [:a, :z, :b], terminus: Right
-    assert_run my_new_pipe, seq: [:a, :z], terminus: Left, flow_options: {application_ctx: {seq: [], z: Left}}
+    assert_run my_new_pipe, seq: [:a, :z], terminus: Left, target_ctx: {seq: [], z: Left}
   end
 
   it "{:after} with empty pipe" do
@@ -179,7 +179,7 @@ class CircuitAddsTest < Minitest::Spec
 
     assert_run my_new_pipe, seq: [:a, :z], terminus: Right
     assert_raises KeyError do
-      assert_run my_new_pipe, seq: nil, flow_options: {application_ctx: {seq: [], z: Left}}
+      assert_run my_new_pipe, seq: nil, target_ctx: {seq: [], z: Left}
     end
   end
 
@@ -215,7 +215,7 @@ class CircuitAddsTest < Minitest::Spec
     # pp my_new_pipe
 
     assert_run my_new_pipe, seq: [:a, :z, :b], terminus: Right
-    assert_run my_new_pipe, seq: [:a], terminus: Left, flow_options: {application_ctx: {seq: [], a: Left}}
+    assert_run my_new_pipe, seq: [:a], terminus: Left, target_ctx: {seq: [], a: Left}
   end
 
   it "after with [:a{Hash}, :b{Hash}], outbound_signal: Left" do
@@ -234,8 +234,8 @@ class CircuitAddsTest < Minitest::Spec
     assert_raises KeyError do
       assert_run my_new_pipe, seq: nil, terminus: nil # no Right connection from {z}.
     end
-    assert_run my_new_pipe, seq: [:a], terminus: Left, flow_options: {application_ctx: {seq: [], a: Left}}
-    assert_run my_new_pipe, seq: [:a, :z, :b], terminus: Right, flow_options: {application_ctx: {seq: [], z: Left}}
+    assert_run my_new_pipe, seq: [:a], terminus: Left, target_ctx: {seq: [], a: Left}
+    assert_run my_new_pipe, seq: [:a, :z, :b], terminus: Right, target_ctx: {seq: [], z: Left}
   end
 
   it "problem with Adds, dISCUSS; " do
@@ -274,8 +274,8 @@ class CircuitAddsTest < Minitest::Spec
       ],
     )
 
-    assert_run my_new_pipe, seq: [:a, :z, :b], terminus: Right, flow_options: {application_ctx: {seq: []}}
-    assert_run my_new_pipe, seq: [:a, :e, :c], terminus: Right, flow_options: {application_ctx: {seq: [], a: Left}}
+    assert_run my_new_pipe, seq: [:a, :z, :b], terminus: Right, target_ctx: {seq: []}
+    assert_run my_new_pipe, seq: [:a, :e, :c], terminus: Right, target_ctx: {seq: [], a: Left}
   end
 
   it "{:inbound_signal} dictates who is the successor of the new node, because it uses the original successor that was connected via {:inbound_signal}." do
@@ -295,8 +295,8 @@ class CircuitAddsTest < Minitest::Spec
       ],
     )
 
-    assert_run my_new_pipe, seq: [:a, :z, :b], terminus: Right, flow_options: {application_ctx: {seq: []}}
-    assert_run my_new_pipe, seq: [:a, :e], terminus: Right, flow_options: {application_ctx: {seq: [], a: Left}}
+    assert_run my_new_pipe, seq: [:a, :z, :b], terminus: Right, target_ctx: {seq: []}
+    assert_run my_new_pipe, seq: [:a, :e], terminus: Right, target_ctx: {seq: [], a: Left}
   end
 
   let(:z_node) { _A::Circuit::Node[:z, my_exec_context.method(:z), lib_interface] }
@@ -334,11 +334,11 @@ class CircuitAddsTest < Minitest::Spec
     )
 
     assert_run my_pipe, seq: [:a, :b], terminus: Right
-    assert_run my_pipe, seq: [:a], terminus: Left, flow_options: {application_ctx: {seq: [], a: Left}}
+    assert_run my_pipe, seq: [:a], terminus: Left, target_ctx: {seq: [], a: Left}
 
     assert_run my_new_pipe, seq: [:a, :b], terminus: Right
-    assert_run my_new_pipe, seq: [:a, :z, :b], terminus: Right, flow_options: {application_ctx: {seq: [], a: Left}}
-    assert_run my_new_pipe, seq: [:a, :b], terminus: Right, flow_options: {application_ctx: {seq: [], a: Object}}
+    assert_run my_new_pipe, seq: [:a, :z, :b], terminus: Right, target_ctx: {seq: [], a: Left}
+    assert_run my_new_pipe, seq: [:a, :b], terminus: Right, target_ctx: {seq: [], a: Object}
   end
 
   it "{:resolver_builder} we default {outbound_signal: nil}" do
@@ -354,10 +354,10 @@ class CircuitAddsTest < Minitest::Spec
       {outbound_signal => [successor_id, outbound_signal]}
     end
 
-    my_z = ->(lib_ctx, flow_options, signal, **) do
-      flow_options[:application_ctx][:seq] << :z
+    my_z = ->(lib_ctx, flow_options, signal, target_ctx:, **) do
+      target_ctx[:seq] << :z
 
-      return lib_ctx, flow_options, Object
+      return lib_ctx.merge(target_ctx: target_ctx), flow_options, Object
     end
 
     my_new_pipe = Trailblazer::Circuit::Adds.(
@@ -426,7 +426,7 @@ class CircuitAddsTest < Minitest::Spec
     )
 
     assert_run my_new_pipe, seq: [:a, :d, ], terminus: Right
-    assert_run my_new_pipe, seq: [:a, :c, :z, :d], terminus: Right, flow_options: {application_ctx: {seq: [], a: Left}}
+    assert_run my_new_pipe, seq: [:a, :c, :z, :d], terminus: Right, target_ctx: {seq: [], a: Left}
     assert_equal my_new_pipe.to_h[:flow_map].keys, [:a, :z, :d, :c]
   end
 

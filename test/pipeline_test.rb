@@ -2,8 +2,8 @@ require "test_helper"
 
 class PipelineTest < Minitest::Spec
   class Task < Struct.new(:id, :return_signal)
-    def call(lib_ctx, flow_options, signal, **)
-      flow_options[:application_ctx][:seq] << id
+    def call(lib_ctx, flow_options, signal, target_ctx:, **)
+      target_ctx[:seq] << id
 
       return lib_ctx, flow_options, return_signal
     end
@@ -29,12 +29,11 @@ class PipelineTest < Minitest::Spec
     # pp pipe
 
     lib_ctx, flow_options = assert_run pipe, terminus: nil, seq: []
-    assert_equal flow_options, {
-      application_ctx: {:seq=>[]},
 
-      :a=> a = [{}, {:application_ctx=>{:seq=>[]}}, nil, {}],
-      :b=> b = [{:d=>4}, {:application_ctx=>{:seq=>[]}, a: a}, nil, {:d=>4}],
-      :c=> c = [{:d=>4}, {:application_ctx=>{:seq=>[]}, a: a, b: b}, nil, {:d=>4}],
+    assert_equal flow_options, {
+      :a=> a = [ctx={:target_ctx=>{:seq=>[]}}, {}, nil, ctx],
+      :b=> b = [{:target_ctx=>{:seq=>[]}, :d=>4}, {a: a}, nil, {**ctx, :d=>4}],
+      :c=> c = [{:target_ctx=>{:seq=>[]}, :d=>4}, {a: a, b: b}, nil, {**ctx, :d=>4}],
     }
   end
 
@@ -46,11 +45,10 @@ class PipelineTest < Minitest::Spec
 
     lib_ctx, flow_options = assert_run pipe, terminus: nil, seq: []
     assert_equal flow_options, {
-      application_ctx: {:seq=>[]},
-
-      :a=> a = [{}, {:application_ctx=>{:seq=>[]}}, nil, {}],
-      :b=> b = [{:pollute=>true}, {:application_ctx=>{:seq=>[]}, a: a}, nil, {:pollute=>true}],
+      :a=> a = [ctx={:target_ctx=>{:seq=>[]}}, {}, nil, ctx],
+      :b=> b = [{**ctx, :pollute=>true}, {a: a}, nil, {**ctx, :pollute=>true}],
     }
+    assert_equal lib_ctx, {target_ctx: {seq: []}, pollute: true}
   end
 
   it "#eql?: Pipelines with the same order and nodes are ==" do

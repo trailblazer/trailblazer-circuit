@@ -3,18 +3,15 @@ require "test_helper"
 class EachTest < Minitest::Spec
   # Test that we can build something like the Each() macro,
 # where we dynamically iterate over a dataset, as if it was a circuit 1 --> 2 --> 3].
-  def my_task_a(lib_ctx, flow_options, signal, value:, index:, **)
-    ctx = flow_options.fetch(:application_ctx)
+  def my_task_a(lib_ctx, flow_options, signal, value:, index:, target_ctx:, **)
+    target_ctx[:seq] << [index, value]
 
-    ctx[:seq] << [index, value]
-
-    return lib_ctx, flow_options, signal
+    return lib_ctx.merge(target_ctx: target_ctx), flow_options, signal
   end
 
   class MyEach
-    def self.init(lib_ctx, flow_options, signal, **)
-      ctx = flow_options.fetch(:application_ctx)
-      dataset = ctx.fetch(:dataset)
+    def self.init(lib_ctx, flow_options, signal, target_ctx:, **)
+      dataset = target_ctx.fetch(:dataset)
 
       return lib_ctx.merge(
         enumerator: dataset.each_with_index,
@@ -49,7 +46,7 @@ class EachTest < Minitest::Spec
 
     circuit = Trailblazer::Circuit.build(flow_map: map, nodes: nodes)
 
-    assert_run circuit, circuit_options: {exec_context: MyEach}, application_ctx: {dataset: [1,2,3]},
+    assert_run circuit, circuit_options: {exec_context: MyEach}, target_ctx: {dataset: [1,2,3], seq: []},
       seq: [[0, 1], [1, 2], [2, 3]],
       terminus: "done"
   end

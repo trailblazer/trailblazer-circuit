@@ -69,7 +69,7 @@ class CircuitTest < Minitest::Spec
     )
 
     assert_run circuit, seq: [:a, :b, :c]
-    assert_run circuit, seq: [:a, :b], flow_options: {application_ctx: {seq: [], b: :Left}}, terminus: :Left
+    assert_run circuit, seq: [:a, :b], target_ctx: {seq: [], b: :Left}, terminus: :Left
   end
 
   it "should raise with IllegalSignalError (# TODO)" do
@@ -84,7 +84,7 @@ class CircuitTest < Minitest::Spec
 
     exception = assert_raises KeyError do
       assert_run circuit, seq: [:a],
-        application_ctx: {a: "unknown signal"}
+        target_ctx: {a: "unknown signal", seq: []}
     end
 
     assert_equal exception.message, "key not found: \"unknown signal\""
@@ -100,13 +100,14 @@ class CircuitScopeTest < Minitest::Spec
     )
 
     lib_ctx, flow_options = assert_run circuit, terminus: nil, seq: []
-    assert_equal flow_options, {
-      application_ctx: {:seq=>[]},
 
-      :a=> a = [{}, {:application_ctx=>{:seq=>[]}}, nil, {}],
-      :b=> b = [{:d=>4}, {:application_ctx=>{:seq=>[]}, a: a}, nil, {:d=>4}],
-      :c=> c = [{:d=>4}, {:application_ctx=>{:seq=>[]}, a: a, b: b}, nil, {:d=>4}],
+    assert_equal flow_options, {
+      :a=> a = [ctx={:target_ctx=>{:seq=>[]}}, {}, nil, ctx],
+      :b=> b = [{:target_ctx=>{:seq=>[]}, :d=>4}, {a: a}, nil, {**ctx, :d=>4}],
+      :c=> c = [{:target_ctx=>{:seq=>[]}, :d=>4}, {a: a, b: b}, nil, {**ctx, :d=>4}],
     }
+
+    assert_equal lib_ctx, {:target_ctx=>{:seq=>[]}, :d=>4}
   end
 
   it "internally set variables can be exposed to the follower via {:copy_to_outer_ctx}" do
@@ -117,11 +118,10 @@ class CircuitScopeTest < Minitest::Spec
 
     lib_ctx, flow_options = assert_run circuit, terminus: nil, seq: []
     assert_equal flow_options, {
-      application_ctx: {:seq=>[]},
-
-      :a=> a = [{}, {:application_ctx=>{:seq=>[]}}, nil, {}],
-      :b=> b = [{:pollute=>true}, {:application_ctx=>{:seq=>[]}, a: a}, nil, {:pollute=>true}],
+      :a=> a = [ctx={:target_ctx=>{:seq=>[]}}, {}, nil, ctx],
+      :b=> b = [{**ctx, :pollute=>true}, {a: a}, nil, {**ctx, :pollute=>true}],
     }
+    assert_equal lib_ctx, {target_ctx: {seq: []}, pollute: true}
   end
 
   it "allows discarding the internal signal and return the outer signal with {:return_outer_signal}" do
@@ -157,7 +157,7 @@ class CircuitResolveTest < Minitest::Spec
 
     lib_ctx, _ = assert_run my_circuit, seq: [], seq_in_lib_ctx: [], signal: [].freeze, terminus: [:a, :b]
 
-    assert_equal lib_ctx, {seq_in_lib_ctx: [:a, :b]}
+    assert_equal lib_ctx, {seq_in_lib_ctx: [:a, :b], target_ctx: {seq: []}}
   end
 
   # it's now possible to either use a "hardcore" signal mapping hash, but it IS also possible
@@ -182,10 +182,10 @@ class CircuitResolveTest < Minitest::Spec
     my_circuit = Trailblazer::Circuit.build(flow_map: my_flow_map, nodes: my_nodes)
 
     assert_run my_circuit, terminus: Right, seq: [:a, :b, :c], circuit_options: {exec_context: my_exec_context}
-    assert_run my_circuit, terminus: Right, seq: [:a, :failure], circuit_options: {exec_context: my_exec_context}, flow_options: {application_ctx: {seq: [], a: Left}}
+    assert_run my_circuit, terminus: Right, seq: [:a, :failure], circuit_options: {exec_context: my_exec_context}, target_ctx: {seq: [], a: Left}
 
     # With a Reolver::Fixed, a terminating node can return any signal, but still terminates.
-    assert_run my_circuit, terminus: :c_says_Right, seq: [:a, :b, :c], circuit_options: {exec_context: my_exec_context}, flow_options: {application_ctx: {seq: [], c: :c_says_Right}}
+    assert_run my_circuit, terminus: :c_says_Right, seq: [:a, :b, :c], circuit_options: {exec_context: my_exec_context}, target_ctx: {seq: [], c: :c_says_Right}
   end
 
   it "by using a custom Resolver, we can implement (fast?) value-on-signal circuits" do

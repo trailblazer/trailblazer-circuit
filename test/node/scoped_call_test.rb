@@ -184,36 +184,32 @@ class NodeScopedCallTest < Minitest::Spec
 
     lib_ctx, flow_options = assert_run my_input_pipe, seq: []
 
-    assert_equal lib_ctx, {value_from_a: 1}
+    assert_equal lib_ctx, {value_from_a: 1, target_ctx: {seq: []}}
     # pp flow_options
+    target_ctx = {seq: []}
+
     assert_equal flow_options, {
-      application_ctx: application_ctx = {seq: []},
       :a=> a = [
-        {:pollute=>:a},
-        {:application_ctx=>application_ctx},
+        ctx={target_ctx: target_ctx, :pollute=>:a},
+        {},
         nil,
-        {:pollute=>:a}
+        ctx
       ],
       :b=>
-        [{:value_from_a=>1, pollute: :b},
-         {:application_ctx=>application_ctx, :a=>a},
+        b=[ctx={target_ctx: target_ctx, :value_from_a=>1, pollute: :b},
+         {:a=>a},
          nil,
-         {:value_from_a=>1, :pollute=>:b}
+         ctx
        ],
        :c=>
         [
-          {:value_from_a=>1, :pollute=>:c},
-          {:application_ctx=>application_ctx,
+          ctx={target_ctx: target_ctx, :value_from_a=>1, :pollute=>:c},
+          {
             :a=>a,
-            :b=>
-            [{:value_from_a=>1, :pollute=>:b},
-              {:application_ctx=>application_ctx, :a=>a},
-              nil,
-              {:value_from_a=>1, :pollute=>:b}
-            ],
+            :b=>b,
           },
           nil,
-          {:value_from_a=>1, :pollute=>:c}
+          ctx
         ]
       }
   end

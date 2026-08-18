@@ -13,13 +13,13 @@ class NodeRunnerTest < Minitest::Spec
     my_pipe_node = _A::Circuit::Node::Scoped[:my_pipe_node, my_pipe, _A::Circuit::Processor]
     runner = _A::Circuit::Node::Runner
 
-    lib_ctx, flow_options = runner.(my_pipe_node, {}, {application_ctx: {seq: []}}, nil,
+    lib_ctx, flow_options = runner.(my_pipe_node, {target_ctx: {seq: []}}, {}, nil,
       runner: runner,
       context_implementation: Trailblazer::Circuit::Context,
       exec_context: my_exec_context
     )
 
-    assert_equal flow_options[:application_ctx][:seq], [:a, :b, :c]
+    assert_equal lib_ctx[:target_ctx][:seq], [:a, :b, :c]
   end
 
   it "{:start_tuple} can be passed which is then used by Processor" do
@@ -32,7 +32,7 @@ class NodeRunnerTest < Minitest::Spec
     my_pipe_node = _A::Circuit::Node[:my_pipe_node, my_pipe, _A::Circuit::Processor]
     runner = _A::Circuit::Node::Runner
 
-    lib_ctx, flow_options, signal = runner.(my_pipe_node, {}, {application_ctx: {seq: []}}, nil,
+    lib_ctx, flow_options, signal = runner.(my_pipe_node, {target_ctx: {seq: []}}, {}, nil,
       {
         exec_context: my_exec_context,
         runner: runner,
@@ -40,7 +40,7 @@ class NodeRunnerTest < Minitest::Spec
       }
     )
 
-    assert_equal flow_options[:application_ctx][:seq], [:b, :c]
+    assert_equal lib_ctx[:target_ctx][:seq], [:b, :c]
   end
 
   # DISCUSS: move to {internal-compat/}?

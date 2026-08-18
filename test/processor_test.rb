@@ -13,7 +13,7 @@ class ProcessorTest < Minitest::Spec
   it "we can see {:node} in the {circuit_options} and hence, a MyCircuitInterface task, has access to data stored there" do
     my_task_with_circuit_interface = Struct.new(:my_id) do
       def call(lib_ctx, flow_options, signal, node:, **circuit_options) # MyCircuitInterface.
-        flow_options[:application_ctx][:seq] << [my_id, node]
+        lib_ctx[:target_ctx][:seq] << [my_id, node]
 
         return lib_ctx, flow_options, signal
       end

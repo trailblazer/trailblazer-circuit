@@ -5,15 +5,15 @@ class PipelineBuilderTest < Minitest::Spec
   let(:exec_context_for_d) do
     Class.new do
       def self.d(lib_ctx, flow_options, circuit_options, signal)
-        flow_options[:application_ctx][:seq] << :d
+        lib_ctx[:target_ctx][:seq] << :d
 
         return lib_ctx, flow_options, Right
       end
     end
   end
 
-  def my_pollutor(lib_ctx, flow_options, signal, pollute:, **)
-    flow_options[:application_ctx][:seq] << pollute
+  def my_pollutor(lib_ctx, flow_options, signal, pollute:, target_ctx:, **)
+    target_ctx[:seq] << pollute # FIXME: this is not really clean.
 
     return lib_ctx.merge(pollute => true), # this will be discarded *if* this node is scoped.
       flow_options, signal
@@ -26,7 +26,7 @@ class PipelineBuilderTest < Minitest::Spec
 
     lib_ctx, _ = assert_run my_circuit, terminus: nil, seq: [1], pollute: 1
 
-    assert_equal lib_ctx, {pollute: 1} # only the original lib_ctx is here.
+    assert_equal lib_ctx, {pollute: 1, target_ctx: {seq: [1]}} # only the original lib_ctx is here.
   end
 
   it "{scope: true} with {:connections}" do
@@ -35,9 +35,9 @@ class PipelineBuilderTest < Minitest::Spec
     )
 
     lib_ctx, _ = assert_run my_circuit, terminus: Right, seq: [1], pollute: 1, signal: Right
-    assert_equal lib_ctx, {pollute: 1} # only the original lib_ctx is here.
+    assert_equal lib_ctx, {pollute: 1, target_ctx: {seq: [1]}} # only the original lib_ctx is here.
     lib_ctx, _ = assert_run my_circuit, terminus: "my left", seq: [1], pollute: 1, signal: Left
-    assert_equal lib_ctx, {pollute: 1} # only the original lib_ctx is here.
+    assert_equal lib_ctx, {pollute: 1, target_ctx: {seq: [1]}} # only the original lib_ctx is here.
   end
 
   it "Pipeline creates a Scoped node when {:merge_to_lib_ctx} is given" do
@@ -48,7 +48,7 @@ class PipelineBuilderTest < Minitest::Spec
 
     lib_ctx, _ = assert_run my_circuit, terminus: nil, seq: [1, 2]
 
-    assert_equal lib_ctx, {} # no pollution as we're Scoped.
+    assert_equal lib_ctx, {target_ctx: {seq: [1, 2]}} # no pollution as we're Scoped.
   end
 
   it "creates a {MergeToCircuitOptions} node when {:exec_context} is given" do
@@ -61,7 +61,7 @@ class PipelineBuilderTest < Minitest::Spec
 
     lib_ctx, _ = assert_run my_circuit, terminus: Right, seq: [:a, :b]
 
-    assert_equal lib_ctx, {}
+    assert_equal lib_ctx, {target_ctx: {seq: [:a, :b]}}
   end
 
   it "Pipeline creates an unscoped Node when no options given" do
@@ -71,13 +71,13 @@ class PipelineBuilderTest < Minitest::Spec
 
     lib_ctx, _ = assert_run my_circuit, terminus: nil, seq: [1], pollute: 1
 
-    assert_equal lib_ctx, {pollute: 1, 1 => true}
+    assert_equal lib_ctx, {pollute: 1, 1 => true, target_ctx: {seq: [1]}}
   end
 
   it "{node: MyNode} allows passing a node directly without any DSL logic involved" do
     my_node_with_circuit_interface = Class.new do
       def self.call(lib_ctx, flow_options, signal, circuit_options)
-        flow_options[:application_ctx][:seq] << :e
+        lib_ctx[:target_ctx][:seq] << :e
 
         return lib_ctx, flow_options, signal
       end
@@ -91,7 +91,7 @@ class PipelineBuilderTest < Minitest::Spec
     lib_ctx, _ = assert_run circuit, terminus: nil,
       seq: [:e]
 
-    assert_equal lib_ctx, {}
+    assert_equal lib_ctx, {:target_ctx=>{:seq=>[:e]}}
   end
 
   it "TODO: :connections should be :resolver" do
@@ -123,7 +123,7 @@ class PipelineBuilderTest < Minitest::Spec
       seq: [:a, :b, :c, :d],
       exec_context: exec_context_for_d
 
-    assert_equal lib_ctx, {exec_context: exec_context_for_d}
+    assert_equal lib_ctx, {exec_context: exec_context_for_d, :target_ctx=>{:seq=>[:a, :b, :c, :d]}}
   end
 
   it "when omitting {:connections} it builds a Pipeline node (with a Fixed resolver to next element)" do
@@ -150,9 +150,9 @@ class PipelineBuilderTest < Minitest::Spec
 
     lib_ctx, flow_options = assert_run my_circuit, terminus: Left, seq: [:a, :b, :c, :d],
       circuit_options: {exec_context: my_exec_context},
-      flow_options: {application_ctx: {seq: [], d: Left}}
+      target_ctx: {seq: [], d: Left}
 
-    assert_equal lib_ctx, {}
+    assert_equal lib_ctx, {:target_ctx=>{:seq=>[:a, :b, :c, :d], :d=>Left}}
   end
 
   it "we can pass resolvers as {:connections}" do
@@ -166,10 +166,10 @@ class PipelineBuilderTest < Minitest::Spec
       [:c, my_exec_context.method(:c), connections: Trailblazer::Circuit::Resolver::Fixed.new(nil)],
     )
 
-    assert_run my_circuit, terminus: Left, seq: [:a], application_ctx: {a: Left}
-    assert_run my_circuit, terminus: Right, seq: [:a, :b, :c]#, application_ctx: {a: Left}
+    assert_run my_circuit, terminus: Left, seq: [:a], target_ctx: {seq: [], a: Left}
+    assert_run my_circuit, terminus: Right, seq: [:a, :b, :c]#, target_ctx: {seq: [], a: Left}
     # test that the Fixed resolver does its job.
-    assert_run my_circuit, terminus: Right, seq: [:a, :b, :c], application_ctx: {b: Object}
+    assert_run my_circuit, terminus: Right, seq: [:a, :b, :c], target_ctx: {seq: [], b: Object}
   end
 
   it "{Builder.Pipeline} and {Builder::Pipeline.call} are identical" do
@@ -193,14 +193,14 @@ class CircuitBuilderTest < Minitest::Spec
     )
 
     lib_ctx, flow_options = assert_run my_circuit, terminus: Right, seq: [:c, :d, :success]
-    assert_equal lib_ctx, {}
+    assert_equal lib_ctx, {:target_ctx=>{:seq=>[:c, :d, :success]}}
 
-    lib_ctx, flow_options = assert_run my_circuit, terminus: Right, seq: [:c, :failure], application_ctx: {c: Left}
-    assert_equal lib_ctx, {}
+    lib_ctx, flow_options = assert_run my_circuit, terminus: Right, seq: [:c, :failure], target_ctx: {seq: [], c: Left}
+    assert_equal lib_ctx, {:target_ctx=>{:seq=>[:c, :failure], :c=>Left}}
 
 
-    lib_ctx, flow_options = assert_run my_circuit, terminus: Right, seq: [:c, :d, :failure], application_ctx: {d: Left}
-    assert_equal lib_ctx, {}
+    lib_ctx, flow_options = assert_run my_circuit, terminus: Right, seq: [:c, :d, :failure], target_ctx: {seq: [], d: Left}
+    assert_equal lib_ctx, {:target_ctx=>{:seq=>[:c, :d, :failure], :d=>Left}}
   end
 
   it "{Builder.Circuit} and {Builder::Pipeline.call} are identical" do

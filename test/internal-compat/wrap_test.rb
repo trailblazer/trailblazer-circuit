@@ -4,8 +4,8 @@ require "test_helper"
 class WrapTest < Minitest::Spec
   it "what" do
     my_steps = T.def_tasks(:a, :b, :c, success_signal: nil)
-    my_raise_step = ->(lib_ctx, flow_options, signal, do_raise: false, **) do
-      flow_options[:application_ctx][:seq] << :d
+    my_raise_step = ->(lib_ctx, flow_options, signal, do_raise: false, target_ctx:, **) do
+      target_ctx[:seq] << :d
 
       raise if do_raise
 
@@ -22,7 +22,7 @@ class WrapTest < Minitest::Spec
       begin
         lib_ctx, flow_options, signal = super
       rescue
-        flow_options[:application_ctx][:exception] = $!
+        lib_ctx[:target_ctx][:exception] = $!
       end
 
         return lib_ctx, flow_options, signal
@@ -36,10 +36,10 @@ class WrapTest < Minitest::Spec
     )
 
     lib_ctx, flow_options = assert_run wrap_pipe, seq: [:b, :a, :d, :c]
-    assert_nil flow_options[:application_ctx][:exception]
+    assert_nil lib_ctx[:target_ctx][:exception]
 
     # raise
     lib_ctx, flow_options = assert_run wrap_pipe, seq: [:b, :a, :d, :c], do_raise: true
-    assert_equal flow_options[:application_ctx][:exception].inspect, %(RuntimeError)
+    assert_equal lib_ctx[:target_ctx][:exception].inspect, %(RuntimeError)
   end
 end

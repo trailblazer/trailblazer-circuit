@@ -89,8 +89,8 @@ class ConditionalResolverTest < Minitest::Spec
     )
 
     assert_run my_circuit, terminus: Right, seq: [:a, :c]
-    assert_run my_circuit, terminus: Right, seq: [:y, :a, :c], flow_options: {application_ctx: {seq: [:y], a: Left}}
-    assert_run my_circuit, terminus: Right, seq: [:y, :a, :b], flow_options: {application_ctx: {seq: [:y], a: Object}}
+    assert_run my_circuit, terminus: Right, seq: [:y, :a, :c], target_ctx: {seq: [:y], a: Left}
+    assert_run my_circuit, terminus: Right, seq: [:y, :a, :b], target_ctx: {seq: [:y], a: Object}
   end
 end
 
