@@ -10,27 +10,27 @@ class ProcessorTest < Minitest::Spec
     end
   end
 
-  it "we can see {:node} in the {circuit_options} and hence, a MyCircuitInterface task, has access to data stored there" do
+  it "we can see {:node} and {:id} in the {circuit_options} and hence, a MyCircuitInterface task, has access to data stored there" do
     my_task_with_circuit_interface = Struct.new(:my_id) do
-      def call(lib_ctx, flow_options, signal, node:, **circuit_options) # MyCircuitInterface.
-        lib_ctx[:target_ctx][:seq] << [my_id, node]
+      def call(lib_ctx, flow_options, signal, node:, id:, **circuit_options) # MyCircuitInterface.
+        lib_ctx[:target_ctx][:seq] << [my_id, id, node]
 
         return lib_ctx, flow_options, signal
       end
     end
 
     create_circuit = Pipeline(
-      [:model, my_task_with_circuit_interface.new(:model), MyCircuitInterface],
+      [:id_for_model, my_task_with_circuit_interface.new(:model), MyCircuitInterface],
     )
 
     create_tw = Pipeline(
-      [:input, my_task_with_circuit_interface.new(:input), MyCircuitInterface],
+      [:id_for_input, my_task_with_circuit_interface.new(:input), MyCircuitInterface],
       [:call_task, create_circuit, Trailblazer::Circuit::Processor],
     )
 
     assert_run create_tw, seq: [
-      [:input, create_tw.nodes[:input]],
-      [:model, create_circuit.nodes[:model]],
+      [:input, :id_for_input, create_tw.nodes[:id_for_input]],
+      [:model, :id_for_model, create_circuit.nodes[:id_for_model]],
     ]
   end
 
@@ -52,8 +52,8 @@ class ProcessorTest < Minitest::Spec
     lib_ctx, _ = assert_run my_circuit, seq: [], ary: [], circuit_options: {start_tuple: [2, my_circuit.nodes[2]]}
 
     assert_equal lib_ctx[:ary], [
-      [:context_implementation, :runner, :node],
-      [:context_implementation, :runner, :node]
+      [:context_implementation, :runner, :node, :id],
+      [:context_implementation, :runner, :node, :id]
     ]
   end
 end
