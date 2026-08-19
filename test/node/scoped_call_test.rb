@@ -5,7 +5,7 @@ class NodeScopedCallTest < Minitest::Spec
   let(:capture_task) { Capture.new(:captured, {pollute: 3}) }
 
   it "scoping defaults to all get in, nothing gets out" do
-    my_node = _A::Circuit::Node::Scoped[:a, capture_task, _A::Circuit::Task::Adapter::LibInterface]
+    my_node = _A::Circuit::Node::Scoped[capture_task, _A::Circuit::Task::Adapter::LibInterface]
 
     lib_ctx, flow_options, signal = my_node.(
       {a: 1},
@@ -20,7 +20,7 @@ class NodeScopedCallTest < Minitest::Spec
   end
 
   it "{:return_outer_signal} overrides local node's signal" do
-    my_node = _A::Circuit::Node::Scoped[:a, Capture.new(:captured, {pollute: 3}, Left), _A::Circuit::Task::Adapter::LibInterface,
+    my_node = _A::Circuit::Node::Scoped[Capture.new(:captured, {pollute: 3}, Left), _A::Circuit::Task::Adapter::LibInterface,
       return_outer_signal: true
     ]
 
@@ -37,7 +37,7 @@ class NodeScopedCallTest < Minitest::Spec
   end
 
   it "in: [], out: []" do
-    my_node = _A::Circuit::Node::Scoped[:a, capture_task, _A::Circuit::Task::Adapter::LibInterface,
+    my_node = _A::Circuit::Node::Scoped[capture_task, _A::Circuit::Task::Adapter::LibInterface,
       copy_from_outer_ctx: [],
       copy_to_outer_ctx: []
     ]
@@ -55,7 +55,7 @@ class NodeScopedCallTest < Minitest::Spec
   end
 
   it "in: [:a], out: []" do
-    my_node = _A::Circuit::Node::Scoped[:a, capture_task, _A::Circuit::Task::Adapter::LibInterface,
+    my_node = _A::Circuit::Node::Scoped[capture_task, _A::Circuit::Task::Adapter::LibInterface,
       copy_from_outer_ctx: [:a],
       copy_to_outer_ctx: []
     ]
@@ -73,7 +73,7 @@ class NodeScopedCallTest < Minitest::Spec
   end
 
   it "in: [], out: [:c], expose an internally set variable" do
-    my_node = _A::Circuit::Node::Scoped[:a, capture_task, _A::Circuit::Task::Adapter::LibInterface,
+    my_node = _A::Circuit::Node::Scoped[capture_task, _A::Circuit::Task::Adapter::LibInterface,
       copy_from_outer_ctx: [],
       copy_to_outer_ctx: [:pollute]
     ]
@@ -91,7 +91,7 @@ class NodeScopedCallTest < Minitest::Spec
   end
 
   it "in: [:a], out: [:c]" do
-    my_node = _A::Circuit::Node::Scoped[:a, capture_task, _A::Circuit::Task::Adapter::LibInterface,
+    my_node = _A::Circuit::Node::Scoped[capture_task, _A::Circuit::Task::Adapter::LibInterface,
       copy_from_outer_ctx: [:a],
       copy_to_outer_ctx: [:pollute]
     ]
@@ -109,7 +109,7 @@ class NodeScopedCallTest < Minitest::Spec
   end
 
   it "in: [], out: [], merge_to_lib_ctx: {z: []}" do
-    my_node = _A::Circuit::Node::Scoped[:a, capture_task, _A::Circuit::Task::Adapter::LibInterface,
+    my_node = _A::Circuit::Node::Scoped[capture_task, _A::Circuit::Task::Adapter::LibInterface,
       copy_from_outer_ctx: [],
       copy_to_outer_ctx: [],
       merge_to_lib_ctx: {z: Module}
@@ -128,7 +128,7 @@ class NodeScopedCallTest < Minitest::Spec
   end
 
   it "in: [:a], out: [], merge_to_lib_ctx: {z: []}" do
-    my_node = _A::Circuit::Node::Scoped[:a, capture_task, _A::Circuit::Task::Adapter::LibInterface,
+    my_node = _A::Circuit::Node::Scoped[capture_task, _A::Circuit::Task::Adapter::LibInterface,
       copy_from_outer_ctx: [:a],
       copy_to_outer_ctx: [],
       merge_to_lib_ctx: {z: Module}
@@ -147,7 +147,7 @@ class NodeScopedCallTest < Minitest::Spec
   end
 
   it "in: [:a], out: [:c], merge_to_lib_ctx: {z: []}" do
-    my_node = _A::Circuit::Node::Scoped[:a, capture_task, _A::Circuit::Task::Adapter::LibInterface,
+    my_node = _A::Circuit::Node::Scoped[capture_task, _A::Circuit::Task::Adapter::LibInterface,
       copy_from_outer_ctx: [:a],
       copy_to_outer_ctx: [:pollute],
       merge_to_lib_ctx: {z: Module}

@@ -13,12 +13,13 @@ module Trailblazer
       class Runner < Node::Runner
         def self.call(node, lib_ctx, flow_options, signal, circuit_options)
           wrap_runtime = circuit_options.fetch(:wrap_runtime)
+          id = circuit_options.fetch(:id)
 
           node_attrs = node.to_h
 
           # if node.task.instance_of?(Trailblazer::Circuit)
           if node.task.instance_variable_get(:@pipe) # FIXME: how to detect what we want to trace?
-            node_attrs = extend_task_wrap_pipeline(wrap_runtime, node_attrs[:id], node, node_attrs)
+            node_attrs = extend_task_wrap_pipeline(wrap_runtime, id, node, node_attrs)
           end
 
           node = node.class.new(**node_attrs)
@@ -30,7 +31,7 @@ module Trailblazer
           tw_extension = wrap_runtime[id] # FIXME: this should be looked up by path, not ID.
           # FIXME: we need id here, where do we get it from?
 
-          extended_node_attrs = tw_extension.(**node_attrs) # DISCUSS: pass runtime options here, too? # FIXME: test what we pass here.
+          extended_node_attrs = tw_extension.(**node_attrs, id: id) # DISCUSS: pass runtime options here, too? # FIXME: test what we pass here.
 
           pp extended_node_attrs[:task].flow_map.keys
 

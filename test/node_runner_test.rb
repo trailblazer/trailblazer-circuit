@@ -10,7 +10,7 @@ class NodeRunnerTest < Minitest::Spec
       [:c, :c, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod],
     )
 
-    my_pipe_node = _A::Circuit::Node::Scoped[:my_pipe_node, my_pipe, _A::Circuit::Processor]
+    my_pipe_node = _A::Circuit::Node::Scoped[my_pipe, _A::Circuit::Processor]
     runner = _A::Circuit::Node::Runner
 
     lib_ctx, flow_options = runner.(my_pipe_node, {target_ctx: {seq: []}}, {}, nil,
@@ -29,7 +29,7 @@ class NodeRunnerTest < Minitest::Spec
       [:c, :c, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod],
     )
 
-    my_pipe_node = _A::Circuit::Node[:my_pipe_node, my_pipe, _A::Circuit::Processor]
+    my_pipe_node = _A::Circuit::Node[my_pipe, _A::Circuit::Processor]
     runner = _A::Circuit::Node::Runner
 
     lib_ctx, flow_options, signal = runner.(my_pipe_node, {target_ctx: {seq: []}}, {}, nil,

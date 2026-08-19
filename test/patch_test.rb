@@ -18,7 +18,7 @@ class PatchTest < Minitest::Spec
       [:d, my_exec_context.method(:d)],
       [:abc, my_outer_pipe, Trailblazer::Circuit::Processor],
     )
-    my_top_node = Trailblazer::Circuit::Node[:top, my_top_pipe, Trailblazer::Circuit::Processor]
+    my_top_node = Trailblazer::Circuit::Node[my_top_pipe, Trailblazer::Circuit::Processor]
 
     # patch on the top pipe itself.
     my_new_top_node = Trailblazer::Circuit::Node::Patch.(
@@ -27,7 +27,7 @@ class PatchTest < Minitest::Spec
       adds: [
         [
           :e,
-          Trailblazer::Circuit::Node[:e, my_exec_context.method(:e), Trailblazer::Circuit::Task::Adapter::LibInterface], # TODO: provide shortcut from Builder.
+          Trailblazer::Circuit::Node[my_exec_context.method(:e), Trailblazer::Circuit::Task::Adapter::LibInterface], # TODO: provide shortcut from Builder.
           :replace, :d
         ]
       ]
@@ -40,7 +40,7 @@ class PatchTest < Minitest::Spec
       adds: [
         [
           :e,
-          Trailblazer::Circuit::Node[:e, my_exec_context.method(:e), Trailblazer::Circuit::Task::Adapter::LibInterface],
+          Trailblazer::Circuit::Node[my_exec_context.method(:e), Trailblazer::Circuit::Task::Adapter::LibInterface],
           :after, :c
         ]
       ]
@@ -53,7 +53,7 @@ class PatchTest < Minitest::Spec
       adds: [
         [
           :e,
-          Trailblazer::Circuit::Node[:e, my_exec_context.method(:e), Trailblazer::Circuit::Task::Adapter::LibInterface],
+          Trailblazer::Circuit::Node[my_exec_context.method(:e), Trailblazer::Circuit::Task::Adapter::LibInterface],
           :after, :a
         ]
       ]

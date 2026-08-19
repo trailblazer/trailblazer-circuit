@@ -9,17 +9,16 @@ class NodeScopedTest < Minitest::Spec
         my_node = Trailblazer::Circuit::Node::Scoped.new
       end
 
-      missing_keywords = "s id, task, interface"
+      missing_keywords = "s task, interface"
       missing_keywords = " id" if RUBY_ENGINE == 'jruby'
 
       assert_equal exception.message.gsub(":", ""), %(missing keyword#{missing_keywords})
     end
 
     it "has required keywords, defaults the rest" do
-      my_node = Trailblazer::Circuit::Node::Scoped.new(id: :a, task: :method_a, interface: MyInterface)
+      my_node = Trailblazer::Circuit::Node::Scoped.new(task: :method_a, interface: MyInterface)
 
       assert_equal my_node.to_h, {
-        :id=>:a,
         :task=>:method_a,
         :interface=>MyInterface,
         :merge_to_lib_ctx=>{},
@@ -31,7 +30,6 @@ class NodeScopedTest < Minitest::Spec
 
     it "accepts all keywords explicitly" do
       my_node = Trailblazer::Circuit::Node::Scoped.new(
-        id: :a,
         task: :method_a,
         interface: MyInterface,
         merge_to_lib_ctx: {value: {}},
@@ -41,7 +39,6 @@ class NodeScopedTest < Minitest::Spec
       )
 
       assert_equal my_node.to_h, {
-        :id=>:a,
         :task=>:method_a,
         :interface=>MyInterface,
         :merge_to_lib_ctx=>{value: {}},
@@ -58,14 +55,13 @@ class NodeScopedTest < Minitest::Spec
         my_node = Trailblazer::Circuit::Node::Scoped[]
       end
 
-      assert_equal exception.message, %(wrong number of arguments (given 0, expected 3))
+      assert_equal exception.message, %(wrong number of arguments (given 0, expected 2))
     end
 
     it "forwards to keyword version" do
-      my_node = Trailblazer::Circuit::Node::Scoped[:a, :method_a, MyInterface]
+      my_node = Trailblazer::Circuit::Node::Scoped[:method_a, MyInterface]
 
       assert_equal my_node.to_h, {
-        :id=>:a,
         :task=>:method_a,
         :interface=>MyInterface,
         :merge_to_lib_ctx=>{},
@@ -87,10 +83,9 @@ class NodeScopedTest < Minitest::Spec
     end
 
     it "allows to pass the complicated kwargs after the three positionals" do
-      my_node = Trailblazer::Circuit::Node::Scoped[:a, :method_a, MyInterface, merge_to_lib_ctx: {exec_context: Object}, return_outer_signal: true]
+      my_node = Trailblazer::Circuit::Node::Scoped[:method_a, MyInterface, merge_to_lib_ctx: {exec_context: Object}, return_outer_signal: true]
 
       assert_equal my_node.to_h, {
-        :id=>:a,
         :task=>:method_a,
         :interface=>MyInterface,
         :merge_to_lib_ctx=>{exec_context: Object},

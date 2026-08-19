@@ -9,17 +9,16 @@ class NodeTest < Minitest::Spec
         my_node = Trailblazer::Circuit::Node.new
       end
 
-      missing_keywords = "s id, task, interface"
+      missing_keywords = "s task, interface"
       missing_keywords = " id" if RUBY_ENGINE == 'jruby'
 
       assert_equal exception.message.gsub(":", ""), %(missing keyword#{missing_keywords})
     end
 
     it "has required keywords" do
-      my_node = Trailblazer::Circuit::Node.new(id: :a, task: :method_a, interface: MyInterface)
+      my_node = Trailblazer::Circuit::Node.new(task: :method_a, interface: MyInterface)
 
       assert_equal my_node.to_h, {
-        :id=>:a,
         :task=>:method_a,
         :interface=>MyInterface
       }
@@ -34,24 +33,22 @@ class NodeTest < Minitest::Spec
         my_node = Trailblazer::Circuit::Node[]
       end
 
-      assert_equal exception.message, %(wrong number of arguments (given 0, expected 3))
+      assert_equal exception.message, %(wrong number of arguments (given 0, expected 2))
     end
 
     it "forwards to keyword version" do
-      my_node = Trailblazer::Circuit::Node[:a, :method_a, MyInterface]
+      my_node = Trailblazer::Circuit::Node[:method_a, MyInterface]
 
       assert_equal my_node.to_h, {
-        :id=>:a,
         :task=>:method_a,
         :interface=>MyInterface
       }
     end
 
     it "discards keyword arguments" do
-      my_node = Trailblazer::Circuit::Node[:a, :method_a, MyInterface, **{}]
+      my_node = Trailblazer::Circuit::Node[:method_a, MyInterface, **{}]
 
       assert_equal my_node.to_h, {
-        :id=>:a,
         :task=>:method_a,
         :interface=>MyInterface
       }

@@ -9,10 +9,11 @@
         id, node = start_tuple
 
         loop do
-          # puts ">>>Processor #{id.inspect} <<<#{signal.inspect}>>> #{node.class}"
+          puts ">>>Processor #{id.inspect} <<<#{signal.inspect}>>> #{node.class} <#{lib_ctx.inspect}"
           circuit_options = circuit_options.merge(
             runner: runner,
-            node:   node # NOTE: you can access the current node in a task via the CircuitInterface.
+            node:   node, # NOTE: you can access the current node in a task via the CircuitInterface.
+            id: id,
           )
 
           lib_ctx, flow_options, signal = runner.(node, lib_ctx, flow_options, signal, circuit_options)

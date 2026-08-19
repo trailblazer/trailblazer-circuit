@@ -4,9 +4,9 @@ class CircuitTest < Minitest::Spec
   let(:my_exec_context) { T.def_tasks(:a, :b, :c, success_signal: nil) }
   let(:my_nodes) do
     {
-      a: node_a = Trailblazer::Circuit::Node[:a, my_exec_context.method(:a), Trailblazer::Circuit::Task::Adapter::LibInterface],
-      b: Trailblazer::Circuit::Node[:b, my_exec_context.method(:b), Trailblazer::Circuit::Task::Adapter::LibInterface],
-      c: Trailblazer::Circuit::Node[:c, my_exec_context.method(:c), Trailblazer::Circuit::Task::Adapter::LibInterface],
+      a: node_a = Trailblazer::Circuit::Node[my_exec_context.method(:a), Trailblazer::Circuit::Task::Adapter::LibInterface],
+      b: Trailblazer::Circuit::Node[my_exec_context.method(:b), Trailblazer::Circuit::Task::Adapter::LibInterface],
+      c: Trailblazer::Circuit::Node[my_exec_context.method(:c), Trailblazer::Circuit::Task::Adapter::LibInterface],
     }
   end
 
@@ -141,8 +141,8 @@ class CircuitResolveTest < Minitest::Spec
     end
 
     my_nodes = {
-      a: Trailblazer::Circuit::Node[:a, method(:a), Trailblazer::Circuit::Task::Adapter::LibInterface],
-      b: Trailblazer::Circuit::Node[:b, method(:b), Trailblazer::Circuit::Task::Adapter::LibInterface],
+      a: Trailblazer::Circuit::Node[method(:a), Trailblazer::Circuit::Task::Adapter::LibInterface],
+      b: Trailblazer::Circuit::Node[method(:b), Trailblazer::Circuit::Task::Adapter::LibInterface],
     }
 
     my_flow_map = {a: Trailblazer::Circuit::Resolver::Fixed.new(:b), b: Trailblazer::Circuit::Resolver::Fixed.new(nil)}
@@ -173,10 +173,10 @@ class CircuitResolveTest < Minitest::Spec
     my_exec_context = T.def_tasks(:a, :b, :c, :failure, success_signal: Right)
 
     my_nodes = {
-      a: Trailblazer::Circuit::Node[:a, :a, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod],
-      b: Trailblazer::Circuit::Node[:b, :b, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod],
-      c: Trailblazer::Circuit::Node[:c, :c, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod],
-      failure: Trailblazer::Circuit::Node[:failure, :failure, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod],
+      a: Trailblazer::Circuit::Node[:a, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod],
+      b: Trailblazer::Circuit::Node[:b, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod],
+      c: Trailblazer::Circuit::Node[:c, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod],
+      failure: Trailblazer::Circuit::Node[:failure, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod],
     }
 
     my_circuit = Trailblazer::Circuit.build(flow_map: my_flow_map, nodes: my_nodes)
@@ -222,7 +222,7 @@ class CircuitResolveTest < Minitest::Spec
       [:e, my_exec_context.new(:e), lib_interface, connections: Trailblazer::Circuit::Resolver::Fixed.new(nil)],
       [:f, my_exec_context.new(:f), lib_interface, connections: Trailblazer::Circuit::Resolver::Fixed.new(nil)],
     )
-    node_value_on_signal = Trailblazer::Circuit::Node[:id, my_circuit, Trailblazer::Circuit::Processor] # FIXME: make it a Scoped node that returns the original signal.
+    node_value_on_signal = Trailblazer::Circuit::Node[my_circuit, Trailblazer::Circuit::Processor] # FIXME: make it a Scoped node that returns the original signal.
 
     assert_run node_value_on_signal, node: true, terminus: [:a, :b, :my_decider, :d, :f], seq: [], decision_signal: Right, signal: []
     assert_run node_value_on_signal, node: true, terminus: [:a, :b, :my_decider, :e], seq: [], decision_signal: Left, signal: []

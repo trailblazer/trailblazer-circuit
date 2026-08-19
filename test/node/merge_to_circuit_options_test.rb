@@ -7,7 +7,6 @@ class MergeToCircuitOptions_UnitTest < Minitest::Spec
     my_exec_context = T.def_tasks(:a, success_signal: Right)
 
     my_node = Trailblazer::Circuit::Node::MergeToCircuitOptions[
-      nil,
       :a,
       Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod,
       {exec_context: my_exec_context}

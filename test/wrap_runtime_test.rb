@@ -100,7 +100,7 @@ class WrapRuntimeTest < Minitest::Spec
       [:call_task, create_circuit, Trailblazer::Circuit::Processor]
     )
 
-    canonical_node = Trailblazer::Circuit::Node[:Create, create_tw, Trailblazer::Circuit::Processor]
+    canonical_node = Trailblazer::Circuit::Node[create_tw, Trailblazer::Circuit::Processor]
 
     return canonical_node, create_instance
   end
@@ -143,8 +143,8 @@ class WrapRuntimeTest < Minitest::Spec
         def self.call(id:, **attrs)
           [
             # those Adds instructions will use the builder for Resolver::Fixed.
-            [:capture_before, Trailblazer::Circuit::Node[:capture_before, Capture.new(id, :before),  Trailblazer::Circuit::Task::Adapter::LibInterface], :before, nil],
-            [:capture_after, Trailblazer::Circuit::Node[:capture_after,  Capture.new(id, :after),   Trailblazer::Circuit::Task::Adapter::LibInterface], :after, nil],
+            [:capture_before, Trailblazer::Circuit::Node[Capture.new(id, :before),  Trailblazer::Circuit::Task::Adapter::LibInterface], :before, nil],
+            [:capture_after, Trailblazer::Circuit::Node[ Capture.new(id, :after),   Trailblazer::Circuit::Task::Adapter::LibInterface], :after, nil],
           ]
         end
       end
@@ -173,7 +173,8 @@ class WrapRuntimeTest < Minitest::Spec
       runner: Trailblazer::Circuit::WrapRuntime::Runner,
       wrap_runtime: Hash.new(my_extensions),
       context_implementation: Trailblazer::Circuit::Context,
-      exec_context: create_instance
+      exec_context: create_instance,
+      id: :Create,
     )
 
     assert_equal signal, :Success

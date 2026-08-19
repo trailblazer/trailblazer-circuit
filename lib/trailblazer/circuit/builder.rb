@@ -62,7 +62,7 @@ module Trailblazer
             options_for_node = {exec_context: exec_context, **options_for_node}
           end
 
-          return id, node_class[id, task, interface, **options_for_node]
+          return id, node_class[task, interface, **options_for_node]
         end
       end
 

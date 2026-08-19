@@ -27,7 +27,7 @@ class WrapTest < Minitest::Spec
 
         return lib_ctx, flow_options, signal
       end
-    end.new(id: :wrap_pipe, task: wrapped_pipe, interface: _A::Circuit::Processor)
+    end.new(task: wrapped_pipe, interface: _A::Circuit::Processor)
 
     wrap_pipe = _A::Circuit::Builder.Pipeline(
       [:b,    my_steps.method(:b)],

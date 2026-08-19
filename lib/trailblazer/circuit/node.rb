@@ -1,13 +1,12 @@
 module Trailblazer
   class Circuit
-    class Node < Struct.new(:id, :task, :interface)
-      def initialize(id:, task:, interface:, **)
-        super(id, task, interface)
+    class Node < Struct.new(:task, :interface)
+      def initialize(task:, interface:, **)
+        super(task, interface)
       end
 
-      # DISCUSS: do we like builder code here?
-      def self.[](id, task, interface, **)
-        new(id: id, task: task, interface: interface)
+      def self.[](task, interface, **)
+        new(task: task, interface: interface)
       end
 
       module Call

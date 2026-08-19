@@ -99,25 +99,25 @@ class AdapterTest < Minitest::Spec
   end
 
   it "StepInterface::InstanceMethod" do
-    node = _A::Circuit::Node::MergeToCircuitOptions[nil, :my_model, _A::Circuit::Task::Adapter::StepInterface::InstanceMethod, exec_context: my_step_interface_exec_context]
+    node = _A::Circuit::Node::MergeToCircuitOptions[:my_model, _A::Circuit::Task::Adapter::StepInterface::InstanceMethod, exec_context: my_step_interface_exec_context]
 
     assert_step_interface(node)
   end
 
   it "StepInterface" do
-    node = _A::Circuit::Node[:my_model, my_step_interface_exec_context.method(:my_model), _A::Circuit::Task::Adapter::StepInterface]
+    node = _A::Circuit::Node[my_step_interface_exec_context.method(:my_model), _A::Circuit::Task::Adapter::StepInterface]
 
     assert_step_interface(node)
   end
 
   it "LibInterface::InstanceMethod" do
-    node = _A::Circuit::Node::MergeToCircuitOptions[:my_model_input, :my_model_input, _A::Circuit::Task::Adapter::LibInterface::InstanceMethod, exec_context: my_lib_interface_exec_context]
+    node = _A::Circuit::Node::MergeToCircuitOptions[:my_model_input, _A::Circuit::Task::Adapter::LibInterface::InstanceMethod, exec_context: my_lib_interface_exec_context]
 
     assert_lib_interface(node, original_ctx: {aggregate: []})
   end
 
   it "LibInterface" do
-    node = _A::Circuit::Node[:my_model_input, my_lib_interface_exec_context.method(:my_model_input), _A::Circuit::Task::Adapter::LibInterface]
+    node = _A::Circuit::Node[my_lib_interface_exec_context.method(:my_model_input), _A::Circuit::Task::Adapter::LibInterface]
 
     assert_lib_interface(node, original_ctx: ctx = {aggregate: []})
   end

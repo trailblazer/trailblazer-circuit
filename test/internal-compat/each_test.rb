@@ -31,10 +31,10 @@ class EachTest < Minitest::Spec
 
   it do
     nodes = {
-      init: Trailblazer::Circuit::Node[:init, :init, lib_interface::InstanceMethod],
-      fetch_value_from_dataset: Trailblazer::Circuit::Node[:fetch_value_from_dataset, :fetch_value_from_dataset, lib_interface::InstanceMethod],
-      a: Trailblazer::Circuit::Node::MergeToCircuitOptions[:a, :my_task_a, lib_interface::InstanceMethod, exec_context: self],
-      finished: Trailblazer::Circuit::Node[:finished, :finished, lib_interface::InstanceMethod],
+      init: Trailblazer::Circuit::Node[:init, lib_interface::InstanceMethod],
+      fetch_value_from_dataset: Trailblazer::Circuit::Node[:fetch_value_from_dataset, lib_interface::InstanceMethod],
+      a: Trailblazer::Circuit::Node::MergeToCircuitOptions[:my_task_a, lib_interface::InstanceMethod, exec_context: self],
+      finished: Trailblazer::Circuit::Node[:finished, lib_interface::InstanceMethod],
     }
 
     map = {
