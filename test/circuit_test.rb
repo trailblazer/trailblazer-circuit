@@ -59,7 +59,7 @@ class CircuitTest < Minitest::Spec
   it "a Circuit doesn't have explicit termini set, if a signal points to {nil}, it terminates" do
     my_flow_map = {
       a: {nil => [:b, nil]},
-      b: {nil => [:c, nil], :Left => [nil, :Left]}, # the :Left signal points to nil, meaning it terminates here.
+      b: {nil => [:c, nil], "Left" => [nil, "Left"]}, # the "Left" signal points to nil, meaning it terminates here.
       c: {nil => [nil, nil]} # signal from  terminus pointing to nil terminates.
     }
 
@@ -69,7 +69,7 @@ class CircuitTest < Minitest::Spec
     )
 
     assert_run circuit, seq: [:a, :b, :c]
-    assert_run circuit, seq: [:a, :b], target_ctx: {seq: [], b: :Left}, terminus: :Left
+    assert_run circuit, seq: [:a, :b], target_ctx: {seq: [], b: "Left"}, terminus: "Left"
   end
 
   it "should raise with IllegalSignalError (# TODO)" do
@@ -185,7 +185,7 @@ class CircuitResolveTest < Minitest::Spec
     assert_run my_circuit, terminus: Right, seq: [:a, :failure], circuit_options: {exec_context: my_exec_context}, target_ctx: {seq: [], a: Left}
 
     # With a Reolver::Fixed, a terminating node can return any signal, but still terminates.
-    assert_run my_circuit, terminus: :c_says_Right, seq: [:a, :b, :c], circuit_options: {exec_context: my_exec_context}, target_ctx: {seq: [], c: :c_says_Right}
+    assert_run my_circuit, terminus: "c_says_Right", seq: [:a, :b, :c], circuit_options: {exec_context: my_exec_context}, target_ctx: {seq: [], c: "c_says_Right"}
   end
 
   it "by using a custom Resolver, we can implement (fast?) value-on-signal circuits" do

@@ -4,7 +4,7 @@ require "test_helper"
 class RescueHandlerTest < Minitest::Spec
   def my_rescue_handler(ctx, flow_options, *, exception:)
     ctx[:exception_class] = exception.class
-    return ctx, flow_options, :Right
+    return ctx, flow_options, "Right"
   end
 
   it "what" do
@@ -20,7 +20,7 @@ class RescueHandlerTest < Minitest::Spec
       [:call_user_handler, method(:my_rescue_handler), my_adapter_to_weird_signature]
     )
 
-    lib_ctx, flow_options = assert_run my_pipe, terminus: :Right, seq: []
+    lib_ctx, flow_options = assert_run my_pipe, terminus: "Right", seq: []
     assert_equal lib_ctx, {:target_ctx=>{:seq=>[], :exception_class=>Class}}
     assert_equal flow_options, {}
   end
