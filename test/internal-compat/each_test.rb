@@ -33,7 +33,7 @@ class EachTest < Minitest::Spec
     nodes = {
       init: Trailblazer::Circuit::Node[:init, lib_interface::InstanceMethod],
       fetch_value_from_dataset: Trailblazer::Circuit::Node[:fetch_value_from_dataset, lib_interface::InstanceMethod],
-      a: Trailblazer::Circuit::Node::MergeToCircuitOptions[:my_task_a, lib_interface::InstanceMethod, exec_context: self],
+      a: Trailblazer::Circuit::Node::MergeToCircuitOptions[:my_task_a, lib_interface::InstanceMethod, merge_to_circuit_options: {exec_context: self}],
       finished: Trailblazer::Circuit::Node[:finished, lib_interface::InstanceMethod],
     }
 

@@ -1,12 +1,8 @@
 module Trailblazer
   class Circuit
-    class Node < Struct.new(:task, :interface)
-      def initialize(task:, interface:, **)
-        super(task, interface)
-      end
-
-      def self.[](task, interface, **)
-        new(task: task, interface: interface)
+    class Node < Struct.new(:task, :interface, :options, keyword_init: true)
+      def self.[](task, interface, options: {})
+        new(task: task, interface: interface, options: options)
       end
 
       module Call

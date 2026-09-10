@@ -1,7 +1,16 @@
 module Trailblazer
   class Circuit
     class Node
-      class MergeToCircuitOptions < Struct.new(:task, :interface, :merge_to_circuit_options) # DISCUSS: better name?
+      class MergeToCircuitOptions < Struct.new(:task, :interface, :options, :merge_to_circuit_options, keyword_init: true) # DISCUSS: better name?
+        def self.[](task, interface, options: {}, merge_to_circuit_options: {})
+          new(
+            task: task,
+            interface: interface,
+            options: options,
+            merge_to_circuit_options: merge_to_circuit_options
+          )
+        end
+
         include Trailblazer::Circuit::Node::Call
 
         def call(lib_ctx, flow_options, signal, circuit_options)

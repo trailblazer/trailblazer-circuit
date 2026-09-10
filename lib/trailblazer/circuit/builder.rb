@@ -59,20 +59,11 @@ module Trailblazer
 
           if exec_context
             node_class = Node::MergeToCircuitOptions
-            options_for_node = {exec_context: exec_context, **options_for_node}
+            options_for_node = {merge_to_circuit_options: {exec_context: exec_context}, **options_for_node}
           end
 
           return id, node_class[task, interface, **options_for_node]
         end
-      end
-
-      # FIXME: MOVE TO Activity?
-      # A taskWrap is just a Pipeline with a mandatory element {call_task}.
-      # @private
-      def self.TaskWrap(*nodes_options)
-        raise "no call_task provided!" unless nodes_options.find { |(id, _)| id == :"task_wrap.call_task" }
-
-        Pipeline(*nodes_options)
       end
     end # Builder
   end

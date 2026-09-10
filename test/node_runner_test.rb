@@ -61,7 +61,7 @@ class NodeRunnerTest < Minitest::Spec
 
         super(lib_ctx, flow_options, signal, circuit_options)
       end
-    end.new(id: :b, task: my_nested_pipe, interface: _A::Circuit::Processor)
+    end[my_nested_pipe, _A::Circuit::Processor]
 
     my_pipe = Pipeline(
       [:a, my_exec_context.method(:a)],

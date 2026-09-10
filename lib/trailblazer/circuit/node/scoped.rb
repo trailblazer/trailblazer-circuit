@@ -1,14 +1,17 @@
 module Trailblazer
   class Circuit
     class Node
-      class Scoped < Struct.new(:task, :interface, :merge_to_lib_ctx, :copy_from_outer_ctx, :copy_to_outer_ctx, :return_outer_signal)
-        # TODO: test defaulting.
-        def initialize(task:, interface:, merge_to_lib_ctx: {}, copy_from_outer_ctx: nil, copy_to_outer_ctx: [], return_outer_signal: false)
-          super(task, interface, merge_to_lib_ctx, copy_from_outer_ctx, copy_to_outer_ctx, return_outer_signal)
-        end
-
-        def self.[](task, interface, **options)
-          new(task: task, interface: interface, **options)
+      class Scoped < Struct.new(:task, :interface, :options, :merge_to_lib_ctx, :copy_from_outer_ctx, :copy_to_outer_ctx, :return_outer_signal, keyword_init: true)
+        def self.[](task, interface, options: {}, merge_to_lib_ctx: {}, copy_from_outer_ctx: nil, copy_to_outer_ctx: [], return_outer_signal: false)
+          new(
+            task: task,
+            interface: interface,
+            options: options,
+            merge_to_lib_ctx: merge_to_lib_ctx,
+            copy_from_outer_ctx: copy_from_outer_ctx,
+            copy_to_outer_ctx: copy_to_outer_ctx,
+            return_outer_signal: return_outer_signal
+          )
         end
 
         include Node::Call

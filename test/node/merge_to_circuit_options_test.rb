@@ -9,7 +9,7 @@ class MergeToCircuitOptions_UnitTest < Minitest::Spec
     my_node = Trailblazer::Circuit::Node::MergeToCircuitOptions[
       :a,
       Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod,
-      {exec_context: my_exec_context}
+      merge_to_circuit_options: {exec_context: my_exec_context}
     ]
 
     lib_ctx, flow_options, signal = my_node.({target_ctx: {seq: []}}, {}, nil, {})
@@ -20,7 +20,7 @@ class MergeToCircuitOptions_UnitTest < Minitest::Spec
   end
 end
 
-class MergeToCircuitOptions_IntegrationTest < Minitest::Spec
+class MergeToCircuitOptions_BuilderTest_IntegrationTest < Minitest::Spec
   it "circuit_options per branch cannot be altered, they're passed down but can be locally overridden" do
     my_exec_context_ab = T.def_tasks(:a, :b, :d, success_signal: Right)
     my_exec_context_c = T.def_tasks(:c, success_signal: Right)
