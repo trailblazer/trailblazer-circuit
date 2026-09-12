@@ -177,7 +177,7 @@ class PipelineBuilderTest < Minitest::Spec
       [:a, :a]
     ]
 
-    assert_equal Trailblazer::Circuit::Builder.Pipeline(*tasks), Trailblazer::Circuit::Builder::Pipeline.(*tasks, pipe_FIXME: true)
+    assert_equal Trailblazer::Circuit::Builder.Pipeline(*tasks), Trailblazer::Circuit::Builder::Pipeline.(*tasks)
   end
 end
 
@@ -208,6 +208,6 @@ class CircuitBuilderTest < Minitest::Spec
       [:a, :a, connections: {nil => nil}]
     ]
 
-    assert_equal Trailblazer::Circuit::Builder.Circuit(*tasks), Trailblazer::Circuit::Builder::Pipeline.(*tasks, pipe_FIXME: true)
+    assert_equal Trailblazer::Circuit::Builder.Circuit(*tasks), Trailblazer::Circuit::Builder::Pipeline.(*tasks)
   end
 end

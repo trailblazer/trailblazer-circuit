@@ -4,17 +4,17 @@ module Trailblazer
     module Builder
       # Pipeline is just another circiut, where each step has only one output.
       def self.Pipeline(*args)
-        Builder::Pipeline.(*args, pipe_FIXME: true)
+        Builder::Pipeline.(*args)
       end
 
       def self.Circuit(*args)
-        Builder::Pipeline.(*args, pipe_FIXME: false)
+        Builder::Pipeline.(*args)
       end
 
       module Pipeline
         module_function
 
-        def call(*rows_from_user, pipe_FIXME:)
+        def call(*rows_from_user)
           matrix = rows_from_user.collect.with_index do |(*args, options), i|
             next_task_id, next_task = rows_from_user[i + 1]
 
@@ -35,9 +35,7 @@ module Trailblazer
           Trailblazer::Circuit.build(
             flow_map: flow_map.to_h,
             nodes:    nodes.to_h,
-          ).tap do |pipe|
-            pipe.instance_variable_set(:@pipe, pipe_FIXME) # FIXME: WE MARK THE CIRCUIT AS A PIPE FOR TW TRACING
-          end
+          )
         end
 
         def build_node_for(id, *args, node: nil, **options)
