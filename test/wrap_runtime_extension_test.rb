@@ -40,7 +40,7 @@ class WrapRuntimeExtensionTest < Minitest::Spec
 
     my_pipe = Pipeline([:a, :a], [:c, :c])
 
-    new_node_attrs = my_set.(task: my_pipe, id: :my_pipe)
+    circuit_options = my_set.(node: Trailblazer::Circuit::Node[my_pipe, Trailblazer::Circuit::Processor], id: :my_pipe)
 
     expected_pipe_after_ext = Pipeline(
       [:a, :a],
@@ -48,6 +48,6 @@ class WrapRuntimeExtensionTest < Minitest::Spec
       [:c, :c]
     )
 
-    assert_equal new_node_attrs[:task], expected_pipe_after_ext
+    assert_equal circuit_options[:node][:task], expected_pipe_after_ext
   end
 end

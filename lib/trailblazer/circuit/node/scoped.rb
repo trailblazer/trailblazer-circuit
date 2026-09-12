@@ -18,10 +18,10 @@ module Trailblazer
 
         # raise "do we need local_circuit_options, e.g. for :start_task?"
 
-        def call(outer_ctx, flow_options, outer_signal, circuit_options)
+        def call(outer_ctx, flow_options, outer_signal, **circuit_options)
           ctx = scope(outer_ctx, flow_options, outer_signal, **circuit_options)
 
-          ctx, flow_options, signal = super(ctx, flow_options, outer_signal, circuit_options)
+          ctx, flow_options, signal = super(ctx, flow_options, outer_signal, **circuit_options)
 
           ctx, signal = unscope(ctx, outer_ctx, signal, outer_signal, **circuit_options)
 

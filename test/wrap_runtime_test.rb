@@ -69,7 +69,7 @@ class WrapRuntimeTest < Minitest::Spec
 
     model_tw = Trailblazer::Circuit::Builder.Pipeline(
       [:input, my_io.method(:model_input), Trailblazer::Circuit::Task::Adapter::LibInterface],
-      [:call_task, model_call_pipe, Trailblazer::Circuit::Processor],
+      [:call_task, model_call_pipe, Trailblazer::Circuit::Processor, options: {traceable: true}],
       [:output, my_io.method(:model_output), Trailblazer::Circuit::Task::Adapter::LibInterface],
     )
 
@@ -89,18 +89,18 @@ class WrapRuntimeTest < Minitest::Spec
     )
 
     create_circuit, _ = Trailblazer::Circuit::Builder.Circuit(
-      [:Model, model_tw, Trailblazer::Circuit::Processor, connections: {Right => [:Save, Right], Left => [:failure, Left]}],
+      [:Model, model_tw, Trailblazer::Circuit::Processor, connections: {Right => [:Save, Right], Left => [:failure, Left]}, options: {traceable: true}],
       # [:Validate, validate_circuit, Trailblazer::Circuit::Processor], connections: {Right => :Validate, Left => :failure}]
-      [:Save, save_tw, Trailblazer::Circuit::Processor, connections: {Right => [:success, Right], Left => [:failure, Left]}],
-      [:success, success_pipe, Trailblazer::Circuit::Processor, connections: {:Success => [nil, :Success]}],
-      [:failure, failure_pipe, Trailblazer::Circuit::Processor, connections: {:Failure => [nil, :Failure]}]
+      [:Save, save_tw, Trailblazer::Circuit::Processor, connections: {Right => [:success, Right], Left => [:failure, Left]}, options: {traceable: true}],
+      [:success, success_pipe, Trailblazer::Circuit::Processor, connections: {:Success => [nil, :Success]}, options: {traceable: true}],
+      [:failure, failure_pipe, Trailblazer::Circuit::Processor, connections: {:Failure => [nil, :Failure]}, options: {traceable: true}]
     )
 
     create_tw = Trailblazer::Circuit::Builder.Pipeline(
       [:call_task, create_circuit, Trailblazer::Circuit::Processor]
     )
 
-    canonical_node = Trailblazer::Circuit::Node[create_tw, Trailblazer::Circuit::Processor]
+    canonical_node = Trailblazer::Circuit::Node[create_tw, Trailblazer::Circuit::Processor, options: {traceable: true}]
 
     return canonical_node, create_instance
   end
@@ -109,7 +109,6 @@ class WrapRuntimeTest < Minitest::Spec
     my_create_node, create_instance = Create_fixture()
 
     lib_ctx, flow_options, signal = Trailblazer::Circuit::Node::Runner.(
-      my_create_node,
       {},
       {
         application_ctx: {params: {id: 1, title: "Rancid"}},
@@ -117,39 +116,43 @@ class WrapRuntimeTest < Minitest::Spec
       nil,
       runner: Trailblazer::Circuit::Node::Runner,
       context_implementation: Trailblazer::Circuit::Context,
-      exec_context: create_instance
+      exec_context: create_instance,
+      node: my_create_node,
     )
 
     assert_equal signal, :Success
     assert_equal flow_options[:application_ctx], {:params=>{:id=>1, title: "Rancid", :model=>Record.new(1, "Rancid")}}
   end
 
-  it "wrap_runtime can implement tracing" do
-    ctx = {params: {song: nil}, slug: 666}
+  class MyTrace
+    class Capture < Struct.new(:captured_task, :position)
+      def call(lib_ctx, flow_options, signal, **) # FIXME: we need circuit_options for the {:task}.
+        stack = flow_options.fetch(:stack)
 
-    class MyTrace
-      class Capture < Struct.new(:captured_task, :position)
-        def call(lib_ctx, flow_options, signal, **) # FIXME: we need circuit_options for the {:task}.
-          stack = flow_options.fetch(:stack)
+        stack += [[position, captured_task, CU.inspect(flow_options[:application_ctx].to_h)]] # treat stack as an immutable object
 
-          stack += [[position, captured_task, CU.inspect(flow_options[:application_ctx].to_h)]] # treat stack as an immutable object
-
-          return lib_ctx, flow_options.merge(stack: stack), signal
-        end
-      end
-
-      class Extension # TODO: name it Node::Extension?
-        # Called through WrapRuntime::Runner.
-        def self.call(id:, **attrs)
-          [
-            # those Adds instructions will use the builder for Resolver::Fixed.
-            [:capture_before, Trailblazer::Circuit::Node[Capture.new(id, :before),  Trailblazer::Circuit::Task::Adapter::LibInterface], :before, nil],
-            [:capture_after, Trailblazer::Circuit::Node[ Capture.new(id, :after),   Trailblazer::Circuit::Task::Adapter::LibInterface], :after, nil],
-          ]
-        end
+        return lib_ctx, flow_options.merge(stack: stack), signal
       end
     end
 
+    class Extension # TODO: name it Node::Extension?
+      # Called through WrapRuntime::Runner.
+      def self.call(id:, **attrs)
+        [
+          # those Adds instructions will use the builder for Resolver::Fixed.
+          [:capture_before, Trailblazer::Circuit::Node[Capture.new(id, :before),  Trailblazer::Circuit::Task::Adapter::LibInterface, options: {extra_node: true, already_extended: true}], :before, nil],
+          [:capture_after,  Trailblazer::Circuit::Node[Capture.new(id, :after),   Trailblazer::Circuit::Task::Adapter::LibInterface, options: {extra_node: true, already_extended: true}], :after, nil],
+        ]
+      end
+    end
+  end
+
+  it "the {:wrap_runtime} resolver can access {:id}" do
+    raise
+  end
+
+  it "wrap_runtime can implement tracing" do
+    ctx = {params: {song: nil}, slug: 666}
 
     # DISCUSS: how to merge multiple runtime extensions? canonical invoke!
     my_tracing_ext = Trailblazer::Circuit::WrapRuntime.Extension(adds: MyTrace::Extension)
@@ -162,8 +165,17 @@ class WrapRuntimeTest < Minitest::Spec
 
     my_create_node, create_instance = Create_fixture()
 
+    # FIXME: make this canonical.
+    my_wrap_runtime_resolver = Struct.new(:default_extension_set) do
+      def [](node:, **circuit_options)
+        # {:traceable} marks pipes, basically, which we can extend with capture steps.
+        if node.to_h[:options][:traceable]
+          return default_extension_set
+        end
+      end
+    end.new(my_extensions)
+
     lib_ctx, flow_options, signal = Trailblazer::Circuit::WrapRuntime::Runner.(
-      my_create_node,
       {},
       {
         application_ctx: {params: {id: 1, title: "Uwe"}},
@@ -171,10 +183,12 @@ class WrapRuntimeTest < Minitest::Spec
       },
       nil,
       runner: Trailblazer::Circuit::WrapRuntime::Runner,
-      wrap_runtime: Hash.new(my_extensions),
+      # wrap_runtime: Hash.new(my_extensions),
+      wrap_runtime: my_wrap_runtime_resolver,
       context_implementation: Trailblazer::Circuit::Context,
       exec_context: create_instance,
       id: :Create,
+      node: my_create_node,
     )
 
     assert_equal signal, :Success
@@ -193,6 +207,121 @@ class WrapRuntimeTest < Minitest::Spec
      [:before, :success, "{:params=>{:id=>1, :title=>\"Uwe\", :model=>#<struct WrapRuntimeTest::Record id=1, title=\"Uwe\">}}"],
      [:after, :success, "{:params=>{:id=>1, :title=>\"Uwe\", :model=>#<struct WrapRuntimeTest::Record id=1, title=\"Uwe\">}}"],
      [:after, :Create, "{:params=>{:id=>1, :title=>\"Uwe\", :model=>#<struct WrapRuntimeTest::Record id=1, title=\"Uwe\">}}"]]
+  end
+end
+
+class MyRunnerWithExtraNodeTest < Minitest::Spec
+  class MyRunner < Trailblazer::Circuit::WrapRuntime::Runner
+    def self.call(lib_ctx, flow_options, signal, node:, wrap_runtime:, id:, **circuit_options)
+      puts "wrapping in extra node #{id.inspect}"
+
+      # raise "only extend circuits, not scalars like method(:a)"
+      # FIXME: this is horrible
+      # if node.task.to_h[:circuit]
+      unless node.options[:already_extended]
+        node = Trailblazer::Circuit::Node.new(**node.to_h, options: {already_extended: true}) # FIXME: use original {node} class.
+
+        node = Trailblazer::Circuit::Node[
+          Trailblazer::Circuit::Builder.Circuit( # this circuit can be extended with tracing, etc.
+            [:"_wrapped: #{id}", node: node]
+          ),
+          Trailblazer::Circuit::Processor,
+          options: {extra_node_that_is_extendable: true}
+        ]
+        puts "@@@@@ method #{id}"
+      end
+
+      super(lib_ctx, flow_options, signal, **circuit_options, node: node, wrap_runtime: wrap_runtime, id: "...#{id}")
+    end
+  end
+
+  it "we can extend any kind of node by wrapping it in another mini Pipeline." do
+    ctx = {params: {song: nil}, slug: 666}
+
+    # DISCUSS: how to merge multiple runtime extensions? canonical invoke!
+    my_tracing_ext = Trailblazer::Circuit::WrapRuntime.Extension(adds: WrapRuntimeTest::MyTrace::Extension)
+
+    my_extensions = Trailblazer::Circuit::WrapRuntime::Extension::Set.new(
+      [
+        my_tracing_ext
+      ]
+    )
+
+    my_create_node, create_instance = WrapRuntimeTest.new(nil).Create_fixture()
+
+    my_wrap_runtime_resolver = Struct.new(:default_extension_set) do
+      def [](node:, id:, **circuit_options)
+        return unless node.options[:extra_node_that_is_extendable]
+        puts "please extend #{id.inspect}"
+        return default_extension_set
+      end
+    end.new(my_extensions)
+
+    my_single_node_a = Trailblazer::Circuit::Node[T.def_tasks(:a, success_signal: "Right").method(:a), Trailblazer::Circuit::Task::Adapter::LibInterface]
+    my_single_node_b = Trailblazer::Circuit::Node[T.def_tasks(:b, success_signal: "Right").method(:b), Trailblazer::Circuit::Task::Adapter::LibInterface]
+
+    # trace single node
+    # pp my_create_node
+    lib_ctx, flow_options, signal = MyRunner.(
+      {target_ctx: {seq: []}},
+      {stack: [].freeze,},
+      nil,
+      runner: MyRunner,
+      wrap_runtime: my_wrap_runtime_resolver,
+      context_implementation: Trailblazer::Circuit::Context,
+      id: :a,
+      node: my_single_node_a,
+    )
+
+    pp flow_options
+    assert_equal flow_options[:stack], [[:before, "...a", "{}"], [:after, "...a", "{}"]]
+    assert_equal lib_ctx[:target_ctx][:seq], [:a]
+# raise
+
+
+    my_tw_for_a = Trailblazer::Circuit::Builder.Circuit(
+      [:call_task_for_a, my_single_node_a]
+    )
+puts "TTTTTTTTTWWW"
+    lib_ctx, flow_options, signal = MyRunner.(
+      {target_ctx: {seq: []}},
+      {stack: [].freeze,},
+      nil,
+      runner: MyRunner,
+      wrap_runtime: my_wrap_runtime_resolver,
+      context_implementation: Trailblazer::Circuit::Context,
+      id: :tw_for_a,
+      node: Trailblazer::Circuit::Node[my_tw_for_a, Trailblazer::Circuit::Processor],
+    )
+
+    assert_equal signal, "Right"
+    assert_equal lib_ctx[:target_ctx][:seq], [:a]
+    pp flow_options[:stack]
+
+
+
+    my_tw_for_b = Trailblazer::Circuit::Builder.Circuit(
+      [:b, node: my_single_node_b], # todo: should be call_task_for_b
+      [:a, my_tw_for_a, Trailblazer::Circuit::Processor],
+    )
+
+puts "ab hiiier"
+    lib_ctx, flow_options, signal = MyRunner.(
+      {target_ctx: {seq: []}},
+      {stack: [].freeze,},
+      nil,
+      runner: MyRunner,
+      wrap_runtime: my_wrap_runtime_resolver,
+      context_implementation: Trailblazer::Circuit::Context,
+      id: :tw_for_b,
+      node: Trailblazer::Circuit::Node[my_tw_for_b, Trailblazer::Circuit::Processor],
+    )
+
+    assert_equal signal, "Right"
+    assert_equal lib_ctx[:target_ctx][:seq], [:b, :a]
+    pp flow_options[:stack]
+
+
   end
 end
 

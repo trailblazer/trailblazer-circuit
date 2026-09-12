@@ -12,7 +12,7 @@ class MergeToCircuitOptions_UnitTest < Minitest::Spec
       merge_to_circuit_options: {exec_context: my_exec_context}
     ]
 
-    lib_ctx, flow_options, signal = my_node.({target_ctx: {seq: []}}, {}, nil, {})
+    lib_ctx, flow_options, signal = my_node.({target_ctx: {seq: []}}, {}, nil, **{})
 
     assert_equal lib_ctx, {target_ctx: {seq: [:a]}}
     assert_equal flow_options, {}

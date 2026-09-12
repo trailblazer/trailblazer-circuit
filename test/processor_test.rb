@@ -52,8 +52,8 @@ class ProcessorTest < Minitest::Spec
     lib_ctx, _ = assert_run my_circuit, seq: [], ary: [], circuit_options: {start_tuple: [2, my_circuit.nodes[2]]}
 
     assert_equal lib_ctx[:ary], [
-      [:context_implementation, :runner, :node, :id],
-      [:context_implementation, :runner, :node, :id]
+      [:node, :context_implementation, :runner, :id],
+      [:node, :context_implementation, :runner, :id]
     ]
   end
 end

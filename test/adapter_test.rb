@@ -39,13 +39,13 @@ class AdapterTest < Minitest::Spec
     application_ctx = {params: {id: 1}, slug: 9}
 
     ctx, flow_options, signal = _A::Circuit::Node::Runner.(
-      node,
       {aggregate: [], target_ctx: application_ctx}, # let's assume this is part of the local processing pipeline and from one of the recent steps.
       {
         trace_ctx: {stack: []},
       },
       nil,
       runner: _A::Circuit::Node::Runner,
+      node: node,
       context_implementation: Trailblazer::Circuit::Context,
     )
 
@@ -66,13 +66,13 @@ class AdapterTest < Minitest::Spec
 
   def assert_lib_interface(node, original_ctx:)
     ctx, flow_options, signal = _A::Circuit::Node::Runner.(
-      node,
       {aggregate: []}, # let's assume this is part of the local processing pipeline and from one of the recent steps.
       {
         application_ctx: {params: {id: 1}, slug: 9},
         trace_ctx: {stack: []},
       },
       nil,
+      node: node,
       runner: _A::Circuit::Node::Runner,
       context_implementation: Trailblazer::Circuit::Context,
     )

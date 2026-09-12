@@ -9,14 +9,16 @@
         id, node = start_tuple
 
         loop do
-          puts ">>>Processor #{id.inspect} <<<#{signal.inspect}>>> #{node.class} <#{lib_ctx.inspect}"
-          circuit_options = circuit_options.merge(
+          # puts ">>>Processor #{id.inspect} <<<#{signal.inspect}>>> #{node.class} <#{lib_ctx.inspect}"
+          lib_ctx, flow_options, signal = runner.(
+            lib_ctx,
+            flow_options,
+            signal,
+            **circuit_options,
             runner: runner,
             node:   node, # NOTE: you can access the current node in a task via the CircuitInterface.
-            id: id,
+            id:     id,
           )
-
-          lib_ctx, flow_options, signal = runner.(node, lib_ctx, flow_options, signal, circuit_options)
 
           id, node, signal = circuit.resolve(id, signal) # DISCUSS: pass id and node? DISCUSS: allow returning the {signal} from resolve?
 

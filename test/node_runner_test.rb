@@ -13,10 +13,11 @@ class NodeRunnerTest < Minitest::Spec
     my_pipe_node = _A::Circuit::Node::Scoped[my_pipe, _A::Circuit::Processor]
     runner = _A::Circuit::Node::Runner
 
-    lib_ctx, flow_options = runner.(my_pipe_node, {target_ctx: {seq: []}}, {}, nil,
+    lib_ctx, flow_options = runner.({target_ctx: {seq: []}}, {}, nil,
       runner: runner,
       context_implementation: Trailblazer::Circuit::Context,
-      exec_context: my_exec_context
+      exec_context: my_exec_context,
+      node: my_pipe_node,
     )
 
     assert_equal lib_ctx[:target_ctx][:seq], [:a, :b, :c]
@@ -32,12 +33,11 @@ class NodeRunnerTest < Minitest::Spec
     my_pipe_node = _A::Circuit::Node[my_pipe, _A::Circuit::Processor]
     runner = _A::Circuit::Node::Runner
 
-    lib_ctx, flow_options, signal = runner.(my_pipe_node, {target_ctx: {seq: []}}, {}, nil,
-      {
-        exec_context: my_exec_context,
-        runner: runner,
-        start_tuple: [:b, my_pipe.nodes[:b]],
-      }
+    lib_ctx, flow_options, signal = runner.({target_ctx: {seq: []}}, {}, nil,
+      exec_context: my_exec_context,
+      runner: runner,
+      node: my_pipe_node,
+      start_tuple: [:b, my_pipe.nodes[:b]],
     )
 
     assert_equal lib_ctx[:target_ctx][:seq], [:b, :c]
@@ -59,7 +59,7 @@ class NodeRunnerTest < Minitest::Spec
 
         circuit_options = circuit_options.merge(start_tuple: [start_tuple_id, task.nodes[start_tuple_id]])
 
-        super(lib_ctx, flow_options, signal, circuit_options)
+        super(lib_ctx, flow_options, signal, **circuit_options)
       end
     end[my_nested_pipe, _A::Circuit::Processor]
 
