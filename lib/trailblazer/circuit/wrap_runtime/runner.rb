@@ -10,8 +10,13 @@ module Trailblazer
     module WrapRuntime
       # This Runner is passed via circuit_options's :runner kwarg. It extends the original
       # runner and extends pipelines throuh the configured {Extension}s.
+      #
+      # The extensions are looked up via a resolver in circuit_options[:wrap_runtime].
+      #
+      # DISCUSS: in this "pure" implementation it is completely up to the extensions what
+      #          is gonna happen to the extended nodes.
       class Runner < Node::Runner
-        def self.call(lib_ctx, flow_options, signal, wrap_runtime:, **circuit_options) # DISCUSS: always transport {:node} in {circuit_options} and remove first pos arg?
+        def self.call(lib_ctx, flow_options, signal, wrap_runtime:, **circuit_options)
           tw_extension_set = wrap_runtime[**circuit_options] # TODO: this should be looked up by path, not ID, node, as this might apply multiple times.
 
           # DISCUSS: make it {#extend_circuit_options}?
@@ -22,11 +27,9 @@ module Trailblazer
 
         def self.extend_node(tw_extension_set, **circuit_options)
           return circuit_options if tw_extension_set.nil? # FIXME: make this cooler, maybe in the Resolver?
-puts "@@@@@applying #{circuit_options[:id].inspect} #{circuit_options[:node___ ]}"
-          circuit_options = tw_extension_set.(**circuit_options) # DISCUSS: pass runtime options here, too? # FIXME: test what we pass here.
-# pp circuit_options.fetch(:node)
-          pp circuit_options[:node][:task].flow_map.keys
 
+          circuit_options = tw_extension_set.(**circuit_options) # DISCUSS: pass runtime options here, too? # FIXME: test what we pass here.
+          # pp circuit_options[:node][:task].flow_map.keys
           circuit_options
         end
       end
