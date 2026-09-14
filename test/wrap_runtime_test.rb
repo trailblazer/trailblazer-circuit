@@ -215,20 +215,18 @@ class MyRunnerWithExtraNodeTest < Minitest::Spec
     def self.call(lib_ctx, flow_options, signal, node:, wrap_runtime:, id:, **circuit_options)
       puts "wrapping in extra node #{id.inspect}"
 
-      # raise "only extend circuits, not scalars like method(:a)"
-      # FIXME: this is horrible
-      # if node.task.to_h[:circuit]
       unless node.options[:already_extended]
-        node = Trailblazer::Circuit::Node.new(**node.to_h, options: {already_extended: true}) # FIXME: use original {node} class.
+        # DISCUSS: introduce a delegating special wrap Node class, that doesn't need options.
+        node = node.class.new(**node.to_h, options: {already_extended: true}) # FIXME: use original {node} class.
 
         node = Trailblazer::Circuit::Node[
           Trailblazer::Circuit::Builder.Circuit( # this circuit can be extended with tracing, etc.
             [:"_wrapped: #{id}", node: node]
           ),
           Trailblazer::Circuit::Processor,
-          options: {extra_node_that_is_extendable: true}
+          options: {extendable_extra_node: true} # mark the node for the extension resolver
         ]
-        puts "@@@@@ method #{id}"
+        # puts "@@@@@ method #{id}"
       end
 
       super(lib_ctx, flow_options, signal, **circuit_options, node: node, wrap_runtime: wrap_runtime, id: "...#{id}")
@@ -251,7 +249,7 @@ class MyRunnerWithExtraNodeTest < Minitest::Spec
 
     my_wrap_runtime_resolver = Struct.new(:default_extension_set) do
       def [](node:, id:, **circuit_options)
-        return unless node.options[:extra_node_that_is_extendable]
+        return unless node.options[:extendable_extra_node]
         puts "please extend #{id.inspect}"
         return default_extension_set
       end
@@ -313,7 +311,7 @@ puts "ab hiiier"
       runner: MyRunner,
       wrap_runtime: my_wrap_runtime_resolver,
       context_implementation: Trailblazer::Circuit::Context,
-      id: :tw_for_b,
+      id: :tw_for_b_and_a,
       node: Trailblazer::Circuit::Node[my_tw_for_b, Trailblazer::Circuit::Processor],
     )
 
