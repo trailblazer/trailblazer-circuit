@@ -18,6 +18,28 @@ class MergeToCircuitOptions_UnitTest < Minitest::Spec
     assert_equal flow_options, {}
     assert_equal signal, Right
   end
+
+  it "accepts {:options} kwarg" do
+    my_node = Trailblazer::Circuit::Node::MergeToCircuitOptions[:method_a, Object, options: {data: true}]
+
+    assert_equal my_node.to_h, {
+      :task=>:method_a,
+      :interface=>Object,
+      :options=>{data: true},
+      merge_to_circuit_options: {},
+    }
+  end
+
+  it "defaults {options} to empty hash" do
+    my_node = Trailblazer::Circuit::Node::MergeToCircuitOptions[:method_a, Object]
+
+    assert_equal my_node.to_h, {
+      :task=>:method_a,
+      :interface=>Object,
+      :options=>{},
+      merge_to_circuit_options: {},
+    }
+  end
 end
 
 class MergeToCircuitOptions_BuilderTest_IntegrationTest < Minitest::Spec
