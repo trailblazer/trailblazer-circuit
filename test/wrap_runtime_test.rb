@@ -140,8 +140,8 @@ class WrapRuntimeTest < Minitest::Spec
       def self.call(id:, **attrs)
         [
           # those Adds instructions will use the builder for Resolver::Fixed.
-          [:capture_before, Trailblazer::Circuit::Node[Capture.new(id, :before),  Trailblazer::Circuit::Task::Adapter::LibInterface, options: {extra_node: true, already_extended: true}], :before, nil],
-          [:capture_after,  Trailblazer::Circuit::Node[Capture.new(id, :after),   Trailblazer::Circuit::Task::Adapter::LibInterface, options: {extra_node: true, already_extended: true}], :after, nil],
+          [:capture_before, Trailblazer::Circuit::Node[Capture.new(id, :before),  Trailblazer::Circuit::Task::Adapter::LibInterface, options: {extra_node: true, already_wrapped: true}], :before, nil],
+          [:capture_after,  Trailblazer::Circuit::Node[Capture.new(id, :after),   Trailblazer::Circuit::Task::Adapter::LibInterface, options: {extra_node: true, already_wrapped: true}], :after, nil],
         ]
       end
     end
@@ -215,9 +215,9 @@ class MyRunnerWithExtraNodeTest < Minitest::Spec
   #   def self.call(lib_ctx, flow_options, signal, node:, wrap_runtime:, id:, **circuit_options)
   #     puts "wrapping in extra node #{id.inspect}"
 
-  #     unless node.options[:already_extended]
+  #     unless node.options[:already_wrapped]
   #       # DISCUSS: introduce a delegating special wrap Node class, that doesn't need options.
-  #       node = node.class.new(**node.to_h, options: {already_extended: true}) # FIXME: use original {node} class.
+  #       node = node.class.new(**node.to_h, options: {already_wrapped: true}) # FIXME: use original {node} class.
 
   #       node = Trailblazer::Circuit::Node[
   #         Trailblazer::Circuit::Builder.Circuit( # this circuit can be extended with tracing, etc.
@@ -233,30 +233,7 @@ class MyRunnerWithExtraNodeTest < Minitest::Spec
   #   end
   # end
 
-  class MyWrapNodeInExtendableCircuitExt
-    def self.call(node:, id:, **circuit_options)
-      puts "wrapping in extra node #{id.inspect}"
-
-      # DISCUSS: introduce a delegating special wrap Node class, that doesn't need options.
-      node = node.class.new(**node.to_h, options: {already_extended: true}) # FIXME: use original {node} class.
-
-      node = Trailblazer::Circuit::Node[
-        Trailblazer::Circuit::Builder.Circuit( # this circuit can be extended with tracing, etc.
-          [:"_wrapped: #{id}", node: node]
-        ),
-        Trailblazer::Circuit::Processor,
-        options: {extendable_extra_node: true} # mark the node for the extension resolver
-      ]
-
-      {
-        **circuit_options,
-        node: node,
-        id:   "...#{id}"
-      }
-    end
-  end
-
-  it "we can extend any kind of node by wrapping it in another mini Pipeline." do
+  it "we can extend any kind of node by wrapping it in another mini Pipeline. using {Extension::NodeWrap}" do
     ctx = {params: {song: nil}, slug: 666}
 
     # DISCUSS: how to merge multiple runtime extensions? canonical invoke!
@@ -264,7 +241,7 @@ class MyRunnerWithExtraNodeTest < Minitest::Spec
 
     my_extensions = Trailblazer::Circuit::WrapRuntime::Extension::Set.new(
       [
-        MyWrapNodeInExtendableCircuitExt,
+        Trailblazer::Circuit::WrapRuntime::Extension::NodeWrap,
         my_tracing_ext,
       ]
     )
@@ -272,11 +249,9 @@ class MyRunnerWithExtraNodeTest < Minitest::Spec
     my_create_node, create_instance = WrapRuntimeTest.new(nil).Create_fixture()
 
     # This resolver is called for every node, whether that's a real one or a virtual.
-    my_wrap_runtime_resolver = Struct.new(:default_extension_set) do
-      def [](node:, id:, **circuit_options)
-        return default_extension_set unless node.options[:already_extended]
-      end
-    end.new(my_extensions)
+    my_wrap_runtime_resolver = Trailblazer::Circuit::WrapRuntime::Extension::NodeWrap::Resolver.new(my_extensions)
+
+    # DISCUSS: extension_set, resolver = WrapRuntime::Extension::NodeWrap() ???
 
     my_single_node_a = Trailblazer::Circuit::Node[T.def_tasks(:a, success_signal: "Right").method(:a), Trailblazer::Circuit::Task::Adapter::LibInterface]
     my_single_node_b = Trailblazer::Circuit::Node[T.def_tasks(:b, success_signal: "Right").method(:b), Trailblazer::Circuit::Task::Adapter::LibInterface]
@@ -342,7 +317,15 @@ puts "ab hiiier"
     assert_equal lib_ctx[:target_ctx][:seq], [:b, :a]
     pp flow_options[:stack]
 
-
+    assert_equal flow_options[:stack],
+    [[:before, "...tw_for_b_and_a", "{}"],
+     [:before, "...b", "{}"],
+     [:after, "...b", "{}"],
+     [:before, "...a", "{}"],
+     [:before, "...call_task_for_a", "{}"],
+     [:after, "...call_task_for_a", "{}"],
+     [:after, "...a", "{}"],
+     [:after, "...tw_for_b_and_a", "{}"]]
   end
 end
 
