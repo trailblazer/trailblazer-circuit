@@ -140,8 +140,8 @@ class WrapRuntimeTest < Minitest::Spec
       def self.call(id:, **attrs)
         [
           # those Adds instructions will use the builder for Resolver::Fixed.
-          [:capture_before, Trailblazer::Circuit::Node[Capture.new(id, :before),  Trailblazer::Circuit::Task::Adapter::LibInterface, options: {extra_node: true, already_wrapped: true}], :before, nil],
-          [:capture_after,  Trailblazer::Circuit::Node[Capture.new(id, :after),   Trailblazer::Circuit::Task::Adapter::LibInterface, options: {extra_node: true, already_wrapped: true}], :after, nil],
+          [:capture_before, Trailblazer::Circuit::Node[Capture.new(id, :before),  Trailblazer::Circuit::Task::Adapter::LibInterface, options: {already_wrapped: true}], :before, nil],
+          [:capture_after,  Trailblazer::Circuit::Node[Capture.new(id, :after),   Trailblazer::Circuit::Task::Adapter::LibInterface, options: {already_wrapped: true}], :after, nil],
         ]
       end
     end
@@ -211,31 +211,7 @@ class WrapRuntimeTest < Minitest::Spec
 end
 
 class MyRunnerWithExtraNodeTest < Minitest::Spec
-  # class MyRunner < Trailblazer::Circuit::WrapRuntime::Runner
-  #   def self.call(lib_ctx, flow_options, signal, node:, wrap_runtime:, id:, **circuit_options)
-  #     puts "wrapping in extra node #{id.inspect}"
-
-  #     unless node.options[:already_wrapped]
-  #       # DISCUSS: introduce a delegating special wrap Node class, that doesn't need options.
-  #       node = node.class.new(**node.to_h, options: {already_wrapped: true}) # FIXME: use original {node} class.
-
-  #       node = Trailblazer::Circuit::Node[
-  #         Trailblazer::Circuit::Builder.Circuit( # this circuit can be extended with tracing, etc.
-  #           [:"_wrapped: #{id}", node: node]
-  #         ),
-  #         Trailblazer::Circuit::Processor,
-  #         options: {extendable_extra_node: true} # mark the node for the extension resolver
-  #       ]
-  #       # puts "@@@@@ method #{id}"
-  #     end
-
-  #     super(lib_ctx, flow_options, signal, **circuit_options, node: node, wrap_runtime: wrap_runtime, id: "...#{id}")
-  #   end
-  # end
-
-  it "we can extend any kind of node by wrapping it in another mini Pipeline. using {Extension::NodeWrap}" do
-    ctx = {params: {song: nil}, slug: 666}
-
+  let(:my_extensions) do
     # DISCUSS: how to merge multiple runtime extensions? canonical invoke!
     my_tracing_ext = Trailblazer::Circuit::WrapRuntime.Extension(adds: WrapRuntimeTest::MyTrace::Extension)
 
@@ -245,6 +221,10 @@ class MyRunnerWithExtraNodeTest < Minitest::Spec
         my_tracing_ext,
       ]
     )
+  end
+
+  it "we can extend any kind of node by wrapping it in another mini Pipeline. using {Extension::NodeWrap}" do
+    ctx = {params: {song: nil}, slug: 666}
 
     my_create_node, create_instance = WrapRuntimeTest.new(nil).Create_fixture()
 
@@ -326,6 +306,49 @@ puts "ab hiiier"
      [:after, "...call_task_for_a", "{}"],
      [:after, "...a", "{}"],
      [:after, "...tw_for_b_and_a", "{}"]]
+  end
+
+  it "NodeWrap preserves the node's original options" do
+    my_create_node, create_instance = WrapRuntimeTest.new(nil).Create_fixture()
+
+    my_business_step_only_resolver = Struct.new(:node_wrap_resolver) do
+      def [](node:, **circuit_options)
+        return unless node.options[:trace_me]
+
+        node_wrap_resolver[node: node, **circuit_options]
+      end
+    end.new(Trailblazer::Circuit::WrapRuntime::Extension::NodeWrap::Resolver.new(my_extensions))
+
+    my_top_node = Trailblazer::Circuit::Builder.Pipeline(
+      [:a, T.def_tasks(:a, success_signal: "Right").method(:a)],
+      [:b, T.def_tasks(:b, success_signal: "Right").method(:b), options: {trace_me: true}],
+      [:c, T.def_tasks(:c, success_signal: "Right").method(:c)],
+    )
+    my_top_node = Trailblazer::Circuit::Node[my_top_node, Trailblazer::Circuit::Processor, options: {trace_me: true}]
+
+    runner = Trailblazer::Circuit::WrapRuntime::Runner
+
+    lib_ctx, flow_options, signal = runner.(
+      {target_ctx: {seq: []}},
+      {stack: [].freeze,},
+      nil,
+      runner: runner,
+      wrap_runtime: my_business_step_only_resolver,
+      context_implementation: Trailblazer::Circuit::Context,
+      id: :my_top_node,
+      node: my_top_node,
+    )
+
+    assert_equal signal, "Right"
+    assert_equal lib_ctx[:target_ctx][:seq], [:a, :b, :c]
+    # pp flow_options[:stack]
+
+    # it only traces top and b.
+    assert_equal flow_options[:stack],
+      [[:before, "...my_top_node", "{}"],
+       [:before, "...b", "{}"],
+       [:after, "...b", "{}"],
+       [:after, "...my_top_node", "{}"]]
   end
 end
 
