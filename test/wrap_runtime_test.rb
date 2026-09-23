@@ -229,7 +229,7 @@ class MyRunnerWithExtraNodeTest < Minitest::Spec
     my_create_node, create_instance = WrapRuntimeTest.new(nil).Create_fixture()
 
     # This resolver is called for every node, whether that's a real one or a virtual.
-    my_wrap_runtime_resolver = Trailblazer::Circuit::WrapRuntime::Extension::NodeWrap::Resolver.new(my_extensions)
+    my_wrap_runtime_resolver = Trailblazer::Circuit::WrapRuntime::Extension::Resolver.new(default_extension_set: my_extensions, conditions: [Trailblazer::Circuit::WrapRuntime::Extension::NodeWrap::Resolver::CONDITION])
 
     # DISCUSS: extension_set, resolver = WrapRuntime::Extension::NodeWrap() ???
 
@@ -311,13 +311,12 @@ puts "ab hiiier"
   it "NodeWrap preserves the node's original options" do
     my_create_node, create_instance = WrapRuntimeTest.new(nil).Create_fixture()
 
-    my_business_step_only_resolver = Struct.new(:node_wrap_resolver) do
-      def [](node:, **circuit_options)
-        return unless node.options[:trace_me]
-
-        node_wrap_resolver[node: node, **circuit_options]
-      end
-    end.new(Trailblazer::Circuit::WrapRuntime::Extension::NodeWrap::Resolver.new(my_extensions))
+    my_business_step_only_resolver = Trailblazer::Circuit::WrapRuntime::Extension::Resolver.new(default_extension_set: my_extensions,
+      conditions: [
+        Trailblazer::Circuit::WrapRuntime::Extension::NodeWrap::Resolver::CONDITION,
+        ->(node:, **) { node.options[:trace_me] }
+      ]
+    )
 
     my_top_node = Trailblazer::Circuit::Builder.Pipeline(
       [:a, T.def_tasks(:a, success_signal: "Right").method(:a)],

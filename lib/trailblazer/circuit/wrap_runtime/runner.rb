@@ -8,6 +8,11 @@ module Trailblazer
     #
     # NOTE: currently, only the Adds interface is public (see Extension).
     module WrapRuntime
+      # for every node, calls a resolver
+      # that resolver might return a list of extensions
+      # those extensions are then built at runtime
+      #
+
       # This Runner is passed via circuit_options's :runner kwarg. It extends the original
       # runner and extends pipelines throuh the configured {Extension}s.
       #
@@ -28,9 +33,7 @@ module Trailblazer
         def self.extend_node(tw_extension_set, **circuit_options)
           return circuit_options if tw_extension_set.nil? # FIXME: make this cooler, maybe in the Resolver?
 
-          circuit_options = tw_extension_set.(**circuit_options) # DISCUSS: pass runtime options here, too? # FIXME: test what we pass here.
-          # pp circuit_options[:node][:task].flow_map.keys
-          circuit_options
+          _circuit_options = tw_extension_set.(**circuit_options) # DISCUSS: pass runtime options here, too? # FIXME: test what we pass here.
         end
       end
     end # WrapRuntime

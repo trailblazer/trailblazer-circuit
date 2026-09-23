@@ -6,6 +6,7 @@ module Trailblazer
         Extension::AddsInstructions.new(adds)
       end
 
+      # TODO: move to separate files!
       # Alter a particular node in Processor#call.
       class Extension
         # This extension obviously only works with a <Circuit object.
