@@ -16,20 +16,20 @@ module Trailblazer
 
 
         class NodeWrap
-          class Id < Struct.new(:wrapped_id)
+          class Id < Struct.new(:wrapped_id, :wrapped_node)
           end
 
           def self.call(node:, id:, **circuit_options)
             # Here, we still see the original :id we're wrapping.
             # puts "wrapping in extra node #{id.inspect}"
 
+            wrapped_node = node
             # DISCUSS: introduce a delegating special wrap Node class, that doesn't need options.
             original_node_options = node.to_h
             new_node_options = original_node_options.merge(options: original_node_options[:options].merge(already_wrapped: true))
             node = node.class.new(**new_node_options) # FIXME: test that we use original {node} class.
 
-            id_for_wrap_node = :"task_wrap.call_task"
-            # :"_wrapped: #{id}"
+            id_for_wrap_node = :"task_wrap.call_task" # FIXME: do we need to invent that? can't we use the original id?
 
             node = Trailblazer::Circuit::Node[
               Trailblazer::Circuit::Builder.Circuit( # this circuit can be extended with tracing, etc.
@@ -41,7 +41,7 @@ module Trailblazer
             {
               **circuit_options,
               node: node,
-              id:   Id.new(id), # DISCUSS: how to encode we're in a virtual node?
+              id:   Id.new(id, wrapped_node), # DISCUSS: how to encode we're in a virtual node?
               # node_wrap_data: {wrapped_id: wrapped_id}
             }
           end
