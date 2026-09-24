@@ -223,6 +223,11 @@ class MyRunnerWithExtraNodeTest < Minitest::Spec
     )
   end
 
+  def _Id(id)
+    Trailblazer::Circuit::WrapRuntime::Extension::NodeWrap::Id.new(id)
+  end
+
+  # FIXME: clean up this test by making it several cases.
   it "we can extend any kind of node by wrapping it in another mini Pipeline. using {Extension::NodeWrap}" do
     ctx = {params: {song: nil}, slug: 666}
 
@@ -252,7 +257,7 @@ class MyRunnerWithExtraNodeTest < Minitest::Spec
     )
 
     pp flow_options
-    assert_equal flow_options[:stack], [[:before, "...a", "{}"], [:after, "...a", "{}"]]
+    assert_equal flow_options[:stack], [[:before, _Id(:a), "{}"], [:after, _Id(:a), "{}"]]
     assert_equal lib_ctx[:target_ctx][:seq], [:a]
 # raise
 
@@ -298,14 +303,14 @@ puts "ab hiiier"
     pp flow_options[:stack]
 
     assert_equal flow_options[:stack],
-    [[:before, "...tw_for_b_and_a", "{}"],
-     [:before, "...b", "{}"],
-     [:after, "...b", "{}"],
-     [:before, "...a", "{}"],
-     [:before, "...call_task_for_a", "{}"],
-     [:after, "...call_task_for_a", "{}"],
-     [:after, "...a", "{}"],
-     [:after, "...tw_for_b_and_a", "{}"]]
+    [[:before, _Id(:tw_for_b_and_a), "{}"],
+     [:before, _Id(:b), "{}"],
+     [:after, _Id(:b), "{}"],
+     [:before, _Id(:a), "{}"],
+     [:before, _Id(:call_task_for_a), "{}"],
+     [:after, _Id(:call_task_for_a), "{}"],
+     [:after, _Id(:a), "{}"],
+     [:after, _Id(:tw_for_b_and_a), "{}"]]
   end
 
   it "NodeWrap preserves the node's original options" do
@@ -344,10 +349,10 @@ puts "ab hiiier"
 
     # it only traces top and b.
     assert_equal flow_options[:stack],
-      [[:before, "...my_top_node", "{}"],
-       [:before, "...b", "{}"],
-       [:after, "...b", "{}"],
-       [:after, "...my_top_node", "{}"]]
+      [[:before, _Id(:my_top_node), "{}"],
+       [:before, _Id(:b), "{}"],
+       [:after, _Id(:b), "{}"],
+       [:after, _Id(:my_top_node), "{}"]]
   end
 end
 

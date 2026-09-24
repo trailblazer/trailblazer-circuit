@@ -15,8 +15,12 @@ module Trailblazer
         end
 
 
-        class NodeWrap # DISCUSS: we are wrapping a node ==> NodeWrap? lol
+        class NodeWrap
+          class Id < Struct.new(:wrapped_id)
+          end
+
           def self.call(node:, id:, **circuit_options)
+            # Here, we still see the original :id we're wrapping.
             # puts "wrapping in extra node #{id.inspect}"
 
             # DISCUSS: introduce a delegating special wrap Node class, that doesn't need options.
@@ -37,7 +41,8 @@ module Trailblazer
             {
               **circuit_options,
               node: node,
-              id:   "...#{id}"
+              id:   Id.new(id), # DISCUSS: how to encode we're in a virtual node?
+              # node_wrap_data: {wrapped_id: wrapped_id}
             }
           end
 
