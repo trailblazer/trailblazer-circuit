@@ -5,8 +5,11 @@ class WrapRuntimeResolveTest < Minitest::Spec
     my_circuit = Trailblazer::Circuit::Builder.Pipeline(
       [:a, T.def_tasks(:a, success_signal: "Right").method(:a)],
     )
+
+    my_a_circuit_node = Trailblazer::Circuit::Node[my_circuit, Trailblazer::Circuit::Processor, options: {is_circuit: true}]
+
     my_circuit = Trailblazer::Circuit::Builder.Pipeline(
-      [:A, my_circuit, Trailblazer::Circuit::Processor, options: {is_circuit: true}],
+      [:A, node: my_a_circuit_node],
       [:b, T.def_tasks(:b, success_signal: "Right").method(:b)],
     )
 
@@ -52,7 +55,7 @@ class WrapRuntimeResolveTest < Minitest::Spec
       circuit_options: {runner: Trailblazer::Circuit::WrapRuntime::Runner, wrap_runtime: my_wrap_runtime_resolver},
       seq: [:a, :b], terminus: "Right"
 
-    assert_equal flow_options, {Trailblazer::Circuit::WrapRuntime::Extension::NodeWrap::Id.new(:A) => :capture_before}
+    assert_equal flow_options, {Trailblazer::Circuit::WrapRuntime::Extension::NodeWrap::Id.new(:A, my_a_circuit_node) => :capture_before}
   end
 
   it "the {:wrap_runtime} resolver can access {:id}" do
