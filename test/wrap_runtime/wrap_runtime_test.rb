@@ -129,7 +129,7 @@ class WrapRuntimeTest < Minitest::Spec
       def call(lib_ctx, flow_options, signal, **) # FIXME: we need circuit_options for the {:task}.
         stack = flow_options.fetch(:stack)
 
-        stack += [[position, captured_task, CU.inspect(flow_options[:application_ctx].to_h)]] # treat stack as an immutable object
+        stack += [[position, captured_task, flow_options[:application_ctx].to_h.inspect]] # treat stack as an immutable object
 
         return lib_ctx, flow_options.merge(stack: stack), signal
       end
@@ -197,16 +197,16 @@ class WrapRuntimeTest < Minitest::Spec
     # pp flow_options[:stack]
 
     assert_stack flow_options[:stack], [
-     [:before, :Create, "{:params=>{:id=>1, :title=>\"Uwe\"}}"], # this is the Create.tw pipe
-     [:before, :Model, "{:params=>{:id=>1, :title=>\"Uwe\"}}"],
-     [:before, :call_task, "{:id=>1, :title=>\"Uwe\"}"],
-     [:after, :call_task, "{:id=>1, :title=>\"Uwe\", :model=>#<struct WrapRuntimeTest::Record id=1, title=nil>}"],
-     [:after, :Model, "{:params=>{:id=>1, :title=>\"Uwe\", :model=>#<struct WrapRuntimeTest::Record id=1, title=nil>}}"],
-     [:before, :Save, "{:params=>{:id=>1, :title=>\"Uwe\", :model=>#<struct WrapRuntimeTest::Record id=1, title=nil>}}"],
-     [:after, :Save, "{:params=>{:id=>1, :title=>\"Uwe\", :model=>#<struct WrapRuntimeTest::Record id=1, title=\"Uwe\">}}"],
-     [:before, :success, "{:params=>{:id=>1, :title=>\"Uwe\", :model=>#<struct WrapRuntimeTest::Record id=1, title=\"Uwe\">}}"],
-     [:after, :success, "{:params=>{:id=>1, :title=>\"Uwe\", :model=>#<struct WrapRuntimeTest::Record id=1, title=\"Uwe\">}}"],
-     [:after, :Create, "{:params=>{:id=>1, :title=>\"Uwe\", :model=>#<struct WrapRuntimeTest::Record id=1, title=\"Uwe\">}}"]]
+     [:before, :Create, "{params: {id: 1, title: \"Uwe\"}}"], # this is the Create.tw pipe
+     [:before, :Model, "{params: {id: 1, title: \"Uwe\"}}"],
+     [:before, :call_task, "{id: 1, title: \"Uwe\"}"],
+     [:after, :call_task, "{id: 1, title: \"Uwe\", model: #<struct WrapRuntimeTest::Record id=1, title=nil>}"],
+     [:after, :Model, "{params: {id: 1, title: \"Uwe\", model: #<struct WrapRuntimeTest::Record id=1, title=nil>}}"],
+     [:before, :Save, "{params: {id: 1, title: \"Uwe\", model: #<struct WrapRuntimeTest::Record id=1, title=nil>}}"],
+     [:after, :Save, "{params: {id: 1, title: \"Uwe\", model: #<struct WrapRuntimeTest::Record id=1, title=\"Uwe\">}}"],
+     [:before, :success, "{params: {id: 1, title: \"Uwe\", model: #<struct WrapRuntimeTest::Record id=1, title=\"Uwe\">}}"],
+     [:after, :success, "{params: {id: 1, title: \"Uwe\", model: #<struct WrapRuntimeTest::Record id=1, title=\"Uwe\">}}"],
+     [:after, :Create, "{params: {id: 1, title: \"Uwe\", model: #<struct WrapRuntimeTest::Record id=1, title=\"Uwe\">}}"]]
   end
 end
 
@@ -223,8 +223,8 @@ class MyRunnerWithExtraNodeTest < Minitest::Spec
     )
   end
 
-  def _Id(id)
-    Trailblazer::Circuit::WrapRuntime::Extension::NodeWrap::Id.new(id)
+  def _Id(id, wrapped_node)
+    Trailblazer::Circuit::WrapRuntime::Extension::NodeWrap::Id.new(id, wrapped_node)
   end
 
   # FIXME: clean up this test by making it several cases.
@@ -257,14 +257,16 @@ class MyRunnerWithExtraNodeTest < Minitest::Spec
     )
 
     pp flow_options
-    assert_equal flow_options[:stack], [[:before, _Id(:a), "{}"], [:after, _Id(:a), "{}"]]
+    assert_equal flow_options[:stack], [[:before, _Id(:a, my_single_node_a), "{}"], [:after, _Id(:a, my_single_node_a), "{}"]]
     assert_equal lib_ctx[:target_ctx][:seq], [:a]
 # raise
 
 
     my_tw_for_a = Trailblazer::Circuit::Builder.Circuit(
-      [:call_task_for_a, my_single_node_a]
+      [:call_task_for_a, node: my_single_node_a]
     )
+    my_tw_for_a_node = Trailblazer::Circuit::Node[my_tw_for_a, Trailblazer::Circuit::Processor]
+
 puts "TTTTTTTTTWWW"
     lib_ctx, flow_options, signal = runner.(
       {target_ctx: {seq: []}},
@@ -274,16 +276,17 @@ puts "TTTTTTTTTWWW"
       wrap_runtime: my_wrap_runtime_resolver,
       context_implementation: Trailblazer::Circuit::Context,
       id: :tw_for_a,
-      node: Trailblazer::Circuit::Node[my_tw_for_a, Trailblazer::Circuit::Processor],
+      node: my_tw_for_a_node,
     )
 
     assert_equal signal, "Right"
     assert_equal lib_ctx[:target_ctx][:seq], [:a]
     pp flow_options[:stack]
 
+
     my_tw_for_b = Trailblazer::Circuit::Builder.Circuit(
       [:b, node: my_single_node_b], # todo: should be call_task_for_b
-      [:a, my_tw_for_a, Trailblazer::Circuit::Processor],
+      [:a, node: my_tw_for_a_node],
     )
 
 puts "ab hiiier"
@@ -295,22 +298,21 @@ puts "ab hiiier"
       wrap_runtime: my_wrap_runtime_resolver,
       context_implementation: Trailblazer::Circuit::Context,
       id: :tw_for_b_and_a,
-      node: Trailblazer::Circuit::Node[my_tw_for_b, Trailblazer::Circuit::Processor],
+      node: my_tw_for_b_node = Trailblazer::Circuit::Node[my_tw_for_b, Trailblazer::Circuit::Processor],
     )
 
     assert_equal signal, "Right"
     assert_equal lib_ctx[:target_ctx][:seq], [:b, :a]
-    pp flow_options[:stack]
 
     assert_equal flow_options[:stack],
-    [[:before, _Id(:tw_for_b_and_a), "{}"],
-     [:before, _Id(:b), "{}"],
-     [:after, _Id(:b), "{}"],
-     [:before, _Id(:a), "{}"],
-     [:before, _Id(:call_task_for_a), "{}"],
-     [:after, _Id(:call_task_for_a), "{}"],
-     [:after, _Id(:a), "{}"],
-     [:after, _Id(:tw_for_b_and_a), "{}"]]
+    [[:before, _Id(:tw_for_b_and_a, my_tw_for_b_node), "{}"],
+     [:before, _Id(:b, my_single_node_b), "{}"],
+     [:after, _Id(:b, my_single_node_b), "{}"],
+     [:before, _Id(:a, my_tw_for_a_node), "{}"],
+     [:before, _Id(:call_task_for_a, my_single_node_a), "{}"], # 4
+     [:after, _Id(:call_task_for_a, my_single_node_a), "{}"],
+     [:after, _Id(:a, my_tw_for_a_node), "{}"],
+     [:after, _Id(:tw_for_b_and_a, my_tw_for_b_node), "{}"]]
   end
 
   it "NodeWrap preserves the node's original options" do
@@ -323,10 +325,14 @@ puts "ab hiiier"
       ]
     )
 
+    my_b_node = Trailblazer::Circuit::Node[T.def_tasks(:b, success_signal: "Right").method(:b), Trailblazer::Circuit::Task::Adapter::LibInterface,
+      options: {trace_me: true}
+    ]
+
     my_top_node = Trailblazer::Circuit::Builder.Pipeline(
-      [:a, T.def_tasks(:a, success_signal: "Right").method(:a)],
-      [:b, T.def_tasks(:b, success_signal: "Right").method(:b), options: {trace_me: true}],
-      [:c, T.def_tasks(:c, success_signal: "Right").method(:c)],
+      [:a, T.def_tasks(:a, success_signal: "Right").method(:a)], # no tracing.
+      [:b, node: my_b_node],
+      [:c, T.def_tasks(:c, success_signal: "Right").method(:c)], # no tracing.
     )
     my_top_node = Trailblazer::Circuit::Node[my_top_node, Trailblazer::Circuit::Processor, options: {trace_me: true}]
 
@@ -349,10 +355,10 @@ puts "ab hiiier"
 
     # it only traces top and b.
     assert_equal flow_options[:stack],
-      [[:before, _Id(:my_top_node), "{}"],
-       [:before, _Id(:b), "{}"],
-       [:after, _Id(:b), "{}"],
-       [:after, _Id(:my_top_node), "{}"]]
+      [[:before, _Id(:my_top_node, my_top_node), "{}"],
+       [:before, _Id(:b, my_b_node), "{}"],
+       [:after, _Id(:b, my_b_node), "{}"],
+       [:after, _Id(:my_top_node, my_top_node), "{}"]]
   end
 end
 
