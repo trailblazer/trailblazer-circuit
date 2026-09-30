@@ -445,8 +445,36 @@ class CircuitAddsTest < Minitest::Spec
     assert_equal my_new_pipe.to_h[:flow_map].keys, [:a, :b]
   end
 
-  it "" do
-    raise "delete need tests"
+  it "{:delete} first node" do
+    my_pipe = Trailblazer::Circuit::Builder.Circuit(
+      [:a, my_exec_context.method(:a), lib_interface, connections: {Left => [nil, Left], Right => [:b, Right], }],
+      [:b, my_exec_context.method(:b)],
+    )
+
+    my_new_pipe = Trailblazer::Circuit::Adds.(
+      my_pipe,
+      [:a, nil, :delete, :a],
+    )
+
+    assert_run my_new_pipe, seq: [:b], terminus: Right
+    assert_equal my_new_pipe.to_h[:flow_map].keys, [:b]
+    assert_equal my_new_pipe.to_h[:nodes].keys, [:b]
+  end
+
+  it "{:delete} last node" do
+    my_pipe = Trailblazer::Circuit::Builder.Circuit(
+      [:a, my_exec_context.method(:a), lib_interface, connections: {Left => [nil, Left], Right => [:b, Right], }],
+      [:b, my_exec_context.method(:b)],
+    )
+
+    my_new_pipe = Trailblazer::Circuit::Adds.(
+      my_pipe,
+      [:b, nil, :delete, :b],
+    )
+
+    assert_run my_new_pipe, seq: [:a], terminus: Right
+    assert_equal my_new_pipe.to_h[:flow_map].keys, [:a]
+    assert_equal my_new_pipe.to_h[:nodes].keys, [:a]
   end
 
 

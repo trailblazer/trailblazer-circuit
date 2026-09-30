@@ -153,47 +153,45 @@ module Trailblazer
       #   }
       # end
 
-      def delete(flow_map, nodes, _, _, target_id, inbound_signal:, **)
-        nodes = nodes.slice(*(nodes.keys - [target_id]))
+      def delete(flow_map, nodes, _, _, target_id, inbound_signal: nil, reuse_resolver: true, **)
         flow_ary_keys = flow_map.keys
         target_index = flow_ary_keys.index(target_id) # TODO: cleanup this!
 
-        if target_index > 0
-          target_successor_id = flow_map[target_id].fetch(inbound_signal) # ID of following node.
+        successor_id, _ = flow_map.fetch(target_id).values.last
 
-          flow_map = reconnect_predecessor(flow_map, flow_ary_keys, target_id, inbound_signal, target_successor_id)
-        end
-
-        # flow_map = flow_map.slice(*nodes.keys) # FIXME: do we still have same order?
-        flow_map = flow_map.slice(*(flow_ary_keys - [target_id]))
-
-        return flow_map, nodes
+        delete_target(flow_map, nodes, successor_id, target_id)
       end
 
-      def replace(flow_map, nodes, inserted_id, inserted_node, target_id, reuse_resolver: true, **options)
+      # Reconnect predecessors to {inserted_id}, delete target
+      def delete_target(flow_map, nodes, successor_id, target_id)
         predecessors_with_signal = find_predecessors(flow_map, target_id)
 
-        flow_map_updates = predecessors_with_signal.collect do |id, resolver, signal_to_target|
-          [id, resolver.merge(signal_to_target => [inserted_id, signal_to_target])]
+        flow_map_updates = predecessors_with_signal.collect do |predecessor_id, resolver, signal_to_target|
+          [predecessor_id, resolver.merge(signal_to_target => [successor_id, signal_to_target])]
         end.to_h
 
         # all predecessors of (target_id) now point to the new node.
         flow_map = flow_map.merge(flow_map_updates) # #merge preserves positions. # TODO: test!
 
+        # delete replaced node. this must be done before we insert, in order to avoid an exception in #add_node (WIP?).
+        nodes = nodes.slice(*(nodes.keys - [target_id])) # FIXME: redundant with {delete} logic.
+
+        unless successor_id == target_id
+          flow_map = flow_map.slice(*(flow_map.keys - [target_id])) # FIXME: redundant to {delete} logic.
+        end
+
+        return flow_map, nodes
+      end
+
+      def replace(flow_map, nodes, inserted_id, inserted_node, target_id, reuse_resolver: true, **options)
         if reuse_resolver # TODO: allow your own resolver (where do we need that?).
           resolver_from_target = flow_map.fetch(target_id)
         end
 
-        # delete replaced node. this must be done before we insert, in order to avoid an exception in #add_node (WIP?).
-        nodes    = nodes.slice(*(nodes.keys - [target_id])) # FIXME: redundant with {delete} logic.
-
         insert_at_index = find_insert_at_index(flow_map, target_id, offset: 0)
-        flow_map, nodes = insert_node_at(flow_map, nodes, inserted_id, inserted_node, target_id, insert_at_index, {}, resolver: resolver_from_target)
 
-        # delete old key.
-        unless inserted_id == target_id
-          flow_map = flow_map.slice(*(flow_map.keys - [target_id])) # FIXME: redundant to {delete} logic.
-        end
+        flow_map, nodes = delete_target(flow_map, nodes, inserted_id, target_id)
+        flow_map, nodes = insert_node_at(flow_map, nodes, inserted_id, inserted_node, target_id, insert_at_index, {}, resolver: resolver_from_target)
 
         return flow_map, nodes
       end
