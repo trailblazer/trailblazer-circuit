@@ -49,7 +49,7 @@ class AdapterTest < Minitest::Spec
       context_implementation: Trailblazer::Circuit::Context,
     )
 
-    expected_capture = Captured.new(["{params: {id: 1}, slug: 9}", "{id: 1}", "{slug: 9}"]).freeze
+    expected_capture = Captured.new([{params: {id: 1}, slug: 9}.inspect, {id: 1}.inspect, {slug: 9}.inspect]).freeze
 
     assert_equal signal, expected_capture
     assert_equal ctx, {aggregate: [], target_ctx: application_ctx}

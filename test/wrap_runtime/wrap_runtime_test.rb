@@ -379,16 +379,16 @@ class WrapRuntimeTest < Minitest::Spec
     # pp flow_options[:stack]
 
     assert_stack flow_options[:stack], [
-     [:before, :Create, "{params: {id: 1, title: \"Uwe\"}}"], # this is the Create.tw pipe
-     [:before, :Model, "{params: {id: 1, title: \"Uwe\"}}"],
-     [:before, :call_task, "{id: 1, title: \"Uwe\"}"],
-     [:after, :call_task, "{id: 1, title: \"Uwe\", model: #<struct WrapRuntimeTest::Record id=1, title=nil>}"],
-     [:after, :Model, "{params: {id: 1, title: \"Uwe\", model: #<struct WrapRuntimeTest::Record id=1, title=nil>}}"],
-     [:before, :Save, "{params: {id: 1, title: \"Uwe\", model: #<struct WrapRuntimeTest::Record id=1, title=nil>}}"],
-     [:after, :Save, "{params: {id: 1, title: \"Uwe\", model: #<struct WrapRuntimeTest::Record id=1, title=\"Uwe\">}}"],
-     [:before, :success, "{params: {id: 1, title: \"Uwe\", model: #<struct WrapRuntimeTest::Record id=1, title=\"Uwe\">}}"],
-     [:after, :success, "{params: {id: 1, title: \"Uwe\", model: #<struct WrapRuntimeTest::Record id=1, title=\"Uwe\">}}"],
-     [:after, :Create, "{params: {id: 1, title: \"Uwe\", model: #<struct WrapRuntimeTest::Record id=1, title=\"Uwe\">}}"]]
+     [:before, :Create, {params: {id: 1, title: "Uwe"}}.inspect], # this is the Create.tw pipe
+     [:before, :Model, {params: {id: 1, title: "Uwe"}}.inspect],
+     [:before, :call_task, {id: 1, title: "Uwe"}.inspect],
+     [:after, :call_task, {id: 1, title: "Uwe", model: Record.new(1)}.inspect],
+     [:after, :Model, {params: {id: 1, title: "Uwe", model: Record.new(1)}}.inspect],
+     [:before, :Save, {params: {id: 1, title: "Uwe", model: Record.new(1)}}.inspect],
+     [:after, :Save, {params: {id: 1, title: "Uwe", model: Record.new(1, "Uwe")}}.inspect],
+     [:before, :success, {params: {id: 1, title: "Uwe", model: Record.new(1, "Uwe")}}.inspect],
+     [:after, :success, {params: {id: 1, title: "Uwe", model: Record.new(1, "Uwe")}}.inspect],
+     [:after, :Create, {params: {id: 1, title: "Uwe", model: Record.new(1, "Uwe")}}.inspect]]
   end
 end
 
