@@ -147,8 +147,55 @@ class WrapRuntimeTest < Minitest::Spec
     end
   end
 
-  it "the {:wrap_runtime} resolver can access {:id}" do
-    raise
+  it "the {:wrap_runtime} Resolver can access {:id} and all other circuit_options, and can return an Extension::Set" do
+    my_exec_context = T.def_tasks(:a, :b, success_signal: nil)
+
+    # we're going to get extended by the extension.
+    my_pipeline = Trailblazer::Circuit::Builder.Pipeline(
+      [:a, my_exec_context.method(:a)]
+    )
+
+
+    my_extension_builder = Struct.new(:circuit_options_the_resolver_can_see) do
+      def call(*)
+        my_extension = Struct.new(:options) do
+          def call(lib_ctx, flow_options, signal, target_ctx:, **)
+            target_ctx[:seq] << :b
+            lib_ctx[:circuit_options_the_resolver_can_see] = options
+
+            return lib_ctx, flow_options, signal
+          end
+        end
+
+        [
+          [
+            :b, Trailblazer::Circuit::Node[my_extension.new(circuit_options_the_resolver_can_see), Trailblazer::Circuit::Task::Adapter::LibInterface],
+            :before, :a
+          ]
+        ]
+      end
+    end
+
+    # This is what we actually test.
+    my_resolver = ->(**circuit_options_the_resolver_can_see) {
+      # The resolver only extends the :Create top pipeline.
+      return unless circuit_options_the_resolver_can_see[:id] == :Create
+
+      # We don't need Extension::Set
+      Trailblazer::Circuit::WrapRuntime.Extension(adds: my_extension_builder.new(circuit_options_the_resolver_can_see))
+    }
+
+    my_top_node = Trailblazer::Circuit::Node[my_pipeline, Trailblazer::Circuit::Processor]
+
+    lib_ctx, flow_options, signal = assert_run my_top_node, node: true,
+      circuit_options: {
+        runner: runner = Trailblazer::Circuit::WrapRuntime::Runner,
+        id: :Create,
+        wrap_runtime: my_resolver,
+      },
+      seq: [:b, :a]
+
+    assert_equal lib_ctx[:circuit_options_the_resolver_can_see], {runner: runner, id: :Create, node: my_top_node, context_implementation: Trailblazer::Circuit::Context}
   end
 
   it "wrap_runtime can implement tracing" do
