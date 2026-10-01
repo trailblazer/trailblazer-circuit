@@ -57,8 +57,4 @@ class WrapRuntimeResolveTest < Minitest::Spec
 
     assert_equal flow_options, {Trailblazer::Circuit::WrapRuntime::Extension::NodeWrap::Id.new(:A, my_a_circuit_node) => :capture_before}
   end
-
-  it "the {:wrap_runtime} resolver can access {:id}" do
-    raise
-  end
 end
