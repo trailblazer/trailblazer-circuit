@@ -70,7 +70,7 @@ class MergeToCircuitOptions_BuilderTest_IntegrationTest < Minitest::Spec
 
     assert_run my_pipe_1,
       seq: [:a, :x, :z, :y, :c, :v, :u, :b],
-      circuit_options: {exec_context: my_exec_context_ab},
+      circuit_options: {exec_context: my_exec_context_ab, runner: Trailblazer::Circuit::Node::Runner},
       terminus: Right
   end
 end

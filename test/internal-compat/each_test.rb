@@ -46,7 +46,7 @@ class EachTest < Minitest::Spec
 
     circuit = Trailblazer::Circuit.build(flow_map: map, nodes: nodes)
 
-    assert_run circuit, circuit_options: {exec_context: MyEach}, target_ctx: {dataset: [1,2,3], seq: []},
+    assert_run circuit, circuit_options: {exec_context: MyEach, runner: Trailblazer::Circuit::Node::Runner}, target_ctx: {dataset: [1,2,3], seq: []},
       seq: [[0, 1], [1, 2], [2, 3]],
       terminus: "done"
   end

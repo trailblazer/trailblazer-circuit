@@ -49,7 +49,7 @@ class ProcessorTest < Minitest::Spec
       [3, my_task_with_circuit_interface.new, MyCircuitInterface],
     )
 
-    lib_ctx, _ = assert_run my_circuit, seq: [], ary: [], circuit_options: {start_tuple: [2, my_circuit.nodes[2]]}
+    lib_ctx, _ = assert_run my_circuit, seq: [], ary: [], circuit_options: {start_tuple: [2, my_circuit.nodes[2]], runner: Trailblazer::Circuit::Node::Runner}
 
     assert_equal lib_ctx[:ary], [
       [:node, :context_implementation, :runner, :id],

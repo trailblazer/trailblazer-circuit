@@ -148,7 +148,7 @@ class PipelineBuilderTest < Minitest::Spec
     )
 
     lib_ctx, flow_options = assert_run my_circuit, terminus: Left, seq: [:a, :b, :c, :d],
-      circuit_options: {exec_context: my_exec_context},
+      circuit_options: {exec_context: my_exec_context, runner: Trailblazer::Circuit::Node::Runner},
       target_ctx: {seq: [], d: Left}
 
     assert_equal lib_ctx, {:target_ctx=>{:seq=>[:a, :b, :c, :d], :d=>Left}}
