@@ -155,8 +155,7 @@ class WrapRuntimeTest < Minitest::Spec
       [:a, my_exec_context.method(:a)]
     )
 
-
-    my_extension_builder = Struct.new(:circuit_options_the_resolver_can_see) do
+    adds_producer = Struct.new(:circuit_options_the_resolver_can_see) do
       def call(*)
         my_extension = Struct.new(:options) do
           def call(lib_ctx, flow_options, signal, target_ctx:, **)
@@ -182,7 +181,7 @@ class WrapRuntimeTest < Minitest::Spec
       return unless circuit_options_the_resolver_can_see[:id] == :Create
 
       # We don't need Extension::Set
-      Trailblazer::Circuit::WrapRuntime.Extension(adds: my_extension_builder.new(circuit_options_the_resolver_can_see))
+      Trailblazer::Circuit::WrapRuntime.Extension(adds: adds_producer.new(circuit_options_the_resolver_can_see))
     }
 
     my_top_node = Trailblazer::Circuit::Node[my_pipeline, Trailblazer::Circuit::Processor]
@@ -196,6 +195,52 @@ class WrapRuntimeTest < Minitest::Spec
       seq: [:b, :a]
 
     assert_equal lib_ctx[:circuit_options_the_resolver_can_see], {runner: runner, id: :Create, node: my_top_node, context_implementation: Trailblazer::Circuit::Context}
+  end
+
+
+  it "the Extension#call builder method can see {circuit_options}, and change them" do # DISCUSS: do we need an explicit test for changing and returning :node etc?
+    my_tested_extension = ->(id:, **circuit_options) do
+      circuit_options.merge(
+        id: id,
+        id => {id: id, **circuit_options}
+      )
+    end
+
+    my_resolver = Hash.new(my_tested_extension)
+
+    my_capture = ->(_task, lib_ctx, flow_options, signal, **circuit_options) do
+      lib_ctx[:capture] << circuit_options
+
+      return lib_ctx, flow_options, signal
+    end
+
+    my_pipeline = Trailblazer::Circuit::Builder.Pipeline(
+      [:a, node: my_a_node = Trailblazer::Circuit::Node[nil, my_capture]],
+      [:b, node: my_b_node = Trailblazer::Circuit::Node[nil, my_capture]],
+    )
+
+    my_top_node = Trailblazer::Circuit::Node[my_pipeline, Trailblazer::Circuit::Processor]
+
+    lib_ctx, flow_options, signal = assert_run my_top_node, node: true,
+      circuit_options: {
+        runner: runner = Trailblazer::Circuit::WrapRuntime::Runner,
+        id: :Create,
+        wrap_runtime: my_resolver,
+      },
+      capture: [],
+      seq: []
+
+    my_generic_options = {context_implementation: Trailblazer::Circuit::Context, runner: runner}
+
+    my_create_circuit_options = {**my_generic_options, id: :Create, node: my_top_node}
+
+    assert_equal lib_ctx[:capture].size, 2
+    assert_equal lib_ctx[:capture][0][:a], {**my_generic_options, id: :a, node: my_a_node, Create: my_create_circuit_options} # in :a, we can see :Create.
+    assert_equal lib_ctx[:capture][1][:b], {**my_generic_options, id: :b, node: my_b_node, Create: my_create_circuit_options} # in :b, we can see :Create but not :a.
+    assert_equal lib_ctx[:capture][0][:b], nil
+    assert_equal lib_ctx[:capture][1][:a], nil
+
+    assert_equal lib_ctx[:capture][1].slice(:id), {id: :b}
   end
 
   it "wrap_runtime can implement tracing" do
