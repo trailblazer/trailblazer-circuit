@@ -13,15 +13,15 @@ module Trailblazer
         class AddsInstructions < Struct.new(:adds_producer)
           # Apply the ADDS instructions to the current task to extend it (eg adding
           # tracing steps).
-          def call(id:, node:, **circuit_options)
-            adds_instructions = adds_producer.(id: id, **node.to_h) # DISCUSS: move that up to Extension? Do we actually need it outside of here?
+          def call(node:, **circuit_options)
+            adds_instructions = adds_producer.(node: node, **circuit_options) # DISCUSS: move that up to Extension? Do we actually need it outside of here?
 
             node_attrs = apply(adds_instructions, **node.to_h)
 
             # DISCUSS: the remaining code here could be part of the generic Extension.
             node = node.class.new(**node_attrs)
 
-            circuit_options.merge(node: node, id: id)
+            circuit_options.merge(node: node)
           end
 
           # Compute the new circuit by applying ADDS, then return

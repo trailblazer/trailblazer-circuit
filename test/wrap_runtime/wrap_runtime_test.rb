@@ -243,6 +243,96 @@ class WrapRuntimeTest < Minitest::Spec
     assert_equal lib_ctx[:capture][1].slice(:id), {id: :b}
   end
 
+  it "instead of applying some ADDS, the Extension builder can also return another :node altogether, and :id" do
+    my_tested_extension = ->(id:, node:, **circuit_options) do
+
+      new_id = :"#{id}_#{node.task.object_id}"
+
+      new_pipe = Trailblazer::Circuit::Builder.Pipeline(
+        [new_id, T.def_tasks(new_id, success_signal: nil).method(new_id)],
+        ["#{id} in pipe", node: node],
+      )
+      new_node = Trailblazer::Circuit::Node[new_pipe, Trailblazer::Circuit::Processor]
+
+      return circuit_options.merge(node: new_node, id: new_id)
+    end
+
+    my_resolver = ->(id:, **) { [:Create, :a].include?(id) ? my_tested_extension : nil } # DISCUSS: do we need that?
+
+    my_exec_context = T.def_tasks(:a, :b, success_signal: nil)
+
+    my_a_pipeline = Trailblazer::Circuit::Builder.Pipeline(
+      [:a_task, node: my_a_node = Trailblazer::Circuit::Node[my_exec_context.method(:a), Trailblazer::Circuit::Task::Adapter::LibInterface]]
+    )
+
+    my_pipeline = Trailblazer::Circuit::Builder.Pipeline(
+      [:a, node: my_a_pipe_node = Trailblazer::Circuit::Node[my_a_pipeline, Trailblazer::Circuit::Processor]],
+    )
+
+    my_top_node = Trailblazer::Circuit::Node[my_pipeline, Trailblazer::Circuit::Processor]
+
+    lib_ctx, flow_options, signal = assert_run my_top_node, node: true,
+      circuit_options: {
+        runner: runner = Trailblazer::Circuit::WrapRuntime::Runner,
+        id: :Create,
+        wrap_runtime: my_resolver,
+      },
+      seq: [:"Create_#{my_pipeline.object_id}", :"a_#{my_a_pipeline.object_id}", :a]
+
+    # TODO: extensions after it can see it.
+  end
+
+  it "the Extension::Adds builder sees circuit_options" do
+    # We record the passed {circuit_options}.
+    my_tested_extension = Trailblazer::Circuit::WrapRuntime::Extension(
+     adds: ->(**circuit_options) do
+        my_tw_extension  = Struct.new(:options) do
+          def call(lib_ctx, *args)
+            lib_ctx[:capture] << options
+
+            return lib_ctx, *args
+          end
+        end
+
+        [
+          [
+            "capture for #{circuit_options[:id]}", Trailblazer::Circuit::Node[my_tw_extension.new(circuit_options), Trailblazer::Circuit::Task::Adapter::LibInterface],
+            :before, nil
+          ]
+        ]
+      end
+    )
+
+    my_resolver = ->(id:, **) { [:Create, :a].include?(id) ? my_tested_extension : nil }
+
+    my_exec_context = T.def_tasks(:a, :b, success_signal: nil)
+
+    my_a_pipeline = Trailblazer::Circuit::Builder.Pipeline(
+      [:a_task, node: my_a_node = Trailblazer::Circuit::Node[my_exec_context.method(:a), Trailblazer::Circuit::Task::Adapter::LibInterface]]
+    )
+
+    my_pipeline = Trailblazer::Circuit::Builder.Pipeline(
+      [:a, node: my_a_pipe_node = Trailblazer::Circuit::Node[my_a_pipeline, Trailblazer::Circuit::Processor]],
+    )
+
+    my_top_node = Trailblazer::Circuit::Node[my_pipeline, Trailblazer::Circuit::Processor]
+
+    lib_ctx, flow_options, signal = assert_run my_top_node, node: true,
+      circuit_options: {
+        runner: runner = Trailblazer::Circuit::WrapRuntime::Runner,
+        id: :Create,
+        wrap_runtime: my_resolver,
+      },
+      capture: [],
+      seq: [:a]
+
+    my_generic_options = {context_implementation: Trailblazer::Circuit::Context, runner: runner}
+
+    assert_equal lib_ctx[:capture].size, 2
+    assert_equal lib_ctx[:capture][0], {**my_generic_options, id: :Create, node: my_top_node}
+    assert_equal lib_ctx[:capture][1], {**my_generic_options, id: :a, node: my_a_pipe_node}
+  end
+
   it "wrap_runtime can implement tracing" do
     ctx = {params: {song: nil}, slug: 666}
 
