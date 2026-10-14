@@ -22,10 +22,7 @@ module Trailblazer
       #          is gonna happen to the extended nodes.
       class Runner < Node::Runner
         def self.call(lib_ctx, flow_options, signal, wrap_runtime:, **circuit_options)
-          tw_extension_set = wrap_runtime[**circuit_options] # TODO: this should be looked up by path, not ID, node, as this might apply multiple times.
-
-          # DISCUSS: make it {#extend_circuit_options}?
-          circuit_options = extend_node(tw_extension_set, **circuit_options)
+          circuit_options = wrap_runtime.(**circuit_options)
 
           super
         end

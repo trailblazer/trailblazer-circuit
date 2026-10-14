@@ -1,7 +1,8 @@
 require "test_helper"
 
-class WrapRuntimeResolveTest < Minitest::Spec
-  it "The {:wrap_runtime} resolver examines each node and evaluates conditions. The default_extension_set is only applied if all conditions are true" do
+# TODO: maybe we should test more about what the Conditions etc receive?
+class WrapRuntimeExtensionDispatcherTest < Minitest::Spec
+  it "The {:wrap_runtime} dispatcher lets the Extensions examine each node and evaluate conditions. if all conditions are true, the extension is applied" do
     my_circuit = Trailblazer::Circuit::Builder.Pipeline(
       [:a, T.def_tasks(:a, success_signal: "Right").method(:a)],
     )
@@ -34,21 +35,22 @@ class WrapRuntimeResolveTest < Minitest::Spec
       end
     end
 
-    my_tracing_ext = Trailblazer::Circuit::WrapRuntime.Extension(adds: MyExtension)
-    my_extensions = Trailblazer::Circuit::WrapRuntime::Extension::Set.new(
+    my_tracing_ext = Trailblazer::Circuit::WrapRuntime::Extension::AddsInstructions.new(MyExtension)
+    my_extensions = Trailblazer::Circuit::WrapRuntime::Extension::Chain.new(
       [
         Trailblazer::Circuit::WrapRuntime::Extension::NodeWrap,
         my_tracing_ext
       ]
     )
 
-    my_wrap_runtime_resolver = Trailblazer::Circuit::WrapRuntime::Extension::Resolver.new(
-      default_extension_set: my_extensions,
-      conditions: [
-        Trailblazer::Circuit::WrapRuntime::Extension::NodeWrap::Resolver::CONDITION,
-        ->(node:, **) { node.to_h[:options][:is_circuit] },
-        # ->(node:, **) { puts "condition #{node}"; true }
-      ]
+    my_wrap_runtime_resolver = Trailblazer::Circuit::WrapRuntime::Extension.new(
+      Trailblazer::Circuit::WrapRuntime::Extension::Conditions.new(
+        [
+          Trailblazer::Circuit::WrapRuntime::Extension::NodeWrap::CONDITION,
+          ->(node:, **) { node.to_h[:options][:is_circuit] },
+        ]
+      ),
+      my_extensions,
     )
 
     lib_ctx, flow_options, signal = assert_run my_circuit,

@@ -2,21 +2,11 @@ module Trailblazer
   class Circuit
     module WrapRuntime
       class Extension
-        class Resolver < Struct.new(:default_extension_set, :conditions, keyword_init: true) # TODO: where to put, Extension namespace???
-          def [](**circuit_options)
-            # puts "@@@@@ Resolver #{node.inspect}"
-            if conditions.collect do |condition|
-                !! condition.(**circuit_options)
-              end.uniq == [true]
-
-              return default_extension_set
-            end
-          end
-        end
-
-
-        class NodeWrap
+        class NodeWrap # TODO: rename to WrapNode, cause that's what it is!!!
           class Id < Struct.new(:wrapped_id, :wrapped_node)
+            def to_sym # FIXME: test me
+              wrapped_id
+            end
           end
 
           def self.call(node:, id:, **circuit_options)
@@ -31,26 +21,25 @@ module Trailblazer
 
             id_for_wrap_node = :"task_wrap.call_task" # FIXME: do we need to invent that? can't we use the original id?
 
-            node = Trailblazer::Circuit::Node[
+            wrap_node = Trailblazer::Circuit::Node[
               Trailblazer::Circuit::Builder.Circuit( # this circuit can be extended with tracing, etc.
                 [id_for_wrap_node, node: node]
               ),
               Trailblazer::Circuit::Processor,
+              options: {wrap_node: true}
             ]
 
             {
               **circuit_options,
-              node: node,
+              node: wrap_node,
               id:   Id.new(id, wrapped_node), # DISCUSS: how to encode we're in a virtual node?
               # node_wrap_data: {wrapped_id: wrapped_id}
             }
           end
 
-          # Returns the configured extension_set but only for node that haven't
-          # been wrapped, yet.
-          class Resolver# < Struct.new(:default_extension_set)
-            CONDITION = ->(node:, **) { ! node.options[:already_wrapped] }
-          end
+          CONDITION = ->(node:, **) { ! node.options[:already_wrapped] }
+          EXTENSION = WrapRuntime::Extension.new(CONDITION, NodeWrap)
+          USER_CONDITION = ->(node:, **) { node.options[:wrap_node] } # use this if you want to live the dream in a WrapNode.
         end
       end # Extension
     end
