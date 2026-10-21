@@ -22,20 +22,11 @@ module Trailblazer
       #          is gonna happen to the extended nodes.
       class Runner < Node::Runner
         def self.call(lib_ctx, flow_options, signal, wrap_runtime:, **circuit_options)
-          circuit_options = wrap_runtime.(**circuit_options)
+          circuit_options = wrap_runtime.(**circuit_options) # FIXME: do we pass wrap_runtime?
 
-          super
-        end
-
-        def self.extend_node(tw_extension_set, **circuit_options)
-          return circuit_options if tw_extension_set.nil? # FIXME: make this cooler, maybe in the Resolver?
-
-          _circuit_options = tw_extension_set.(**circuit_options) # DISCUSS: pass runtime options here, too? # FIXME: test what we pass here.
+          super # DISCUSS: how does super know it has to merge :wrap_runtime?
         end
       end
     end # WrapRuntime
   end
 end
-
- # FIXME: test that we scope taskWrap
- # FIXME: lookup the runtime ext via path?
