@@ -25,7 +25,7 @@ class WrapRuntimeExtensionDispatcherTest < Minitest::Spec
 
       # Called through WrapRuntime::Runner.
       # This is the builder.
-      def self.call(id:, **attrs)
+      def self.call(*, id:, **attrs)
         my_adapter = MyExtension.new(id) # we will store ...:a because this extension is executed after the NodeWrap extension.
 
         [
@@ -47,7 +47,7 @@ class WrapRuntimeExtensionDispatcherTest < Minitest::Spec
       Trailblazer::Circuit::WrapRuntime::Extension::Conditions.new(
         [
           Trailblazer::Circuit::WrapRuntime::Extension::NodeWrap::CONDITION,
-          ->(node:, **) { node.to_h[:options][:is_circuit] },
+          ->(*, node:, **) { node.to_h[:options][:is_circuit] },
         ]
       ),
       my_extensions,

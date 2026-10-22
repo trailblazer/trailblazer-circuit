@@ -9,7 +9,7 @@ module Trailblazer
             end
           end
 
-          def self.call(node:, id:, **circuit_options)
+          def self.call(*args, node:, id:, **circuit_options)
             # Here, we still see the original :id we're wrapping.
             # puts "wrapping in extra node #{id.inspect}"
 
@@ -29,17 +29,19 @@ module Trailblazer
               options: {wrap_node: true}
             ]
 
-            {
+            circuit_options = {
               **circuit_options,
               node: wrap_node,
               id:   Id.new(id, wrapped_node), # DISCUSS: how to encode we're in a virtual node?
               # node_wrap_data: {wrapped_id: wrapped_id}
             }
+
+            return *args, circuit_options
           end
 
-          CONDITION = ->(node:, **) { ! node.options[:already_wrapped] }
+          CONDITION = ->(*, node:, **) { ! node.options[:already_wrapped] }
           EXTENSION = WrapRuntime::Extension.new(CONDITION, NodeWrap)
-          USER_CONDITION = ->(node:, **) { node.options[:wrap_node] } # use this if you want to live the dream in a WrapNode.
+          USER_CONDITION = ->(*, node:, **) { node.options[:wrap_node] } # use this if you want to live the dream in a WrapNode.
         end
       end # Extension
     end

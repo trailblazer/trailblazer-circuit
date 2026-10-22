@@ -39,8 +39,14 @@ class WrapRuntimeExtensionTest < Minitest::Spec
     }
   end
 
+  it "what" do
+    skip "
+??? should Extensions have access to flow_options, too? they do now!"
+# ??? should Extensions have access to flow_options, too?
+  end
+
   it "Extension::AddsInstruction applies changes to the passed node's circuit" do
-    my_adds_ext = ->(id:, **) {
+    my_adds_ext = ->(*, id:, **) {
       [
         [:b, Trailblazer::Circuit::Node[:b, Module], :after, :a]
       ]
@@ -52,7 +58,8 @@ class WrapRuntimeExtensionTest < Minitest::Spec
 
     my_pipe = Pipeline([:a, :a], [:c, :c])
 
-    circuit_options = my_set.(node: Trailblazer::Circuit::Node[my_pipe, Trailblazer::Circuit::Processor], id: :my_pipe)
+    # FIXME: why isn't Chain expecting *args?
+    *_args, circuit_options = my_set.(nil, nil, nil, node: Trailblazer::Circuit::Node[my_pipe, Trailblazer::Circuit::Processor], id: :my_pipe)
 
     expected_pipe_after_ext = Pipeline(
       [:a, :a],
