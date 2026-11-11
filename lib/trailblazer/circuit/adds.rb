@@ -13,7 +13,7 @@ module Trailblazer
       #
       # Feel free to benchmark and optimize this!
       def call(circuit, *instructions) # DISCUSS: should we allow {:outbound_signal} here?
-        # TODO: evaluate if we can us  https://rubyapi.org/3.4/o/array#method-i-assoc
+        # TODO: evaluate if we can use https://rubyapi.org/3.4/o/array#method-i-assoc
         flow_map  = circuit.flow_map
         nodes     = circuit.nodes
 
@@ -175,23 +175,16 @@ module Trailblazer
 
         # delete replaced node. this must be done before we insert, in order to avoid an exception in #add_node (WIP?).
         nodes = nodes.slice(*(nodes.keys - [target_id])) # FIXME: redundant with {delete} logic.
-
-        unless successor_id == target_id
-          flow_map = flow_map.slice(*(flow_map.keys - [target_id])) # FIXME: redundant to {delete} logic.
-        end
+        flow_map = flow_map.slice(*(flow_map.keys - [target_id])) # FIXME: redundant to {delete} logic.
 
         return flow_map, nodes
       end
 
-      def replace(flow_map, nodes, inserted_id, inserted_node, target_id, reuse_resolver: true, **options)
-        if reuse_resolver # TODO: allow your own resolver (where do we need that?).
-          resolver_from_target = flow_map.fetch(target_id)
-        end
-
+      def replace(flow_map, nodes, inserted_id, inserted_node, target_id, resolver: flow_map.fetch(target_id), **options)
         insert_at_index = find_insert_at_index(flow_map, target_id, offset: 0)
 
         flow_map, nodes = delete_target(flow_map, nodes, inserted_id, target_id)
-        flow_map, nodes = insert_node_at(flow_map, nodes, inserted_id, inserted_node, target_id, insert_at_index, {}, resolver: resolver_from_target)
+        flow_map, nodes = insert_node_at(flow_map, nodes, inserted_id, inserted_node, target_id, insert_at_index, {}, resolver: resolver)
 
         return flow_map, nodes
       end

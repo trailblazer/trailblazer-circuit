@@ -394,6 +394,23 @@ class CircuitAddsTest < Minitest::Spec
   #   assert_equal extended_tw_pipe.to_a[0].keys, [:z, :b, :c] # TODO: do that everywhere!
   end
 
+  it "{:replace} on last node" do
+    my_pipe = Trailblazer::Circuit::Builder.Circuit(
+      [:a, my_exec_context.method(:a), lib_interface, connections: {Right => [:b, Right], Left => [nil, Left]}],
+      [:b, my_exec_context.method(:b), lib_interface, connections: Trailblazer::Circuit::Resolver::Fixed.new(nil)],
+    )
+
+    my_new_pipe = Trailblazer::Circuit::Adds.(
+      my_pipe,
+      [:z, z_node, :replace, :b],
+    )
+
+    assert_equal my_new_pipe.nodes.keys, [:a, :z]
+
+    assert_run my_new_pipe, seq: [:a, :z], terminus: Right
+    assert_run my_new_pipe, seq: [:a], terminus: Left, target_ctx: {seq: [], a: Left}
+  end
+
   it "{:replace} on middle node" do
     my_pipe = Trailblazer::Circuit::Builder.Circuit(
       [:a, my_exec_context.method(:a), lib_interface, connections: {Right => [:b, Right], Left => [nil, Left]}],
@@ -443,6 +460,32 @@ class CircuitAddsTest < Minitest::Spec
 
     assert_run my_new_pipe, seq: [:z, :b], terminus: Right
     assert_equal my_new_pipe.to_h[:flow_map].keys, [:a, :b]
+  end
+
+  it "{:replace} where we also change the {:resolver}" do
+    my_pipe = Trailblazer::Circuit::Builder.Circuit(
+      [:a, my_exec_context.method(:a), lib_interface, connections: {Right => [:b, Right], Left => [nil, Left]}],
+      [:b, my_exec_context.method(:b), lib_interface, connections: Trailblazer::Circuit::Resolver::Fixed.new(nil)],
+    )
+
+    my_new_pipe = Trailblazer::Circuit::Adds.(
+      my_pipe,
+      [:a, z_node, :replace, :a, resolver: {Right => [nil, Right], Left => [:b, Left]}],
+    )
+
+    assert_run my_new_pipe, seq: [:z], terminus: Right
+    assert_run my_new_pipe, seq: [:z, :b], terminus: Right, target_ctx: {seq: [], z: Left}
+    assert_equal my_new_pipe.to_h[:flow_map].keys, [:a, :b]
+    assert_equal my_new_pipe.to_h[:nodes].keys, [:b, :a]
+  end
+
+  it "what" do
+    skip "changing the order of the two instructions connects :invoke_handler to :handle_rescue even though it should be connected to translate_signal"
+    circuit = Circuit::Adds.(circuit,
+            [:handle_rescue, Circuit::Node[handler, Circuit::Task::Adapter::LibInterface], :before, :translate_signal],
+            [:invoke_handler, circuit.nodes[:invoke_handler], :replace, :invoke_handler, resolver: new_resolver_for_invoke_handler],
+          ) # DISCUSS: patch? grabbing the original invoke_handler node is a contract breach.
+    # here would be translate_signal
   end
 
   it "{:delete} first node" do
