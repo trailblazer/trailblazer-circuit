@@ -11,6 +11,12 @@ module Trailblazer
         Builder::Pipeline.(*args)
       end
 
+      def self.Node(*args) # TODO: test me. TODO: better name? {Node.Pipeline}? Node.from_steps is Claude's suggestion.
+        circuit = Pipeline(*args)
+
+        Node[circuit, Processor]
+      end
+
       module Pipeline
         module_function
 
