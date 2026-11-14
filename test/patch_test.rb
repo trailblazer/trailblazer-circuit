@@ -59,9 +59,9 @@ class PatchTest < Minitest::Spec
       ]
     )
 
-    assert_run my_top_node, node: true, seq: [:d, :c, :a, :b]
-    assert_run my_new_top_node, node: true, seq: [:e, :c, :a, :b]
-    assert_run node_two_levels_patched, node: true, seq: [:d, :c, :e, :a, :b]
-    assert_run node_three_levels_patched, node: true, seq: [:d, :c, :a, :e, :b]
+    assert_run node: my_top_node, seq: [:d, :c, :a, :b]
+    assert_run node: my_new_top_node, seq: [:e, :c, :a, :b]
+    assert_run node: node_two_levels_patched, seq: [:d, :c, :e, :a, :b]
+    assert_run node: node_three_levels_patched, seq: [:d, :c, :a, :e, :b]
   end
 end

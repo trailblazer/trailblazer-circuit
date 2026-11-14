@@ -182,7 +182,7 @@ class WrapRuntimeTest < Minitest::Spec
   end
 
   it "testing the {my_create_tw} fixture" do
-    assert_run my_create_node, node: true, seq: [:in, :model, :out, :save]#, terminus: "Right"
+    assert_run node: my_create_node, seq: [:in, :model, :out, :save]#, terminus: "Right"
   end
 
   it "test condition/order: we can simply add steps to a task_wrap pipeline via {:wrap_runtime}" do
@@ -199,8 +199,8 @@ class WrapRuntimeTest < Minitest::Spec
 
     # dispatcher_chain = Trailblazer::Circuit::WrapRuntime::Extension::Chain.new([tw_trace_extension])
     # Test that we can use a plain Extension instead of Extension::Chain.
-    assert_run my_create_node, seq: [:"before-Create", :in, :"before-model", :model, :out, :"before-save", :save],
-      node: true,
+    assert_run seq: [:"before-Create", :in, :"before-model", :model, :out, :"before-save", :save],
+      node: my_create_node,
       circuit_options: {
         runner: runner = Trailblazer::Circuit::WrapRuntime::Runner,
         id: :Create,
@@ -389,8 +389,7 @@ class WrapRuntimeTest < Minitest::Spec
 
     dispatcher_chain = Trailblazer::Circuit::WrapRuntime::Extension::Chain.new([node_wrap_extension, tw_trace_extension])
 
-    assert_run my_create_node, seq: [:"before-Create", :"before-task_wrap.call_task", :"before-model", :"before-variable_mapping.in", :in, :"before-task_wrap.call_task", :model, :"before-variable_mapping.out", :out, :"before-save", :"before-task_wrap.call_task", :save],
-      node: true,
+    assert_run node: my_create_node, seq: [:"before-Create", :"before-task_wrap.call_task", :"before-model", :"before-variable_mapping.in", :in, :"before-task_wrap.call_task", :model, :"before-variable_mapping.out", :out, :"before-save", :"before-task_wrap.call_task", :save],
       circuit_options: {
         runner: runner = Trailblazer::Circuit::WrapRuntime::Runner,
         id: :Create,
@@ -425,7 +424,7 @@ class WrapRuntimeTest < Minitest::Spec
 
     my_top_node = Trailblazer::Circuit::Node[my_pipeline, Trailblazer::Circuit::Processor]
 
-    lib_ctx, flow_options, signal = assert_run my_top_node, node: true,
+    lib_ctx, flow_options, signal = assert_run node: my_top_node,
       circuit_options: {
         runner: runner = Trailblazer::Circuit::WrapRuntime::Runner,
         id: :Create,
@@ -477,7 +476,7 @@ class WrapRuntimeTest < Minitest::Spec
 
     my_top_node = Trailblazer::Circuit::Node[my_pipeline, Trailblazer::Circuit::Processor]
 
-    lib_ctx, flow_options, signal = assert_run my_top_node, node: true,
+    lib_ctx, flow_options, signal = assert_run node: my_top_node,
       circuit_options: {
         runner: runner = Trailblazer::Circuit::WrapRuntime::Runner,
         id: :Create,
@@ -521,7 +520,7 @@ class WrapRuntimeTest < Minitest::Spec
 
     my_top_node = Trailblazer::Circuit::Node[my_pipeline, Trailblazer::Circuit::Processor]
 
-    lib_ctx, flow_options, signal = assert_run my_top_node, node: true,
+    lib_ctx, flow_options, signal = assert_run node: my_top_node,
       circuit_options: {
         runner: runner = Trailblazer::Circuit::WrapRuntime::Runner,
         id: :Create,

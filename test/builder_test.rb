@@ -217,7 +217,7 @@ class NodeBuilderTest < Minitest::Spec
       [:a, T.def_task(:a, success_signal: nil)]
     )
 
-    assert_run my_node, node: true, seq: [:a]
+    assert_run node: my_node, seq: [:a]
     assert_equal my_node.options, {}
   end
 end

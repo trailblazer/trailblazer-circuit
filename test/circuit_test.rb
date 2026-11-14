@@ -226,8 +226,8 @@ class CircuitResolveTest < Minitest::Spec
     )
     node_value_on_signal = Trailblazer::Circuit::Node[my_circuit, Trailblazer::Circuit::Processor] # FIXME: make it a Scoped node that returns the original signal.
 
-    assert_run node_value_on_signal, node: true, terminus: [:a, :b, :my_decider, :d, :f], seq: [], decision_signal: Right, signal: []
-    assert_run node_value_on_signal, node: true, terminus: [:a, :b, :my_decider, :e], seq: [], decision_signal: Left, signal: []
+    assert_run node: node_value_on_signal, terminus: [:a, :b, :my_decider, :d, :f], seq: [], decision_signal: Right, signal: []
+    assert_run node: node_value_on_signal, terminus: [:a, :b, :my_decider, :e], seq: [], decision_signal: Left, signal: []
 
 =begin
     #
