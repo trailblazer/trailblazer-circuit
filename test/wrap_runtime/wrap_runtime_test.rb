@@ -150,7 +150,14 @@ class WrapRuntimeTest < Minitest::Spec
   let(:lib) { Trailblazer::Circuit::Task::Adapter::LibInterface }
 
   let(:my_create_node) do
-    my_exec_context = T.def_tasks(:in, :model, :out, :save, success_signal: nil, passthrough_signal: true)
+    my_exec_context = Class.new do
+      [:in, :model, :out, :save].each do |name|
+        define_method(name) do |lib_ctx, flow_options, signal, target_ctx:, **|
+          target_ctx = target_ctx.merge(seq: target_ctx[:seq] + [name])
+          return lib_ctx.merge(target_ctx: target_ctx), flow_options, signal # pass-through the signal.
+        end
+      end
+    end.new
 
     my_model_tw = Trailblazer::Circuit::Builder.Pipeline(
       [:"variable_mapping.in", my_exec_context.method(:in)],
