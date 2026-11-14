@@ -210,3 +210,14 @@ class CircuitBuilderTest < Minitest::Spec
     assert_equal Trailblazer::Circuit::Builder.Circuit(*tasks), Trailblazer::Circuit::Builder::Pipeline.(*tasks)
   end
 end
+
+class NodeBuilderTest < Minitest::Spec
+  it "builds a Node for you around the circuit" do
+    my_node = Trailblazer::Circuit::Builder.Node(
+      [:a, T.def_task(:a, success_signal: nil)]
+    )
+
+    assert_run my_node, node: true, seq: [:a]
+    assert_equal my_node.options, {}
+  end
+end
