@@ -9,7 +9,7 @@
         id, node = start_tuple
 
         loop do
-          # puts ">>>Processor #{id.inspect} <<<#{signal.inspect}>>> #{node.class} <#{lib_ctx.inspect}"
+          # puts ">>>Processor #{id.inspect} <<<#{signal.inspect}>>> #{node.class} #{lib_ctx[:target_ctx].to_h}"
           lib_ctx, flow_options, signal = runner.(
             lib_ctx,
             flow_options,
@@ -20,7 +20,7 @@
             id:     id,
           )
 
-          id, node, signal = circuit.resolve(id, signal) # DISCUSS: pass id and node? DISCUSS: allow returning the {signal} from resolve?
+          id, node, signal = circuit.resolve(id, signal) # DISCUSS: pass id and node?
 
           return lib_ctx, flow_options, signal unless node
           # unless ()
