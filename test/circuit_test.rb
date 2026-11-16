@@ -258,10 +258,10 @@ class CircuitResolveTest < Minitest::Spec
 
     node_writing_to_lib_ctx = Trailblazer::Circuit::Node::Scoped[:id, my_circuit_writing_to_lib_ctx, Trailblazer::Circuit::Processor]
 
-    lib_ctx, flow_options, signal = assert_run node_writing_to_lib_ctx, node: true, terminus: Right, seq: [], decision_signal: Right, signal: [], seq_: []
+    lib_ctx, flow_options, signal = assert_run node: node_writing_to_lib_ctx, terminus: Right, seq: [], decision_signal: Right, signal: [], seq_: []
     # assert_equal lib_ctx[:seq_], [:a, :b, :my_decider, :d, :f]
 
-    lib_ctx, flow_options, signal = assert_run node_writing_to_lib_ctx, node: true, terminus: Left, seq: [], decision_signal: Left, signal: [], seq_: []
+    lib_ctx, flow_options, signal = assert_run node: node_writing_to_lib_ctx, terminus: Left, seq: [], decision_signal: Left, signal: [], seq_: []
     # assert_equal lib_ctx[:seq_], [:a, :b, :my_decider, :e]
     require "benchmark/ips"
 
