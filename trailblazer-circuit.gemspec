@@ -30,5 +30,5 @@ Gem::Specification.new do |spec|
   spec.require_paths = ["lib"]
 
   spec.add_development_dependency "minitest-line"#, "~> 1.0"
-  spec.add_development_dependency "trailblazer-core-utils", "~> 0.0"
+  spec.add_development_dependency "trailblazer-core-utils", ">= 0.0.10", "< 0.1.0"
 end
