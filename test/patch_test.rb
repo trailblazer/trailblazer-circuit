@@ -14,11 +14,10 @@ class PatchTest < Minitest::Spec
       [:ab, my_pipe, Trailblazer::Circuit::Processor],
     )
 
-    my_top_pipe = Trailblazer::Circuit::Builder.Pipeline(
+    my_top_node = Trailblazer::Circuit::Builder.Node(
       [:d, my_exec_context.method(:d)],
       [:abc, my_outer_pipe, Trailblazer::Circuit::Processor],
     )
-    my_top_node = Trailblazer::Circuit::Node[my_top_pipe, Trailblazer::Circuit::Processor]
 
     # patch on the top pipe itself.
     my_new_top_node = Trailblazer::Circuit::Node::Patch.(

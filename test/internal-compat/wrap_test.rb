@@ -5,11 +5,11 @@ class WrapTest < Minitest::Spec
   it "what" do
     my_steps = T.def_tasks(:a, :b, :c, success_signal: nil)
     my_raise_step = ->(lib_ctx, flow_options, signal, do_raise: false, target_ctx:, **) do
-      target_ctx[:seq] << :d
+      seq = target_ctx[:seq] + [:d]
 
       raise if do_raise
 
-      return lib_ctx, flow_options, signal
+      return lib_ctx.merge(target_ctx: target_ctx.merge(seq: seq)), flow_options, signal
     end
 
     wrapped_pipe = _A::Circuit::Builder.Pipeline(
@@ -19,15 +19,15 @@ class WrapTest < Minitest::Spec
 
     my_node_with_wrap = Class.new(_A::Circuit::Node::Scoped) do
       def call(lib_ctx, flow_options, signal, **circuit_options)
-      begin
-        lib_ctx, flow_options, signal = super
-      rescue
-        lib_ctx[:target_ctx][:exception] = $!
-      end
+        begin
+          lib_ctx, flow_options, signal = super
+        rescue
+          lib_ctx = lib_ctx.merge(target_ctx: lib_ctx[:target_ctx].merge(exception: $!))
+        end
 
         return lib_ctx, flow_options, signal
       end
-    end[wrapped_pipe, _A::Circuit::Processor]
+    end[wrapped_pipe, _A::Circuit::Processor, copy_to_outer_ctx: [:target_ctx], copy_from_outer_ctx: [:target_ctx, :do_raise]]
 
     wrap_pipe = _A::Circuit::Builder.Pipeline(
       [:b,    my_steps.method(:b)],
@@ -39,7 +39,7 @@ class WrapTest < Minitest::Spec
     assert_nil lib_ctx[:target_ctx][:exception]
 
     # raise
-    lib_ctx, flow_options = assert_run wrap_pipe, seq: [:b, :a, :d, :c], do_raise: true
+    lib_ctx, flow_options = assert_run wrap_pipe, seq: [:b, :c], do_raise: true#, expected_target_variables: {exception: RuntimeError}
     assert_equal lib_ctx[:target_ctx][:exception].inspect, %(RuntimeError)
   end
 end
