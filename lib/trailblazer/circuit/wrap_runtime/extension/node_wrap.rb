@@ -13,6 +13,7 @@ module Trailblazer
             # Here, we still see the original :id we're wrapping.
             # puts "wrapping in extra node #{id.inspect}"
 
+            wrapped_node = node
             # DISCUSS: introduce a delegating special wrap Node class, that doesn't need options.
             node = wrapped_node.merge(options: {already_wrapped: true}) # FIXME: test that we use original {node} class.
 
