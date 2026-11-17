@@ -13,14 +13,12 @@ module Trailblazer
             # Here, we still see the original :id we're wrapping.
             # puts "wrapping in extra node #{id.inspect}"
 
-            wrapped_node = node
             # DISCUSS: introduce a delegating special wrap Node class, that doesn't need options.
-            original_node_options = node.to_h
-            new_node_options = original_node_options.merge(options: original_node_options[:options].merge(already_wrapped: true))
-            node = node.class.new(**new_node_options) # FIXME: test that we use original {node} class.
+            node = wrapped_node.merge(options: {already_wrapped: true}) # FIXME: test that we use original {node} class.
 
             id_for_wrap_node = :"task_wrap.call_task" # FIXME: do we need to invent that? can't we use the original id?
 
+            # TODO: use Builder.Node with kwargs!
             wrap_node = Trailblazer::Circuit::Node[
               Trailblazer::Circuit::Builder.Circuit( # this circuit can be extended with tracing, etc.
                 [id_for_wrap_node, node: node]

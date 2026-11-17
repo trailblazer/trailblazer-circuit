@@ -12,6 +12,7 @@ module Trailblazer
         end
 
         include Trailblazer::Circuit::Node::Call
+        include Trailblazer::Circuit::Node::Merge
 
         def call(lib_ctx, flow_options, signal, **circuit_options)
           super(lib_ctx, flow_options, signal, **circuit_options, **merge_to_circuit_options)

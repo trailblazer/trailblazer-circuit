@@ -49,6 +49,16 @@ class NodeScopedTest < Minitest::Spec
     end
   end
 
+  describe "Node#merge" do
+    it "copies all properties and keeps the class, creating a second instance" do
+      my_node = Trailblazer::Circuit::Node::Scoped[:a, "MyInterface", copy_from_outer_ctx: [:model]]
+      my_copy = my_node.merge(options: {business: true})
+
+      assert_equal my_node, Trailblazer::Circuit::Node::Scoped[:a, "MyInterface", options: {}, copy_from_outer_ctx: [:model]]
+      assert_equal my_copy, Trailblazer::Circuit::Node::Scoped[:a, "MyInterface", options: {business: true}, copy_from_outer_ctx: [:model]]
+    end
+  end
+
   # it "{#to_h}" do
   #   # this is currently tested implicitely above :D
   # end

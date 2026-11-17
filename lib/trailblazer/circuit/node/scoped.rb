@@ -15,6 +15,7 @@ module Trailblazer
         end
 
         include Node::Call
+        include Node::Merge
 
         # raise "do we need local_circuit_options, e.g. for :start_task?"
 

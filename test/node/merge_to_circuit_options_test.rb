@@ -40,6 +40,16 @@ class MergeToCircuitOptions_UnitTest < Minitest::Spec
       merge_to_circuit_options: {},
     }
   end
+
+  describe "Node#merge" do
+    it "copies all properties and keeps the class, creating a second instance" do
+      my_node = Trailblazer::Circuit::Node::MergeToCircuitOptions[:a, "MyInterface", merge_to_circuit_options: {exec_context: Module}]
+      my_copy = my_node.merge(merge_to_circuit_options: {exec_context: Object})
+
+      assert_equal my_node, Trailblazer::Circuit::Node::MergeToCircuitOptions[:a, "MyInterface", merge_to_circuit_options: {exec_context: Module}]
+      assert_equal my_copy, Trailblazer::Circuit::Node::MergeToCircuitOptions[:a, "MyInterface", merge_to_circuit_options: {exec_context: Object}]
+    end
+  end
 end
 
 class MergeToCircuitOptions_BuilderTest_IntegrationTest < Minitest::Spec

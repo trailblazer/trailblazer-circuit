@@ -12,7 +12,19 @@ module Trailblazer
         end
       end
 
+      module Merge
+        # node.merge(options: {value: "on"}) will merge the hash into {options}.
+        def merge(**hash_properties)
+          properties = to_h
+          # TODO: this only works for hash properties.
+          properties = properties.merge hash_properties.collect { |property, value| [property, properties[property].merge(value)] }.to_h
+
+          self.class.new(**properties)
+        end
+      end
+
       include Call
+      include Merge
     end
   end
 end

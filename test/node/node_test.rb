@@ -33,4 +33,14 @@ class NodeTest < Minitest::Spec
       }
     end
   end
+
+  describe "Node#merge" do
+    it "copies all properties and keeps the class, creating a second instance" do
+      my_node = Trailblazer::Circuit::Node[:a, MyInterface, options: {important: true}]
+      my_copy = my_node.merge(options: {data: 1})
+
+      assert_equal my_node, Trailblazer::Circuit::Node[:a, MyInterface, options: {important: true}]
+      assert_equal my_copy, Trailblazer::Circuit::Node[:a, MyInterface, options: {important: true, data: 1}]
+    end
+  end
 end
