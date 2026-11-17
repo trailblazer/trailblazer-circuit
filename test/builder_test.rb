@@ -211,13 +211,72 @@ class CircuitBuilderTest < Minitest::Spec
   end
 end
 
-class NodeBuilderTest < Minitest::Spec
+# Circuit.Builder()
+class BuilderTest < Minitest::Spec
   it "builds a Node for you around the circuit" do
-    my_node = Trailblazer::Circuit::Builder.Node(
+    my_node = Trailblazer::Circuit.Builder(
       [:a, T.def_task(:a, success_signal: nil)]
     )
 
     assert_run node: my_node, seq: [:a]
     assert_equal my_node.options, {}
+  end
+
+  it "allows passing kwargs as Node options" do
+    my_node = Trailblazer::Circuit.Builder(
+      [:a, T.def_task(:a, success_signal: nil)],
+      options: {important: true}
+    )
+
+    assert_run node: my_node, seq: [:a]
+    assert_equal my_node.options, {important: true}
+  end
+
+  # it "allows passing the Node class" do
+  #   my_node = Trailblazer::Circuit.Builder(
+  #     [:a, T.def_task(:a, success_signal: nil)],
+  #     options: {important: true}
+  #   )
+
+  #   assert_equal my_node.options, {important: true}
+  # end
+end
+
+class NodeBuilderTest < Minitest::Spec
+  MyInterface = Class.new
+
+  it "builds a Node" do
+    my_node = Trailblazer::Circuit::Builder.Node(:a, MyInterface)
+    assert_equal my_node, Trailblazer::Circuit::Node.new(task: :a, adapter: MyInterface, options: {})
+  end
+
+  it "accepts {**options} for node" do
+    my_node = Trailblazer::Circuit::Builder.Node(:a, MyInterface, options: {important: true})
+    assert_equal my_node, Trailblazer::Circuit::Node.new(task: :a, adapter: MyInterface, options: {important: true})
+  end
+
+  it "defaults adapter to LibInterface" do
+    my_node = Trailblazer::Circuit::Builder.Node(:a)
+    assert_equal my_node, Trailblazer::Circuit::Node.new(task: :a, adapter: Trailblazer::Circuit::Task::Adapter::LibInterface, options: {})
+  end
+
+  it "defaults adapter to LibInterface, allowing **options" do
+    my_node = Trailblazer::Circuit::Builder.Node(:a, options: {important: true})
+    assert_equal my_node, Trailblazer::Circuit::Node.new(task: :a, adapter: Trailblazer::Circuit::Task::Adapter::LibInterface, options: {important: true})
+  end
+
+  it "{scoped: true} automatically builds a Node::Scoped" do
+    my_node = Trailblazer::Circuit::Builder.Node(:a, scoped: true)
+    assert_equal my_node, Trailblazer::Circuit::Node::Scoped[:a, Trailblazer::Circuit::Task::Adapter::LibInterface]
+  end
+
+  it "{merge_to_lib_ctx: {data: 1}} automatically builds a Node::Scoped" do
+    my_node = Trailblazer::Circuit::Builder.Node(:a, merge_to_lib_ctx: {data: 1})
+    assert_equal my_node, Trailblazer::Circuit::Node::Scoped[:a, Trailblazer::Circuit::Task::Adapter::LibInterface, merge_to_lib_ctx: {data: 1}]
+  end
+
+  it "{exec_context: Module} automatically builds a Node::MergeToCircuitOptions" do
+    my_node = Trailblazer::Circuit::Builder.Node(:a, exec_context: Module)
+    assert_equal my_node, Trailblazer::Circuit::Node::MergeToCircuitOptions[:a, Trailblazer::Circuit::Task::Adapter::LibInterface, merge_to_circuit_options: {exec_context: Module}]
   end
 end

@@ -1,11 +1,11 @@
 module Trailblazer
   class Circuit
     class Node
-      class Scoped < Struct.new(:task, :interface, :options, :merge_to_lib_ctx, :copy_from_outer_ctx, :copy_to_outer_ctx, :return_outer_signal, keyword_init: true)
-        def self.[](task, interface, options: {}, merge_to_lib_ctx: {}, copy_from_outer_ctx: nil, copy_to_outer_ctx: [], return_outer_signal: false)
+      class Scoped < Struct.new(:task, :adapter, :options, :merge_to_lib_ctx, :copy_from_outer_ctx, :copy_to_outer_ctx, :return_outer_signal, keyword_init: true)
+        def self.[](task, adapter, options: {}, merge_to_lib_ctx: {}, copy_from_outer_ctx: nil, copy_to_outer_ctx: [], return_outer_signal: false)
           new(
             task: task,
-            interface: interface,
+            adapter: adapter,
             options: options,
             merge_to_lib_ctx: merge_to_lib_ctx,
             copy_from_outer_ctx: copy_from_outer_ctx,

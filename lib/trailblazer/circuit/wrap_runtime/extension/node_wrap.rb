@@ -19,20 +19,15 @@ module Trailblazer
 
             id_for_wrap_node = :"task_wrap.call_task" # FIXME: do we need to invent that? can't we use the original id?
 
-            # TODO: use Builder.Node with kwargs!
-            wrap_node = Trailblazer::Circuit::Node[
-              Trailblazer::Circuit::Builder.Circuit( # this circuit can be extended with tracing, etc.
-                [id_for_wrap_node, node: node]
-              ),
-              Trailblazer::Circuit::Processor,
+            wrap_node = Trailblazer::Circuit.Builder(
+              [id_for_wrap_node, node: node],
               options: {wrap_node: true}
-            ]
+            )
 
             circuit_options = {
               **circuit_options,
               node: wrap_node,
               id:   Id.new(id, wrapped_node), # DISCUSS: how to encode we're in a virtual node?
-              # node_wrap_data: {wrapped_id: wrapped_id}
             }
 
             return *args, circuit_options

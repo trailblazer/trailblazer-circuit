@@ -14,7 +14,7 @@ class PatchTest < Minitest::Spec
       [:ab, my_pipe, Trailblazer::Circuit::Processor],
     )
 
-    my_top_node = Trailblazer::Circuit::Builder.Node(
+    my_top_node = Trailblazer::Circuit.Builder(
       [:d, my_exec_context.method(:d)],
       [:abc, my_outer_pipe, Trailblazer::Circuit::Processor],
     )

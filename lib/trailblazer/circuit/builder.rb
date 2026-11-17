@@ -1,8 +1,13 @@
 module Trailblazer
   class Circuit
-    # Helpers for those who don't like or have a DSL :D
+    def self.Builder(*args, **options_for_node)
+      circuit = Builder.Pipeline(*args)
+
+      Node[circuit, Processor, **options_for_node]
+    end
+
+    # Helpers for creating runtime objects: Node and Circuit via this mini DSL.
     module Builder
-      # Pipeline is just another circiut, where each step has only one output.
       def self.Pipeline(*args)
         Builder::Pipeline.(*args)
       end
@@ -11,10 +16,18 @@ module Trailblazer
         Builder::Pipeline.(*args)
       end
 
-      def self.Node(*args) # TODO: test me. TODO: better name? {Node.Pipeline}? Node.from_steps is Claude's suggestion.
-        circuit = Pipeline(*args)
+      def self.Node(task, interface = Task::Adapter::LibInterface, scoped: false, merge_to_lib_ctx: nil, exec_context: false, **options_for_node)
+        node_class = Node
 
-        Node[circuit, Processor]
+        node_class = Node::Scoped if scoped || merge_to_lib_ctx
+        options_for_node = options_for_node.merge(merge_to_lib_ctx: merge_to_lib_ctx) if merge_to_lib_ctx
+
+        if exec_context
+          node_class = Node::MergeToCircuitOptions
+          options_for_node = {merge_to_circuit_options: {exec_context: exec_context}, **options_for_node}
+        end
+
+        return node_class[task, interface, **options_for_node]
       end
 
       module Pipeline
@@ -47,26 +60,11 @@ module Trailblazer
         def build_node_for(id, *args, node: nil, **options)
           return id, node if node
 
-          create_node(id, *args, **options)
+          return id, Builder.Node(*args, **options)
         end
 
         def normalize_resolver(next_task_id, connections: Resolver::Fixed.new(next_task_id), **options)
           return connections, options
-        end
-
-        # Defaulting happens here.
-        def create_node(id, task, interface = Task::Adapter::LibInterface, scoped: false, merge_to_lib_ctx: nil, exec_context: false, **options_for_node)
-          node_class = Node
-
-          node_class = Node::Scoped if scoped || merge_to_lib_ctx
-          options_for_node = options_for_node.merge(merge_to_lib_ctx: merge_to_lib_ctx) if merge_to_lib_ctx
-
-          if exec_context
-            node_class = Node::MergeToCircuitOptions
-            options_for_node = {merge_to_circuit_options: {exec_context: exec_context}, **options_for_node}
-          end
-
-          return id, node_class[task, interface, **options_for_node]
         end
       end
     end # Builder

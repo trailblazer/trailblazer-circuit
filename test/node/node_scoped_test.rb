@@ -17,7 +17,7 @@ class NodeScopedTest < Minitest::Spec
 
       assert_equal my_node.to_h, {
         :task=>:method_a,
-        :interface=>MyInterface,
+        :adapter=>MyInterface,
         :options=>{},
         :merge_to_lib_ctx=>{},
         :copy_from_outer_ctx=>nil,
@@ -42,7 +42,7 @@ class NodeScopedTest < Minitest::Spec
 
       assert_equal my_node.to_h, {
         :task=>:method_a,
-        :interface=>MyInterface,
+        :adapter=>MyInterface,
         :options=>{},
         **options
       }

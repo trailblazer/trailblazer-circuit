@@ -24,7 +24,7 @@ class MergeToCircuitOptions_UnitTest < Minitest::Spec
 
     assert_equal my_node.to_h, {
       :task=>:method_a,
-      :interface=>Object,
+      :adapter=>Object,
       :options=>{data: true},
       merge_to_circuit_options: {},
     }
@@ -35,7 +35,7 @@ class MergeToCircuitOptions_UnitTest < Minitest::Spec
 
     assert_equal my_node.to_h, {
       :task=>:method_a,
-      :interface=>Object,
+      :adapter=>Object,
       :options=>{},
       merge_to_circuit_options: {},
     }

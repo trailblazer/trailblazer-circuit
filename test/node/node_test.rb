@@ -18,7 +18,7 @@ class NodeTest < Minitest::Spec
 
       assert_equal my_node.to_h, {
         :task=>:method_a,
-        :interface=>MyInterface,
+        :adapter=>MyInterface,
         :options=>{},
       }
     end
@@ -28,7 +28,7 @@ class NodeTest < Minitest::Spec
 
       assert_equal my_node.to_h, {
         :task=>:method_a,
-        :interface=>MyInterface,
+        :adapter=>MyInterface,
         :options=>{},
       }
     end

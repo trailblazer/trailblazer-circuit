@@ -12,7 +12,7 @@ class IntrospectionTest < Minitest::Spec
       [:f, my_g_pipe, Trailblazer::Circuit::Processor]
     )
 
-    top_node = Trailblazer::Circuit::Builder.Node(
+    top_node = Trailblazer::Circuit.Builder(
       [:a, :a],
       [:b, my_nested_pipe, _A::Circuit::Processor],
       [:c, :c],
