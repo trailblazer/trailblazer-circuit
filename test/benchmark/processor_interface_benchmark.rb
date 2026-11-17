@@ -103,34 +103,35 @@ end
 
 
 
-class MyNodeidAdapter
-  def self.call(_, lib_ctx, flow_options, signal, runner, _)
+class MyTripleTask
+  def self.call(lib_ctx, flow_options, signal)
     # with an adapter that doesn't do anything but extracting the node, we don't need tasks.
     return lib_ctx, flow_options, signal
   end
 end
 
-class MyNodeidNode < Trailblazer::Circuit::Node
-  def call(lib_ctx, flow_options, signal, runner, circuit_tuple)
-    adapter.(task, lib_ctx, flow_options, signal, runner, circuit_tuple)
+class MyTripleNode < Struct.new(:task) #Trailblazer::Circuit::Node
+  def call(lib_ctx, flow_options, signal, node, id)
+    # the idea here is that we call a task, and it could be a Circuit, an Adapter, or the task directly. that way, we save the Adapter.
+    task.(lib_ctx, flow_options, signal) # FIXME: damn, we need the runner here! could be part of flow_options, it's barely used, anyway!
   end
 end
 
-class MyNodeidProcessor
+class MyTripleProcessor < Struct.new(:circuit)
   # TODO: this can still be optimized for runtime speed, even though I spent days on it already.
-  def self.call(circuit, lib_ctx, flow_options, signal, runner, node)
-    start_tuple = circuit.start_tuple
-    id, node = start_tuple
+  def call(lib_ctx, flow_options, signal) # FIXME: what if we need the node/id here? for an exception?
+    id, node = circuit.start_tuple # DISCUSS: this could also be done in the "Adapter", and the Processor could be the tas
 
     loop do
       # puts ">>>Processor #{id.inspect} <<<#{signal.inspect}>>> #{node.class} #{lib_ctx[:target_ctx].to_h}"
-      lib_ctx, flow_options, signal = runner.(
+      lib_ctx, flow_options, signal = flow_options[:runner].(
         lib_ctx,
         flow_options,
         signal,
         # **circuit_options,
-        runner,
+        # runner,
         node, # NOTE: you can access the current node in a task via the CircuitInterface.
+        id,
       )
 
       id, node, signal = circuit.resolve(id, signal) # DISCUSS: pass id and node?
@@ -144,23 +145,23 @@ class MyNodeidProcessor
   end
 end
 
-class MyNodeidRunner
-  def self.call(lib_ctx, flow_options, signal, runner, node)
-    node.(lib_ctx, flow_options, signal, runner, node)
+class MyTripleRunner
+  def self.call(lib_ctx, flow_options, signal, node, id)
+    node.(lib_ctx, flow_options, signal, node, id)
   end
 end
 
 nested_circuit = Trailblazer::Circuit::Builder.Circuit(
-  *((1..10).collect { |i| [i, node: MyNodeidNode[nil, MyNodeidAdapter]] })
+  *((1..10).collect { |i| [i, node: MyTripleNode[MyTripleTask]] })
 )
 
 circuit = Trailblazer::Circuit::Builder.Circuit(
-  *((1..10).collect { |i| [i, node: MyNodeidNode[nested_circuit, MyNodeidProcessor]] })
+  *((1..10).collect { |i| [i, node: MyTripleNode[MyTripleProcessor.new(nested_circuit)]] })
 )
 
-tuple_circuit_node = MyNodeidNode[circuit, MyNodeidProcessor]
+triple_circuit_node = MyTripleNode[MyTripleProcessor.new(circuit)]
 
-MyNodeidRunner.({}, {}, nil, MyNodeidRunner, tuple_circuit_node)
+MyTripleRunner.({}, {runner: MyTripleRunner}, nil, triple_circuit_node, nil)
 
 
 
@@ -179,8 +180,8 @@ Benchmark.ips do |x|
     MyRunner.({}, {}, nil, MyRunner, circuit_node, nil)
   }
 
-  x.report("proc node-id") {
-    MyNodeidRunner.({}, {}, nil, MyNodeidRunner, tuple_circuit_node)
+  x.report("proce triple") {
+    MyTripleRunner.({}, {runner: MyTripleRunner}, nil, triple_circuit_node, nil)
   }
 
   x.compare!
