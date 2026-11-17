@@ -2,14 +2,21 @@ require "test_helper"
 require "benchmark/ips"
 
 class MyOldAdapter
-  def self.call(_, lib_ctx, flow_options, signal, node:, **circuit_options)
+  def self.call(task, lib_ctx, flow_options, signal, **circuit_options)
     # with an adapter that doesn't do anything but extracting the node, we don't need tasks.
+    return task.(lib_ctx, flow_options, signal) # let's be fair here and simply call the lib task, no lib kwargs!
+    # return lib_ctx, flow_options, signal
+  end
+end
+
+class MyOldTask
+  def self.call(lib_ctx, flow_options, signal)
     return lib_ctx, flow_options, signal
   end
 end
 
 old_nested_circuit = Trailblazer::Circuit::Builder.Circuit(
-  *((1..10).collect { |i| [i, nil, MyOldAdapter] })
+  *((1..10).collect { |i| [i, MyOldTask, MyOldAdapter] })
 )
 
 old_circuit_node = Trailblazer::Circuit.Builder(
@@ -20,10 +27,11 @@ Trailblazer::Circuit::Node::Runner.({}, {}, nil, node: old_circuit_node, runner:
 
 
 
+
 class MyAdapter
-  def self.call(_, lib_ctx, flow_options, signal, runner, node, id)
+  def self.call(task, lib_ctx, flow_options, signal, runner, node, id)
     # with an adapter that doesn't do anything but extracting the node, we don't need tasks.
-    return lib_ctx, flow_options, signal
+    return task.(lib_ctx, flow_options, signal)
   end
 end
 
@@ -68,7 +76,7 @@ class MyRunner
 end
 
 nested_circuit = Trailblazer::Circuit::Builder.Circuit(
-  *((1..10).collect { |i| [i, node: MyNode[nil, MyAdapter]] })
+  *((1..10).collect { |i| [i, node: MyNode[MyOldTask, MyAdapter]] })
 )
 
 circuit = Trailblazer::Circuit::Builder.Circuit(
@@ -82,17 +90,13 @@ MyRunner.({}, {}, nil, MyRunner, circuit_node, nil)
 
 
 
+# module Call
+#   def call(ctx, flow_options, signal, runner, node, id) # DISCUSS: do we need the node here? => WrapRuntime?
+#     # could we not just call the task here with LibInterface?
 
-
-
-
-module Call
-  def call(ctx, flow_options, signal, runner, node, id) # DISCUSS: do we need the node here? => WrapRuntime?
-    # could we not just call the task here with LibInterface?
-
-    adapter.(task, ctx, flow_options, signal, **circuit_options) # DISCUSS: could we pass node_processor_options to Processor.() to set a differing start task?
-  end
-end
+#     adapter.(task, ctx, flow_options, signal, **circuit_options) # DISCUSS: could we pass node_processor_options to Processor.() to set a differing start task?
+#   end
+# end
 
 
 
@@ -111,7 +115,7 @@ class MyTripleTask
 end
 
 class MyTripleNode < Struct.new(:task) #Trailblazer::Circuit::Node
-  def call(lib_ctx, flow_options, signal, node, id)
+  def call(lib_ctx, flow_options, signal)
     # the idea here is that we call a task, and it could be a Circuit, an Adapter, or the task directly. that way, we save the Adapter.
     task.(lib_ctx, flow_options, signal) # FIXME: damn, we need the runner here! could be part of flow_options, it's barely used, anyway!
   end
@@ -124,7 +128,7 @@ class MyTripleProcessor < Struct.new(:circuit)
 
     loop do
       # puts ">>>Processor #{id.inspect} <<<#{signal.inspect}>>> #{node.class} #{lib_ctx[:target_ctx].to_h}"
-      lib_ctx, flow_options, signal = flow_options[:runner].(
+      lib_ctx, flow_options, signal = flow_options.(
         lib_ctx,
         flow_options,
         signal,
@@ -147,7 +151,8 @@ end
 
 class MyTripleRunner
   def self.call(lib_ctx, flow_options, signal, node, id)
-    node.(lib_ctx, flow_options, signal, node, id)
+    # node.(lib_ctx, flow_options, signal, node, id)
+    node.(lib_ctx, flow_options, signal)
   end
 end
 
@@ -156,12 +161,14 @@ nested_circuit = Trailblazer::Circuit::Builder.Circuit(
 )
 
 circuit = Trailblazer::Circuit::Builder.Circuit(
+  # *((1..10).collect { |i| [i, node: MyTripleNode[MyTripleProcessor.new(nested_circuit)]] })
   *((1..10).collect { |i| [i, node: MyTripleNode[MyTripleProcessor.new(nested_circuit)]] })
 )
 
 triple_circuit_node = MyTripleNode[MyTripleProcessor.new(circuit)]
 
-MyTripleRunner.({}, {runner: MyTripleRunner}, nil, triple_circuit_node, nil)
+# MyTripleRunner.({}, {runner: MyTripleRunner}, nil, triple_circuit_node, nil)
+MyTripleRunner.({}, MyTripleRunner, nil, triple_circuit_node, nil)
 
 
 
@@ -181,7 +188,7 @@ Benchmark.ips do |x|
   }
 
   x.report("proce triple") {
-    MyTripleRunner.({}, {runner: MyTripleRunner}, nil, triple_circuit_node, nil)
+    MyTripleRunner.({}, MyTripleRunner, nil, triple_circuit_node, nil)
   }
 
   x.compare!
