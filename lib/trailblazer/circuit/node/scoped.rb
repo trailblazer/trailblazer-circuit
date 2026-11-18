@@ -2,6 +2,8 @@ module Trailblazer
   class Circuit
     class Node
       class Scoped < Struct.new(:task, :adapter, :options, :merge_to_lib_ctx, :copy_from_outer_ctx, :copy_to_outer_ctx, :return_outer_signal, keyword_init: true)
+        Context = Circuit::Context
+
         def self.[](task, adapter, options: {}, merge_to_lib_ctx: {}, copy_from_outer_ctx: nil, copy_to_outer_ctx: [], return_outer_signal: false)
           new(
             task: task,
@@ -19,25 +21,25 @@ module Trailblazer
 
         # raise "do we need local_circuit_options, e.g. for :start_task?"
 
-        def call(outer_ctx, flow_options, outer_signal, **circuit_options)
-          ctx = scope(outer_ctx, flow_options, outer_signal, **circuit_options)
+        def call(outer_ctx, flow_options, outer_signal)
+          ctx = scope(outer_ctx, outer_signal)
 
-          ctx, flow_options, signal = super(ctx, flow_options, outer_signal, **circuit_options)
+          ctx, flow_options, signal = super(ctx, flow_options, outer_signal)
 
-          ctx, signal = unscope(ctx, outer_ctx, signal, outer_signal, **circuit_options)
+          ctx, signal = unscope(ctx, outer_ctx, signal, outer_signal)
 
           return ctx, flow_options, signal
         end
 
         # @private
-        def scope(outer_ctx, flow_options, outer_signal, context_implementation:, **)
-          context_implementation.scope(outer_ctx, copy_from_outer_ctx, merge_to_lib_ctx) # {copy_from_outer_ctx} and {merge_to_lib_ctx} are attrs.
+        def scope(outer_ctx, outer_signal)
+          Context.scope(outer_ctx, copy_from_outer_ctx, merge_to_lib_ctx) # {copy_from_outer_ctx} and {merge_to_lib_ctx} are attrs.
         end
 
         # @private
-        def unscope(lib_ctx, outer_ctx, signal, outer_signal, context_implementation:, **)
+        def unscope(lib_ctx, outer_ctx, signal, outer_signal)
           # Per default, we do NOT copy anything to {outer_ctx}.
-          lib_ctx = context_implementation.unscope(outer_ctx, lib_ctx, copy_to_outer_ctx)
+          lib_ctx = Context.unscope(outer_ctx, lib_ctx, copy_to_outer_ctx)
 
               # discard the returned signal from this circuit.
               if return_outer_signal

@@ -3,21 +3,19 @@
     # Executes a Circuit instance, implementing the code flow logic.
     # A circuit is basically a hash of tasks pointing to their following tasks,
     # keyed by a signal.
-    class Processor
+    class Processor # FIXME: Rename to Call.
       # TODO: this can still be optimized for runtime speed, even though I spent days on it already.
-      def self.call(circuit, lib_ctx, flow_options, signal, runner:, start_tuple: circuit.start_tuple, **circuit_options)
-        id, node = start_tuple
+      def self.call(circuit, lib_ctx, flow_options, signal)
+        id, node = circuit.start_tuple
 
         loop do
           # puts ">>>Processor #{id.inspect} <<<#{signal.inspect}>>> #{node.class} #{lib_ctx[:target_ctx].to_h}"
-          lib_ctx, flow_options, signal = runner.(
+          lib_ctx, flow_options, signal = flow_options.(
             lib_ctx,
             flow_options,
             signal,
-            **circuit_options,
-            runner: runner,
-            node:   node, # NOTE: you can access the current node in a task via the CircuitInterface.
-            id:     id,
+            node,
+            id,
           )
 
           id, node, signal = circuit.resolve(id, signal) # DISCUSS: pass id and node?

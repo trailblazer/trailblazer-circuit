@@ -1,6 +1,27 @@
 require "test_helper"
-
+# Plan is to always go through Builder.
 class CircuitTest < Minitest::Spec
+  let(:my_exec_context) { T.def_tasks(:a, :b, :c, success_signal: nil) }
+
+  # def b(lib_ctx, flow_options, signal, target_ctx:, **)
+  #   seq = target_ctx[:seq] + [:b]
+
+  #   return lib_ctx.merge(target_ctx: target_ctx.merge(seq: seq)), flow_options, signal
+  # end
+
+  it "what" do
+    top_node = Trailblazer::Circuit.Builder(
+      [:a, my_exec_context.method(:a)],
+      [:b, :b, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod, merge_to_lib_ctx: {exec_context: my_exec_context}, copy_to_outer_ctx: [:target_ctx]],
+    )
+
+    pp top_node
+    assert_run node: top_node, seq: [:a, :b]
+  end
+end
+
+# This is the low-level API test, where we build Circuit manually.
+class CircuitLowLevelTest < Minitest::Spec
   let(:my_exec_context) { T.def_tasks(:a, :b, :c, success_signal: nil) }
   let(:my_nodes) do
     {
@@ -101,11 +122,13 @@ class CircuitScopeTest < Minitest::Spec
 
     lib_ctx, flow_options = assert_run circuit, terminus: nil, seq: []
 
-    assert_equal flow_options, {
+    runner = Trailblazer::Circuit::Node::Runner
+
+    assert_equal flow_options.to_h, runner.new(
       :a=> a = [ctx={:target_ctx=>{:seq=>[]}}, {}, nil, ctx],
       :b=> b = [{:target_ctx=>{:seq=>[]}, :d=>4}, {a: a}, nil, {**ctx, :d=>4}],
       :c=> c = [{:target_ctx=>{:seq=>[]}, :d=>4}, {a: a, b: b}, nil, {**ctx, :d=>4}],
-    }
+    ).to_h
 
     assert_equal lib_ctx, {:target_ctx=>{:seq=>[]}, :d=>4}
   end
@@ -117,7 +140,7 @@ class CircuitScopeTest < Minitest::Spec
     )
 
     lib_ctx, flow_options = assert_run circuit, terminus: nil, seq: []
-    assert_equal flow_options, {
+    assert_equal flow_options.to_h, {
       :a=> a = [ctx={:target_ctx=>{:seq=>[]}}, {}, nil, ctx],
       :b=> b = [{**ctx, :pollute=>true}, {a: a}, nil, {**ctx, :pollute=>true}],
     }
@@ -181,13 +204,11 @@ class CircuitResolveTest < Minitest::Spec
 
     my_circuit = Trailblazer::Circuit.build(flow_map: my_flow_map, nodes: my_nodes)
 
-    my_circuit_options = {exec_context: my_exec_context, runner: Trailblazer::Circuit::Node::Runner}
-
-    assert_run my_circuit, terminus: Right, seq: [:a, :b, :c], circuit_options: my_circuit_options
-    assert_run my_circuit, terminus: Right, seq: [:a, :failure], circuit_options: my_circuit_options, target_ctx: {seq: [], a: Left}
+    assert_run my_circuit, terminus: Right, seq: [:a, :b, :c], exec_context: my_exec_context
+    assert_run my_circuit, terminus: Right, seq: [:a, :failure], exec_context: my_exec_context, target_ctx: {seq: [], a: Left}
 
     # With a Reolver::Fixed, a terminating node can return any signal, but still terminates.
-    assert_run my_circuit, terminus: "c_says_Right", seq: [:a, :b, :c], circuit_options: my_circuit_options, target_ctx: {seq: [], c: "c_says_Right"}
+    assert_run my_circuit, terminus: "c_says_Right", seq: [:a, :b, :c], exec_context: my_exec_context, target_ctx: {seq: [], c: "c_says_Right"}
   end
 
   it "by using a custom Resolver, we can implement (fast?) value-on-signal circuits" do

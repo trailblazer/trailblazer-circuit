@@ -9,7 +9,7 @@ class RescueHandlerTest < Minitest::Spec
 
   it "what" do
     # NOTE: this is the reason I originally started to rewrite the entire core a few months ago :D
-    my_adapter_to_weird_signature = ->(user_handler, lib_ctx, flow_options, signal, **) do
+    my_adapter_to_weird_signature = ->(user_handler, lib_ctx, flow_options, signal) do
       target_ctx = lib_ctx[:target_ctx]
       target_ctx, flow_options, signal = user_handler.(target_ctx, flow_options, exception: RuntimeError)
 
@@ -22,6 +22,6 @@ class RescueHandlerTest < Minitest::Spec
 
     lib_ctx, flow_options = assert_run my_pipe, terminus: "Right", seq: []
     assert_equal lib_ctx, {:target_ctx=>{:seq=>[], :exception_class=>Class}}
-    assert_equal flow_options, {}
+    assert_equal flow_options.to_h, {}
   end
 end

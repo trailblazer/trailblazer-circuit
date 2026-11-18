@@ -21,9 +21,10 @@ module Trailblazer
       # DISCUSS: in this "pure" implementation it is completely up to the extensions what
       #          is gonna happen to the extended nodes.
       class Runner < Node::Runner
-        def self.call(lib_ctx, flow_options, signal, wrap_runtime:, **circuit_options)
-          # circuit_options = wrap_runtime.(**circuit_options) # FIXME: do we pass wrap_runtime?
-          lib_ctx, flow_options, signal, circuit_options = wrap_runtime.(lib_ctx, flow_options, signal, **circuit_options) # FIXME: do we pass wrap_runtime?
+        def call(lib_ctx, flow_options, signal, node, id)
+          wrap_runtime = flow_options.fetch(:wrap_runtime)
+
+          lib_ctx, flow_options, signal, node, id = wrap_runtime.(lib_ctx, flow_options, signal, node, id)
 
           super # DISCUSS: how does super know it has to merge :wrap_runtime?
         end

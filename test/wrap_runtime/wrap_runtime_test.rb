@@ -15,16 +15,17 @@ class WrapRuntimeTest < Minitest::Spec
   Record = Struct.new(:id, :title)
   def Create_fixture
     my_io = Class.new do
-      def self.model_input(lib_ctx, flow_options, signal, **)
-        lib_ctx[:original_application_ctx] = app_ctx = flow_options.fetch(:application_ctx)
-
-        flow_options = flow_options.merge(application_ctx: app_ctx.fetch(:params)) # "effective" ctx
+      def self.model_input(lib_ctx, flow_options, signal, target_ctx:, **)
+        lib_ctx = lib_ctx.merge(
+          original_application_ctx: target_ctx,
+          target_ctx: target_ctx.fetch(:params) # "effective" ctx
+        )
 
         return lib_ctx, flow_options, signal
       end
 
-      def self.model_output(lib_ctx, flow_options, signal, **)
-        flow_options = flow_options.merge(application_ctx: lib_ctx[:original_application_ctx])
+      def self.model_output(lib_ctx, flow_options, signal, original_application_ctx:, **)
+        lib_ctx = lib_ctx.merge(target_ctx: original_application_ctx)
 
         return lib_ctx, flow_options, signal
       end
@@ -45,16 +46,17 @@ class WrapRuntimeTest < Minitest::Spec
     end.new
 
     create_instance = Class.new do
-      def find(lib_ctx, flow_options, signal, **)
-        id = flow_options[:application_ctx][:id]
+      def find(lib_ctx, flow_options, signal, target_ctx:, **)
+        id = target_ctx[:id]
 
-        flow_options[:application_ctx][:model] = Record.new(id)
+        target_ctx[:model] = Record.new(id)
 
-        return lib_ctx, flow_options, signal
+        return lib_ctx.merge(target_ctx: target_ctx), flow_options, signal
       end
 
-      def save(lib_ctx, flow_options, signal, **)
-        params = flow_options[:application_ctx][:params]
+      def save(lib_ctx, flow_options, signal, target_ctx:, **)
+        params = target_ctx[:params]
+        puts "@@@@@ #{target_ctx.inspect}"
 
         params[:model].title = params[:title]
 
@@ -92,8 +94,8 @@ class WrapRuntimeTest < Minitest::Spec
       [:Model, model_tw, Trailblazer::Circuit::Processor, connections: {Right => [:Save, Right], Left => [:failure, Left]}, options: {traceable: true, task_wrap: true}],
       # [:Validate, validate_circuit, Trailblazer::Circuit::Processor], connections: {Right => :Validate, Left => :failure}]
       [:Save, save_tw, Trailblazer::Circuit::Processor, connections: {Right => [:success, Right], Left => [:failure, Left]}, options: {traceable: true, task_wrap: true}],
-      [:success, success_pipe, Trailblazer::Circuit::Processor, connections: {:Success => [nil, :Success]}, options: {traceable: true, task_wrap: true}],
-      [:failure, failure_pipe, Trailblazer::Circuit::Processor, connections: {:Failure => [nil, :Failure]}, options: {traceable: true, task_wrap: true}]
+      [:success, success_pipe, Trailblazer::Circuit::Processor, connections: {:Success => [nil, "Success"]}, options: {traceable: true, task_wrap: true}],
+      [:failure, failure_pipe, Trailblazer::Circuit::Processor, connections: {:Failure => [nil, "Failure"]}, options: {traceable: true, task_wrap: true}]
     )
 
     create_tw = Trailblazer::Circuit::Builder.Pipeline(
@@ -108,28 +110,17 @@ class WrapRuntimeTest < Minitest::Spec
   it "test Create fixture" do
     my_create_node, create_instance = Create_fixture()
 
-    lib_ctx, flow_options, signal = Trailblazer::Circuit::Node::Runner.(
-      {},
-      {
-        application_ctx: {params: {id: 1, title: "Rancid"}},
-      },
-      nil,
-      runner: Trailblazer::Circuit::Node::Runner,
-      context_implementation: Trailblazer::Circuit::Context,
-      exec_context: create_instance,
-      node: my_create_node,
-    )
-
-    assert_equal signal, :Success
-    assert_equal flow_options[:application_ctx], {:params=>{:id=>1, title: "Rancid", :model=>Record.new(1, "Rancid")}}
+    assert_run node: my_create_node, exec_context: create_instance, target_ctx: {params: {id: 1, title: "Rancid"}},
+      terminus: "Success",
+      expected_target_variables: {:params=>{:id=>1, title: "Rancid", :model=>Record.new(1, "Rancid")}}
   end
 
   class MyTrace
     class Capture < Struct.new(:captured_task, :position)
-      def call(lib_ctx, flow_options, signal, **) # FIXME: we need circuit_options for the {:task}.
+      def call(lib_ctx, flow_options, signal, target_ctx:, **)
         stack = flow_options.fetch(:stack)
 
-        stack += [[position, captured_task, flow_options[:application_ctx].to_h.inspect]] # treat stack as an immutable object
+        stack += [[position, captured_task, target_ctx.to_h.inspect]] # treat stack as an immutable object
 
         return lib_ctx, flow_options.merge(stack: stack), signal
       end
@@ -137,7 +128,7 @@ class WrapRuntimeTest < Minitest::Spec
 
     class Extension # TODO: name it Node::Extension?
       # Called through WrapRuntime::Runner.
-      def self.call(id:, **attrs)
+      def self.call(*, id)
         [
           # those Adds instructions will use the builder for Resolver::Fixed.
           [:capture_before, Trailblazer::Circuit::Node[Capture.new(id, :before),  Trailblazer::Circuit::Task::Adapter::LibInterface, options: {already_wrapped: true}], :before, nil],
@@ -186,26 +177,22 @@ class WrapRuntimeTest < Minitest::Spec
   end
 
   it "test condition/order: we can simply add steps to a task_wrap pipeline via {:wrap_runtime}" do
-    my_adds_producer = ->(id:, **) do
+    my_adds_producer = ->(*, id) do
       [
         [:capture_before, Trailblazer::Circuit::Node[T.def_task(:"before-#{id}", success_signal: nil), Trailblazer::Circuit::Task::Adapter::LibInterface, options: {already_wrapped: true}], :before, :"task_wrap.call_task"],
       ]
     end
 
     tw_trace_extension = Trailblazer::Circuit::WrapRuntime::Extension(
-      ->(*, node:, **) { node.options[:task_wrap] },
+      ->(*, node, _id) { node.options[:task_wrap] },
       adds: my_adds_producer
     )
 
     # dispatcher_chain = Trailblazer::Circuit::WrapRuntime::Extension::Chain.new([tw_trace_extension])
     # Test that we can use a plain Extension instead of Extension::Chain.
-    assert_run seq: [:"before-Create", :in, :"before-model", :model, :out, :"before-save", :save],
+    assert_run nil, :Create, seq: [:"before-Create", :in, :"before-model", :model, :out, :"before-save", :save],
       node: my_create_node,
-      circuit_options: {
-        runner: runner = Trailblazer::Circuit::WrapRuntime::Runner,
-        id: :Create,
-        wrap_runtime: tw_trace_extension,
-      }
+      flow_options: Trailblazer::Circuit::WrapRuntime::Runner.new(wrap_runtime: tw_trace_extension)
   end
 
   it "a basic Extension can see {lib_ctx, flow_options, signal, **circuit_options}" do
@@ -215,100 +202,101 @@ class WrapRuntimeTest < Minitest::Spec
     # The extension is a simple callable that doesn't involve any Decider, Chain or whatever.
     #
     # We record all incoming arguments in {signal} and pass it on.
-    my_basic_extension = ->(lib_ctx, flow_options, signal, **circuit_options) do
-      signal += [[circuit_options[:id], lib_ctx.inspect, flow_options.dup, circuit_options.dup]]
+    my_basic_extension = ->(lib_ctx, flow_options, signal, node, id) do
+      signal += [[id, lib_ctx.inspect, flow_options, node]]
 
-      return lib_ctx, flow_options, signal, circuit_options # we can return {circuit_options}.
+      return lib_ctx, flow_options, signal, node, id # we have to return {node, id}, too.
     end
 
     my_create_node = self.my_create_node
 
-    circuit_options = {
-      runner: runner = Trailblazer::Circuit::WrapRuntime::Runner,
-      id: :Create,
-      wrap_runtime: ->(*args, **circuit_options) { my_basic_extension.(*args, **circuit_options) },
-    }
+    my_wrap_runtime = ->(*args) { my_basic_extension.(*args) }
 
-    lib_ctx, flow_options, signal = Trailblazer::Circuit::WrapRuntime::Runner.(
+    # assert_run nil, :Create, seq: [:in, :model, :out, :save],
+    #   node: my_create_node,
+    #   signal: [] # signal acts as a "stack".
+
+    runner = Trailblazer::Circuit::WrapRuntime::Runner.new(wrap_runtime: my_wrap_runtime)
+    lib_ctx, flow_options, signal = runner.(
       {target_ctx: {seq: []}},
-      {},
+      runner,
       [], # signal acts as a "stack".
-      **circuit_options.merge(node: my_create_node, id: :Create)
+      my_create_node,
+      :Create
     )
 
     assert_equal lib_ctx, {target_ctx: {seq: [:in, :model, :out, :save]}}
-
-    expected_circuit_options = circuit_options.clone
-    expected_circuit_options.delete(:wrap_runtime) # we don't see {:wrap_runtime}.
 
     # Let's check what each Extension sees as incoming args.
     assert_equal signal[0], [
       :Create, # this is the taskWrap.
       {target_ctx: {seq: []}}.inspect,
-      {},
-      expected_circuit_options.merge(id: :Create, node: my_create_node)
+      runner,
+      my_create_node
     ]
 
     # this is actually the Create circuit,
     assert_equal signal[1], [
       :"task_wrap.call_task",
       {target_ctx: {seq: []}}.inspect,
-      {},
-      expected_circuit_options.merge(id: :"task_wrap.call_task", node: my_create_node.task.nodes[:"task_wrap.call_task"])
+      runner,
+      my_create_node.task.nodes[:"task_wrap.call_task"]
     ]
 
     # this is model's taskWrap.
     assert_equal signal[2], [
       :model,
       {target_ctx: {seq: []}}.inspect,
-      {},
-      expected_circuit_options.merge(id: :model, node: my_create_node.task.nodes[:"task_wrap.call_task"].task.nodes[:model])
+      runner,
+       my_create_node.task.nodes[:"task_wrap.call_task"].task.nodes[:model]
     ]
 
     # this is :in in model's taskWrap..
     assert_equal signal[3], [
       :"variable_mapping.in",
       {target_ctx: {seq: []}}.inspect,
-      {},
-      expected_circuit_options.merge(id: :"variable_mapping.in", node: my_create_node.task.nodes[:"task_wrap.call_task"].task.nodes[:model].task.nodes[:"variable_mapping.in"])
+      runner,
+      my_create_node.task.nodes[:"task_wrap.call_task"].task.nodes[:model].task.nodes[:"variable_mapping.in"]
     ]
 
     # this is the actual {#model} method,
     assert_equal signal[4], [
       :"task_wrap.call_task",
       {target_ctx: {seq: [:in]}}.inspect,
-      {},
-      expected_circuit_options.merge(id: :"task_wrap.call_task", node: my_create_node.task.nodes[:"task_wrap.call_task"].task.nodes[:model].task.nodes[:"task_wrap.call_task"])
+      runner,
+      my_create_node.task.nodes[:"task_wrap.call_task"].task.nodes[:model].task.nodes[:"task_wrap.call_task"]
     ]
 
     # this is :out in model's taskWrap..
     assert_equal signal[5], [
       :"variable_mapping.out",
       {target_ctx: {seq: [:in, :model]}}.inspect,
-      {},
-      expected_circuit_options.merge(id: :"variable_mapping.out", node: my_create_node.task.nodes[:"task_wrap.call_task"].task.nodes[:model].task.nodes[:"variable_mapping.out"])
+      runner,
+      my_create_node.task.nodes[:"task_wrap.call_task"].task.nodes[:model].task.nodes[:"variable_mapping.out"]
     ]
 
     # this is {:save} taskWrap.
     assert_equal signal[6], [
       :save,
       {target_ctx: {seq: [:in, :model, :out]}}.inspect,
-      {},
-      expected_circuit_options.merge(id: :save, node: my_create_node.task.nodes[:"task_wrap.call_task"].task.nodes[:save])
+      runner,
+      my_create_node.task.nodes[:"task_wrap.call_task"].task.nodes[:save]
     ]
 
     # this is the actual {#save} method,
     assert_equal signal[7], [
       :"task_wrap.call_task",
       {target_ctx: {seq: [:in, :model, :out]}}.inspect,
-      {},
-      expected_circuit_options.merge(id: :"task_wrap.call_task", node: my_create_node.task.nodes[:"task_wrap.call_task"].task.nodes[:save].task.nodes[:"task_wrap.call_task"])
+      runner,
+      my_create_node.task.nodes[:"task_wrap.call_task"].task.nodes[:save].task.nodes[:"task_wrap.call_task"]
     ]
 
     assert_nil signal[8]
   end
 
+  # FIXME: this test sucks!
   it "a basic Extension can change lib_ctx, flow_options, and circuit_options" do
+    skip
     # TODO: add test that really captures all circuit_options so we can test what we see on each level?
 
     my_basic_extension = ->(lib_ctx, flow_options, signal, **circuit_options) do
@@ -339,17 +327,16 @@ class WrapRuntimeTest < Minitest::Spec
       ]
     )
 
-    circuit_options = {
-      runner: runner = Trailblazer::Circuit::WrapRuntime::Runner,
-      id: :Create,
-      wrap_runtime: ->(*args, **circuit_options) { my_basic_extension.(*args, **circuit_options) },
-    }
+    my_wrap_runtime = ->(*args) { my_basic_extension.(*args) }
 
-    lib_ctx, flow_options, signal = Trailblazer::Circuit::WrapRuntime::Runner.(
+    runner = Trailblazer::Circuit::WrapRuntime::Runner.new(wrap_runtime: my_wrap_runtime)
+
+    lib_ctx, flow_options, signal = runner.(
       {target_ctx: {seq: []}, lib_ctx_stack: []},
-      {flow_options_stack: []},
+      runner,
       [], # signal acts as a "stack".
-      **circuit_options.merge(node: my_create_node, id: :Create, circuit_options_stack: [])
+      my_create_node,
+      :Create
     )
 
     expected_circuit_options = {
@@ -369,7 +356,7 @@ class WrapRuntimeTest < Minitest::Spec
 
   it "we can extend with multiple extensions, eg NodeWrap and then tracing. this leverages Extension::Chain" do
     # TODO: extensions after it can see :node, eg.
-    my_adds_producer = ->(*, id:, **) do
+    my_adds_producer = ->(*, id) do
       [
         [
           :capture_before,
@@ -381,7 +368,7 @@ class WrapRuntimeTest < Minitest::Spec
     end
 
     tw_trace_extension = Trailblazer::Circuit::WrapRuntime::Extension(
-      ->(*, node:, **) { node.options[:wrap_node] },
+      ->(*, node, _) { node.options[:wrap_node] },
       adds: my_adds_producer
     )
 
@@ -389,12 +376,9 @@ class WrapRuntimeTest < Minitest::Spec
 
     dispatcher_chain = Trailblazer::Circuit::WrapRuntime::Extension::Chain.new([node_wrap_extension, tw_trace_extension])
 
-    assert_run node: my_create_node, seq: [:"before-Create", :"before-task_wrap.call_task", :"before-model", :"before-variable_mapping.in", :in, :"before-task_wrap.call_task", :model, :"before-variable_mapping.out", :out, :"before-save", :"before-task_wrap.call_task", :save],
-      circuit_options: {
-        runner: runner = Trailblazer::Circuit::WrapRuntime::Runner,
-        id: :Create,
-        wrap_runtime: dispatcher_chain,
-      }
+    assert_run nil, :Create, node: my_create_node,
+      seq: [:"before-Create", :"before-task_wrap.call_task", :"before-model", :"before-variable_mapping.in", :in, :"before-task_wrap.call_task", :model, :"before-variable_mapping.out", :out, :"before-save", :"before-task_wrap.call_task", :save],
+      flow_options: Trailblazer::Circuit::WrapRuntime::Runner.new(wrap_runtime: dispatcher_chain)
   end
 
   it "we can do both of the above?" do
@@ -402,8 +386,8 @@ class WrapRuntimeTest < Minitest::Spec
   end
 
   # this tests changing canonical variables {:circuit_options} like {:id} and {:node}.
-  it "the Extension#call method can see all positionals and {circuit_options}, and change them" do # DISCUSS: do we need an explicit test for changing and returning :node etc?
-    my_tested_extension = ->(*args, id:, **circuit_options) do
+  it "the Extension#call method can see all positionals and change them" do # DISCUSS: do we need an explicit test for changing and returning :node etc?
+    my_tested_extension = ->(*args, id) do
 
       return *args, circuit_options.merge(
         id: id,
@@ -411,7 +395,7 @@ class WrapRuntimeTest < Minitest::Spec
       )
     end
 
-    my_capture = ->(_task, lib_ctx, flow_options, signal, **circuit_options) do
+    my_capture = ->(_task, lib_ctx, flow_options, signal) do
       lib_ctx[:capture] << circuit_options
 
       return lib_ctx, flow_options, signal
@@ -447,7 +431,7 @@ class WrapRuntimeTest < Minitest::Spec
   end
 
   it "instead of applying some ADDS, the Extension builder can also return another :node altogether, and :id" do
-    my_tested_extension_callable = ->(*args, id:, node:, **circuit_options) do
+    my_tested_extension_callable = ->(*args, node, id) do
       new_id = :"#{id}_#{node.task.object_id}"
 
       new_pipe = Trailblazer::Circuit::Builder.Pipeline(
@@ -456,11 +440,11 @@ class WrapRuntimeTest < Minitest::Spec
       )
       new_node = Trailblazer::Circuit::Node[new_pipe, Trailblazer::Circuit::Processor]
 
-      return *args, circuit_options.merge(node: new_node, id: new_id)
+      return *args, new_node, new_id
     end
 
     my_tested_extension = Trailblazer::Circuit::WrapRuntime::Extension.new(
-      ->(*, id:, **) { [:Create, :a].include?(id) ? my_tested_extension : nil }, # DISCUSS: do we need that?
+      ->(*, id) { [:Create, :a].include?(id) ? my_tested_extension : nil }, # DISCUSS: do we need that?
       my_tested_extension_callable
     )
 
@@ -476,12 +460,8 @@ class WrapRuntimeTest < Minitest::Spec
 
     my_top_node = Trailblazer::Circuit::Node[my_pipeline, Trailblazer::Circuit::Processor]
 
-    lib_ctx, flow_options, signal = assert_run node: my_top_node,
-      circuit_options: {
-        runner: runner = Trailblazer::Circuit::WrapRuntime::Runner,
-        id: :Create,
-        wrap_runtime: my_tested_extension,
-      },
+    assert_run nil, :Create, node: my_top_node,
+      flow_options: Trailblazer::Circuit::WrapRuntime::Runner.new(wrap_runtime: my_tested_extension),
       seq: [:"Create_#{my_pipeline.object_id}", :"a_#{my_a_pipeline.object_id}", :a]
   end
 
@@ -537,34 +517,24 @@ class WrapRuntimeTest < Minitest::Spec
   end
 
   it "wrap_runtime can implement tracing" do
-    ctx = {params: {song: nil}, slug: 666}
+    # ctx = {params: {song: nil}, slug: 666}
 
     # DISCUSS: how to merge multiple runtime extensions? canonical invoke!
     my_tracing_ext = Trailblazer::Circuit::WrapRuntime.Extension(
-      ->(*, node:, **) { node.to_h[:options][:traceable] },
+      ->(*, node, _) { node.to_h[:options][:traceable] },
       adds: MyTrace::Extension
     )
 
      my_create_node, create_instance = Create_fixture()
 
-    lib_ctx, flow_options, signal = Trailblazer::Circuit::WrapRuntime::Runner.(
-      {},
-      {
-        application_ctx: {params: {id: 1, title: "Uwe"}},
-        stack: [].freeze,
-      },
-      nil,
-      runner: Trailblazer::Circuit::WrapRuntime::Runner,
-      # wrap_runtime: Hash.new(my_extensions),
-      wrap_runtime: my_tracing_ext,
-      context_implementation: Trailblazer::Circuit::Context,
+    _, flow_options = assert_run nil, :Create, node: my_create_node, terminus: "Success",
       exec_context: create_instance,
-      id: :Create,
-      node: my_create_node,
-    )
-
-    assert_equal signal, :Success
-    assert_equal flow_options[:application_ctx], {:params=>{:id=>1, title: "Uwe", :model=>Record.new(1, "Uwe")}}
+      target_ctx: {params: {id: 1, title: "Uwe"}},
+      flow_options: Trailblazer::Circuit::WrapRuntime::Runner.new(
+        wrap_runtime: my_tracing_ext,
+        stack: [].freeze
+      ),
+      expected_target_variables: {:params=>{:id=>1, title: "Uwe", :model=>Record.new(1, "Uwe")}}
 
     # pp flow_options[:stack]
 

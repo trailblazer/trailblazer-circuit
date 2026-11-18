@@ -16,16 +16,15 @@ module Trailblazer
         Builder::Pipeline.(*args)
       end
 
-      def self.Node(task, interface = Task::Adapter::LibInterface, scoped: false, merge_to_lib_ctx: nil, exec_context: false, **options_for_node)
+      def self.Node(task, interface = Task::Adapter::LibInterface, scoped: false, merge_to_lib_ctx: {}, exec_context: false, **options_for_node)
         node_class = Node
 
-        node_class = Node::Scoped if scoped || merge_to_lib_ctx
-        options_for_node = options_for_node.merge(merge_to_lib_ctx: merge_to_lib_ctx) if merge_to_lib_ctx
-
+        node_class = Node::Scoped if scoped || merge_to_lib_ctx.any? || exec_context
         if exec_context
-          node_class = Node::MergeToCircuitOptions
-          options_for_node = {merge_to_circuit_options: {exec_context: exec_context}, **options_for_node}
+          merge_to_lib_ctx = merge_to_lib_ctx.merge(exec_context: exec_context)
         end
+
+        options_for_node = options_for_node.merge(merge_to_lib_ctx: merge_to_lib_ctx) if merge_to_lib_ctx.any?
 
         return node_class[task, interface, **options_for_node]
       end

@@ -3,14 +3,16 @@
     class Task
       module Adapter
         class LibInterface
-          def self.call(task, ctx, flow_options, signal, **)
+          def self.call(task, lib_ctx, flow_options, signal)
             # puts "@@@@@ #{ctx.inspect}, LIB  #{lib_ctx}"
-            task.(ctx, flow_options, signal, **ctx) # DISCUSS: do we want circuit_options?
+            task.(lib_ctx, flow_options, signal, **lib_ctx) # DISCUSS: do we want circuit_options?
           end
 
           class InstanceMethod
-            def self.call(task, ctx, flow_options, signal, exec_context:, **)
-              exec_context.send(task, ctx, flow_options, signal, **ctx)
+            def self.call(task, lib_ctx, flow_options, signal)
+              exec_context = lib_ctx.fetch(:exec_context)
+
+              exec_context.send(task, lib_ctx, flow_options, signal, **lib_ctx)
             end
           end
         end
