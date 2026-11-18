@@ -179,7 +179,7 @@ class NodeScopedCallTest < Minitest::Spec
     # pp flow_options
     target_ctx = {seq: []}
 
-    assert_equal flow_options, {
+    assert_equal flow_options.to_h, {
       :a=> a = [
         ctx={target_ctx: target_ctx, :pollute=>:a},
         {},
