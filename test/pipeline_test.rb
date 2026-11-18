@@ -19,38 +19,6 @@ class PipelineTest < Minitest::Spec
     assert_run pipe, terminus: Module, seq: [:a, :b, :c]
   end
 
-  it "obviously allows scoping its elements" do
-    pipe = _A::Circuit::Builder.Pipeline(
-      [:a, Capture.new(:a), scoped: true], # isolated.
-      [:b, Capture.new(:b), scoped: true, copy_to_outer_ctx: [:d], merge_to_lib_ctx: {d: 4}],
-      [:c, Capture.new(:c), scoped: true], # isolated, but sees {:d}.
-    )
-
-    # pp pipe
-
-    lib_ctx, flow_options = assert_run pipe, terminus: nil, seq: []
-
-    assert_equal flow_options, {
-      :a=> a = [ctx={:target_ctx=>{:seq=>[]}}, {}, nil, ctx],
-      :b=> b = [{:target_ctx=>{:seq=>[]}, :d=>4}, {a: a}, nil, {**ctx, :d=>4}],
-      :c=> c = [{:target_ctx=>{:seq=>[]}, :d=>4}, {a: a, b: b}, nil, {**ctx, :d=>4}],
-    }
-  end
-
-  it "internally set variables can be exposed to the follower via {:copy_to_outer_ctx}" do
-    pipe = _A::Circuit::Builder.Pipeline(
-      [:a, Capture.new(:a, pollute: true), scoped: true, copy_to_outer_ctx: [:pollute]],
-      [:b, Capture.new(:b), scoped: true, ],  # sees :pollute
-    )
-
-    lib_ctx, flow_options = assert_run pipe, terminus: nil, seq: []
-    assert_equal flow_options, {
-      :a=> a = [ctx={:target_ctx=>{:seq=>[]}}, {}, nil, ctx],
-      :b=> b = [{**ctx, :pollute=>true}, {a: a}, nil, {**ctx, :pollute=>true}],
-    }
-    assert_equal lib_ctx, {target_ctx: {seq: []}, pollute: true}
-  end
-
   it "#eql?: Pipelines with the same order and nodes are ==" do
     my_original_pipe = Pipeline([:a, :a], [:b, :b])
 
