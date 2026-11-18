@@ -12,25 +12,26 @@ module Trailblazer
       # Alter a particular node in Processor#call.
       # Alter the {circuit_options}.
       class Extension < Struct.new(:condition, :callable)
-        def call(lib_ctx, flow_options, signal, **circuit_options)
-          return lib_ctx, flow_options, signal, circuit_options unless condition.(lib_ctx, flow_options, signal, **circuit_options)
+        def call(lib_ctx, flow_options, signal, node, id) # TODO: use anonymous forwarding once we go 3.3+. hi, @seuros.
+          return lib_ctx, flow_options, signal, node, id unless condition.(lib_ctx, flow_options, signal, node, id)
 
-          callable.(lib_ctx, flow_options, signal, **circuit_options)
+          callable.(lib_ctx, flow_options, signal, node, id)
         end
 
         # This extension obviously only works with a <Circuit object.
         class AddsInstructions < Struct.new(:adds_producer)
           # Apply the ADDS instructions to the current task to extend it (eg adding
           # tracing steps).
-          def call(*args, node:, **circuit_options) # DISCUSS: *args or explicit? benchmark? this is used quite often?
-            adds_instructions = adds_producer.(node: node, **circuit_options) # DISCUSS: move that up to Extension? Do we actually need it outside of here?
-
+          def call(*args, node, id) # DISCUSS: *args or explicit? benchmark? this is used quite often?
+            # raise id.inspect
+            adds_instructions = adds_producer.(node, id) # DISCUSS: move that up to Extension? Do we actually need it outside of here?
+pp adds_instructions
             node_attrs = apply(adds_instructions, **node.to_h)
 
             # DISCUSS: the remaining code here could be part of the generic Extension.
             node = node.class.new(**node_attrs)
 
-            return *args, circuit_options.merge(node: node)
+            return *args, node, id
           end
 
           # Compute the new circuit by applying ADDS, then return
@@ -45,15 +46,15 @@ module Trailblazer
         # This is optional, you can use a plain Extension, too, for the :wrap_runtime.
         # DISCUSS: an Extension::Chain is simply a Pipeline with a Runner that accepts returned circuit_options.
         class Chain < Struct.new(:extensions)
-          def call(*args, **circuit_options)
-            extensions.inject([*args, circuit_options]) { |(*_positionals, _circuit_options), ext| ext.(*_positionals, **_circuit_options) }
+          def call(*args)
+            extensions.inject(args) { |positionals, ext| ext.(*positionals) }
           end
         end
 
         class Conditions < Struct.new(:conditions)
-          def call(*args, **circuit_options)
+          def call(*args)
             conditions.each do |condition|
-              condition.(*args, **circuit_options) or return false
+              condition.(*args) or return false
             end
           end
         end # Conditions

@@ -25,7 +25,7 @@ class Capture < Struct.new(:name, :pollute, :return_signal)
     flow_options = flow_options.merge(
       name => [
         lib_ctx.clone,
-        flow_options.clone,
+        flow_options.to_h.clone,
         signal,
         kwargs
       ]

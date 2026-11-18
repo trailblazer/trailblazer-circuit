@@ -18,19 +18,19 @@ class WrapRuntimeExtensionDispatcherTest < Minitest::Spec
 
 
     class MyExtension < Struct.new(:id)
-      def call(task, lib_ctx, flow_options, signal, node:, id:, **circuit_options)
+      def call(lib_ctx, flow_options, signal, **)
         # puts "@@@@@ #{node.inspect}" # we are seeing ourselves because the node we're "tracing" is one after us.
-        return lib_ctx, flow_options.merge(self.id => id), signal
+        return lib_ctx, flow_options.merge(self.id => 1), signal
       end
 
       # Called through WrapRuntime::Runner.
-      # This is the builder.
-      def self.call(*, id:, **attrs)
-        my_adapter = MyExtension.new(id) # we will store ...:a because this extension is executed after the NodeWrap extension.
+      # This is the ADDS producer.
+      def self.call(*, id)
+        my_ext = MyExtension.new(id) # we will store ...:a because this extension is executed after the NodeWrap extension.
 
         [
           # in order to access circuit_options, we simply are our own adapter
-          [:capture_before, Trailblazer::Circuit::Node[nil, my_adapter, options: {already_wrapped: true}], :before, nil],
+          [:capture_before, Trailblazer::Circuit::Node[my_ext, Trailblazer::Circuit::Task::Adapter::LibInterface, options: {already_wrapped: true}], :before, nil],
         ]
       end
     end
@@ -47,16 +47,19 @@ class WrapRuntimeExtensionDispatcherTest < Minitest::Spec
       Trailblazer::Circuit::WrapRuntime::Extension::Conditions.new(
         [
           Trailblazer::Circuit::WrapRuntime::Extension::NodeWrap::CONDITION,
-          ->(*, node:, **) { node.to_h[:options][:is_circuit] },
+          ->(*, node, _) { node.to_h[:options][:is_circuit] },
         ]
       ),
       my_extensions,
     )
 
     lib_ctx, flow_options, signal = assert_run my_circuit,
-      circuit_options: {runner: Trailblazer::Circuit::WrapRuntime::Runner, wrap_runtime: my_wrap_runtime_resolver},
+      flow_options: Trailblazer::Circuit::WrapRuntime::Runner.new(wrap_runtime: my_wrap_runtime_resolver),
       seq: [:a, :b], terminus: "Right"
 
-    assert_equal flow_options, {Trailblazer::Circuit::WrapRuntime::Extension::NodeWrap::Id.new(:A, my_a_circuit_node) => :capture_before}
+    # puts "@@@@@ #{flow_options.to_h.keys.last.inspect}"
+    assert_equal flow_options.to_h, {wrap_runtime: my_wrap_runtime_resolver,
+      # Trailblazer::Circuit::WrapRuntime::Extension::NodeWrap::Id.new(:A, my_a_circuit_node) => :capture_before}
+      Trailblazer::Circuit::WrapRuntime::Extension::NodeWrap::Id.new(:A, my_a_circuit_node) => 1}
   end
 end

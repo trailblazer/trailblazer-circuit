@@ -33,7 +33,7 @@ class EachTest < Minitest::Spec
     nodes = {
       init: Trailblazer::Circuit::Node[:init, lib_interface::InstanceMethod],
       fetch_value_from_dataset: Trailblazer::Circuit::Node[:fetch_value_from_dataset, lib_interface::InstanceMethod],
-      a: Trailblazer::Circuit::Node::MergeToCircuitOptions[:my_task_a, lib_interface::InstanceMethod, merge_to_circuit_options: {exec_context: self}],
+      a: Trailblazer::Circuit::Node::Scoped[:my_task_a, lib_interface::InstanceMethod, merge_to_lib_ctx: {exec_context: self}],
       finished: Trailblazer::Circuit::Node[:finished, lib_interface::InstanceMethod],
     }
 
@@ -46,7 +46,7 @@ class EachTest < Minitest::Spec
 
     circuit = Trailblazer::Circuit.build(flow_map: map, nodes: nodes)
 
-    assert_run circuit, circuit_options: {exec_context: MyEach, runner: Trailblazer::Circuit::Node::Runner}, target_ctx: {dataset: [1,2,3], seq: []},
+    assert_run circuit, exec_context: MyEach, target_ctx: {dataset: [1,2,3], seq: []},
       seq: [[0, 1], [1, 2], [2, 3]],
       terminus: "done"
   end

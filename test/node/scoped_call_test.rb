@@ -11,7 +11,6 @@ class NodeScopedCallTest < Minitest::Spec
       {a: 1},
       {b: 2},
       Object,
-      context_implementation: Trailblazer::Circuit::Context
     )
 
     assert_equal lib_ctx, {a: 1} # nothing merged into lib_ctx
@@ -28,7 +27,6 @@ class NodeScopedCallTest < Minitest::Spec
       {a: 1},
       {b: 2},
       Object,
-      context_implementation: Trailblazer::Circuit::Context
     )
 
     assert_equal lib_ctx, {a: 1} # nothing merged into lib_ctx
@@ -46,7 +44,6 @@ class NodeScopedCallTest < Minitest::Spec
       {a: 1},
       {b: 2},
       Object,
-      context_implementation: Trailblazer::Circuit::Context
     )
 
     assert_equal lib_ctx, {a: 1} # nothing merged into lib_ctx
@@ -64,7 +61,6 @@ class NodeScopedCallTest < Minitest::Spec
       {a: 1, y: true},
       {b: 2},
       Object,
-      context_implementation: Trailblazer::Circuit::Context
     )
 
     assert_equal lib_ctx, {a: 1, y: true} # nothing merged into lib_ctx
@@ -82,7 +78,6 @@ class NodeScopedCallTest < Minitest::Spec
       {a: 1, y: true},
       {b: 2},
       Object,
-      context_implementation: Trailblazer::Circuit::Context
     )
 
     assert_equal lib_ctx, {a: 1, y: true, pollute: 3} # {:pollute} internally merged into lib_ctx
@@ -100,7 +95,6 @@ class NodeScopedCallTest < Minitest::Spec
       {a: 1, y: true},
       {b: 2},
       Object,
-      context_implementation: Trailblazer::Circuit::Context
     )
 
     assert_equal lib_ctx, {a: 1, y: true, pollute: 3} # {:pollute} internally merged into lib_ctx
@@ -119,7 +113,6 @@ class NodeScopedCallTest < Minitest::Spec
       {a: 1, y: true},
       {b: 2},
       Object,
-      context_implementation: Trailblazer::Circuit::Context
     )
 
     assert_equal lib_ctx, {a: 1, y: true} # original lib_ctx
@@ -138,7 +131,6 @@ class NodeScopedCallTest < Minitest::Spec
       {a: 1, y: true},
       {b: 2},
       Object,
-      context_implementation: Trailblazer::Circuit::Context
     )
 
     assert_equal lib_ctx, {a: 1, y: true} # original lib_ctx
@@ -157,7 +149,6 @@ class NodeScopedCallTest < Minitest::Spec
       {a: 1, y: true},
       {b: 2},
       Object,
-      context_implementation: Trailblazer::Circuit::Context
     )
 
     assert_equal lib_ctx, {a: 1, y: true, pollute: 3} # original lib_ctx

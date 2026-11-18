@@ -10,8 +10,28 @@
       # It automatically merges "scoping options/configuration" at runtime, so this can be extended, too
       # (e.g. for tracing).
       class Runner
-        def self.call(lib_ctx, flow_options, signal, **circuit_options)
-          circuit_options[:node].(lib_ctx, flow_options, signal, **circuit_options) # NOTE: runner calls node with the circuit interface.
+        def initialize(**options)
+          @options = options
+        end
+
+        def [](key)
+          @options[key]
+        end
+
+        def merge(**options)
+          self.class.new(**@options.merge(options))
+        end
+
+        def to_h
+          @options
+        end
+
+        def fetch(key)
+          @options.fetch(key)
+        end
+
+        def call(lib_ctx, flow_options, signal, node, _id)
+          node.(lib_ctx, flow_options, signal)
         end
       end
     end

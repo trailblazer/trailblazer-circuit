@@ -54,8 +54,8 @@ class PipelineBuilderTest < Minitest::Spec
     my_exec_context = T.def_tasks(:a, :b, success_signal: Right)
 
     my_circuit = Trailblazer::Circuit::Builder.Pipeline(
-      [:a, :a, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod, exec_context: my_exec_context],
-      [:b, :b, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod, exec_context: my_exec_context],
+      [:a, :a, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod, exec_context: my_exec_context, copy_to_outer_ctx: [:target_ctx]],
+      [:b, :b, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod, exec_context: my_exec_context, copy_to_outer_ctx: [:target_ctx]],
     )
 
     lib_ctx, _ = assert_run my_circuit, terminus: Right, seq: [:a, :b]
@@ -75,7 +75,7 @@ class PipelineBuilderTest < Minitest::Spec
 
   it "{node: MyNode} allows passing a node directly without any DSL logic involved" do
     my_node_with_circuit_interface = Class.new do
-      def self.call(lib_ctx, flow_options, signal, circuit_options)
+      def self.call(lib_ctx, flow_options, signal)
         lib_ctx[:target_ctx][:seq] << :e
 
         return lib_ctx, flow_options, signal
@@ -106,7 +106,7 @@ class PipelineBuilderTest < Minitest::Spec
 
     circuit = Trailblazer::Circuit::Builder.Pipeline(
       # instance method with lib interface.
-      [:a, :a, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod, exec_context: T.def_tasks(:a, success_signal: nil)],
+      [:a, :a, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod, exec_context: T.def_tasks(:a, success_signal: nil), copy_to_outer_ctx: [:target_ctx]],
 
       # callable with step interface, we don't get defaulting here.
       [:b, my_tasks.method(:b), Trailblazer::Circuit::Task::Adapter::LibInterface],
@@ -132,7 +132,7 @@ class PipelineBuilderTest < Minitest::Spec
     # defaulting for {:connections}.
     my_circuit = Trailblazer::Circuit::Builder.Pipeline(
       # We're omitting {:connections} but provide additional options.
-      [:a, :a, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod, exec_context: my_exec_context],
+      [:a, :a, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod, exec_context: my_exec_context, copy_to_outer_ctx: [:target_ctx]],
 
       # defaulting for {:connections} and {interface}.
       [:b, my_exec_context.method(:b)],
@@ -142,16 +142,16 @@ class PipelineBuilderTest < Minitest::Spec
 
       # provide the interface and additional options.
       [:d, :d, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod,
-        exec_context: my_exec_context_2,
+        exec_context: my_exec_context_2, copy_to_outer_ctx: [:target_ctx],
         connections: {Left => [nil, Left]}
       ],
     )
 
     lib_ctx, flow_options = assert_run my_circuit, terminus: Left, seq: [:a, :b, :c, :d],
-      circuit_options: {exec_context: my_exec_context, runner: Trailblazer::Circuit::Node::Runner},
+      exec_context: my_exec_context,
       target_ctx: {seq: [], d: Left}
 
-    assert_equal lib_ctx, {:target_ctx=>{:seq=>[:a, :b, :c, :d], :d=>Left}}
+    assert_equal lib_ctx, {:target_ctx=>{:seq=>[:a, :b, :c, :d], :d=>Left}, exec_context: my_exec_context}
   end
 
   it "we can pass resolvers as {:connections}" do
@@ -275,8 +275,8 @@ class NodeBuilderTest < Minitest::Spec
     assert_equal my_node, Trailblazer::Circuit::Node::Scoped[:a, Trailblazer::Circuit::Task::Adapter::LibInterface, merge_to_lib_ctx: {data: 1}]
   end
 
-  it "{exec_context: Module} automatically builds a Node::MergeToCircuitOptions" do
+  it "{exec_context: Module} automatically builds a Node::Scoped" do
     my_node = Trailblazer::Circuit::Builder.Node(:a, exec_context: Module)
-    assert_equal my_node, Trailblazer::Circuit::Node::MergeToCircuitOptions[:a, Trailblazer::Circuit::Task::Adapter::LibInterface, merge_to_circuit_options: {exec_context: Module}]
+    assert_equal my_node, Trailblazer::Circuit::Node::Scoped[:a, Trailblazer::Circuit::Task::Adapter::LibInterface, merge_to_lib_ctx: {exec_context: Module}]
   end
 end

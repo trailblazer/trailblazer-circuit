@@ -4,6 +4,6 @@ source "https://rubygems.org"
 gemspec
 
 gem "rake", "~> 13.0"
-
-# gem "trailblazer-core-utils", path: "../trailblazer-core-utils"
+gem "benchmark-ips"
+gem "trailblazer-core-utils", path: "../trailblazer-core-utils"
 # gem "trailblazer-developer", path: "../trailblazer-developer"
