@@ -30,31 +30,31 @@ Trailblazer::Circuit::Node::Runner.({}, {}, nil, node: old_circuit_node, runner:
 # this implementation always uses Adapter
 #
 class MyAdapter
-  def self.call(task, lib_ctx, flow_options, signal, runner)
+  def self.call(task, lib_ctx, flow_options, signal)
     # with an adapter that doesn't do anything but extracting the node, we don't need tasks.
     return task.(lib_ctx, flow_options, signal)
   end
 end
 
 class MyNode < Trailblazer::Circuit::Node
-  def call(lib_ctx, flow_options, signal, runner)
-    adapter.(task, lib_ctx, flow_options, signal, runner)
+  def call(lib_ctx, flow_options, signal)
+    adapter.(task, lib_ctx, flow_options, signal)
   end
 end
 
 class MyProcessor
   # TODO: this can still be optimized for runtime speed, even though I spent days on it already.
-  def self.call(circuit, lib_ctx, flow_options, signal, runner)
+  def self.call(circuit, lib_ctx, flow_options, signal)
     id, node = circuit.start_tuple # DISCUSS: this could also be done in the "Adapter", and the Processor could be the tas
 
     loop do
       # puts ">>>Processor #{id.inspect} <<<#{signal.inspect}>>> #{node.class} #{lib_ctx[:target_ctx].to_h}"
-      lib_ctx, flow_options, signal = runner.(
+      lib_ctx, flow_options, signal = flow_options.(
         lib_ctx,
         flow_options,
         signal,
         # **circuit_options,
-        runner,
+        # runner,
         node, # NOTE: you can access the current node in a task via the CircuitInterface.
         id,
       )
@@ -71,8 +71,8 @@ class MyProcessor
 end
 
 class MyRunner
-  def self.call(lib_ctx, flow_options, signal, runner, node, id)
-    node.(lib_ctx, flow_options, signal, runner)
+  def self.call(lib_ctx, flow_options, signal, node, id)
+    node.(lib_ctx, flow_options, signal)
   end
 end
 
@@ -86,9 +86,7 @@ circuit = Trailblazer::Circuit::Builder.Circuit(
 
 circuit_node = MyNode[circuit, MyProcessor]
 
-MyRunner.({}, {}, nil, MyRunner, circuit_node, nil)
-
-
+MyRunner.({}, MyRunner, nil, circuit_node, nil)
 
 
 # module Call
@@ -109,6 +107,7 @@ MyRunner.({}, {}, nil, MyRunner, circuit_node, nil)
 
 #
 # this implementation: Node calls task directly, bypassing adapter.
+# we don't use kwargs here at all, which is a bit unfair on the kwargs implementations.
 #
 class MyTripleTask
   def self.call(lib_ctx, flow_options, signal)
@@ -252,7 +251,7 @@ Benchmark.ips do |x|
   }
 
   x.report("processor int") {
-    MyRunner.({}, {}, nil, MyRunner, circuit_node, nil)
+    MyRunner.({}, MyRunner, nil, circuit_node, nil)
   }
 
   x.report("proce triple") {
@@ -268,11 +267,13 @@ Benchmark.ips do |x|
 end
 
 
+# (with processor int using flow_options as runner)
 # Comparison:
-#  proce triple:    30962.7 i/s
-# processor int:    28675.6 i/s - 1.08x  slower
-# triple kwargs:    28612.0 i/s - 1.08x  slower
-#           cix:    12987.7 i/s - 2.38x  slower
+#  proce triple:    30920.9 i/s
+# processor int:    28670.0 i/s - 1.08x  slower
+# triple kwargs:    28253.0 i/s - 1.09x  slower
+#           cix:    12832.2 i/s - 2.41x  slower
+
 
 
 # Comparison: (before making {processor int} implementation do not pass node, id further down)
