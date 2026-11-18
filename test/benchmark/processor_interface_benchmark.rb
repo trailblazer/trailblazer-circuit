@@ -4,13 +4,15 @@ require "benchmark/ips"
 class MyOldAdapter
   def self.call(task, lib_ctx, flow_options, signal, **circuit_options)
     # with an adapter that doesn't do anything but extracting the node, we don't need tasks.
-    return task.(lib_ctx, flow_options, signal) # let's be fair here and simply call the lib task, no lib kwargs!
+    return task.(lib_ctx, flow_options, signal, **lib_ctx) # let's be fair here and simply call the lib task, no lib kwargs!
     # return lib_ctx, flow_options, signal
   end
 end
 
+# raise "benchmark with kwargs being passed to the task! "
+
 class MyOldTask
-  def self.call(lib_ctx, flow_options, signal)
+  def self.call(lib_ctx, flow_options, signal, **)
     return lib_ctx, flow_options, signal
   end
 end
@@ -32,7 +34,7 @@ Trailblazer::Circuit::Node::Runner.({}, {}, nil, node: old_circuit_node, runner:
 class MyAdapter
   def self.call(task, lib_ctx, flow_options, signal)
     # with an adapter that doesn't do anything but extracting the node, we don't need tasks.
-    return task.(lib_ctx, flow_options, signal)
+    return task.(lib_ctx, flow_options, signal, **lib_ctx)
   end
 end
 
@@ -109,23 +111,23 @@ MyRunner.({}, MyRunner, nil, circuit_node, nil)
 # this implementation: Node calls task directly, bypassing adapter.
 # we don't use kwargs here at all, which is a bit unfair on the kwargs implementations.
 #
-class MyTripleTask
-  def self.call(lib_ctx, flow_options, signal)
-    # with an adapter that doesn't do anything but extracting the node, we don't need tasks.
-    return lib_ctx, flow_options, signal
-  end
-end
+# class MyTripleTask
+#   def self.call(lib_ctx, flow_options, signal, **)
+#     # with an adapter that doesn't do anything but extracting the node, we don't need tasks.
+#     return lib_ctx, flow_options, signal
+#   end
+# end
 
 class MyTripleNode < Struct.new(:task) #Trailblazer::Circuit::Node
   def call(lib_ctx, flow_options, signal)
     # the idea here is that we call a task, and it could be a Circuit, an Adapter, or the task directly. that way, we save the Adapter.
-    task.(lib_ctx, flow_options, signal) # FIXME: damn, we need the runner here! could be part of flow_options, it's barely used, anyway!
+    task.(lib_ctx, flow_options, signal, **lib_ctx)
   end
 end
 
 class MyTripleProcessor < Struct.new(:circuit)
   # TODO: this can still be optimized for runtime speed, even though I spent days on it already.
-  def call(lib_ctx, flow_options, signal) # FIXME: what if we need the node/id here? for an exception?
+  def call(lib_ctx, flow_options, signal, **) # FIXME: what if we need the node/id here? for an exception?
     id, node = circuit.start_tuple # DISCUSS: this could also be done in the "Adapter", and the Processor could be the tas
 
     loop do
@@ -159,7 +161,7 @@ class MyTripleRunner
 end
 
 nested_circuit = Trailblazer::Circuit::Builder.Circuit(
-  *((1..10).collect { |i| [i, node: MyTripleNode[MyTripleTask]] })
+  *((1..10).collect { |i| [i, node: MyTripleNode[MyOldTask]] })
 )
 
 circuit = Trailblazer::Circuit::Builder.Circuit(
@@ -178,93 +180,102 @@ MyTripleRunner.({}, MyTripleRunner, nil, triple_circuit_node, nil)
 
 
 
-#
-# this implementation: Node calls task directly with kwargs, bypassing adapter.
-#
-class MyTripleKwargsTask
-  def self.call(lib_ctx, flow_options, signal, **)
-    # with an adapter that doesn't do anything but extracting the node, we don't need tasks.
-    return lib_ctx, flow_options, signal
-  end
-end
+# #
+# # this implementation: Node calls task directly with kwargs, bypassing adapter.
+# #
+# class MyTripleKwargsTask
+#   def self.call(lib_ctx, flow_options, signal, **)
+#     # with an adapter that doesn't do anything but extracting the node, we don't need tasks.
+#     return lib_ctx, flow_options, signal
+#   end
+# end
 
-class MyTripleKwargsNode < Struct.new(:task) #Trailblazer::Circuit::Node
-  def call(lib_ctx, flow_options, signal)
-    task.(lib_ctx, flow_options, signal, **lib_ctx)
-  end
-end
+# class MyTripleKwargsNode < Struct.new(:task) #Trailblazer::Circuit::Node
+#   def call(lib_ctx, flow_options, signal)
+#     task.(lib_ctx, flow_options, signal, **lib_ctx)
+#   end
+# end
 
-class MyTripleKwargsProcessor < Struct.new(:circuit)
-  # TODO: this can still be optimized for runtime speed, even though I spent days on it already.
-  def call(lib_ctx, flow_options, signal, **) # FIXME: what if we need the node/id here? for an exception?
-    id, node = circuit.start_tuple # DISCUSS: this could also be done in the "Adapter", and the Processor could be the tas
+# class MyTripleKwargsProcessor < Struct.new(:circuit)
+#   # TODO: this can still be optimized for runtime speed, even though I spent days on it already.
+#   def call(lib_ctx, flow_options, signal, **) # FIXME: what if we need the node/id here? for an exception?
+#     id, node = circuit.start_tuple # DISCUSS: this could also be done in the "Adapter", and the Processor could be the tas
 
-    loop do
-      # puts ">>>Processor #{id.inspect} <<<#{signal.inspect}>>> #{node.class} #{lib_ctx[:target_ctx].to_h}"
-      lib_ctx, flow_options, signal = flow_options.(
-        lib_ctx,
-        flow_options,
-        signal,
-        # **circuit_options,
-        # runner,
-        node, # NOTE: you can access the current node in a task via the CircuitInterface.
-        id,
-      )
+#     loop do
+#       # puts ">>>Processor #{id.inspect} <<<#{signal.inspect}>>> #{node.class} #{lib_ctx[:target_ctx].to_h}"
+#       lib_ctx, flow_options, signal = flow_options.(
+#         lib_ctx,
+#         flow_options,
+#         signal,
+#         # **circuit_options,
+#         # runner,
+#         node, # NOTE: you can access the current node in a task via the CircuitInterface.
+#         id,
+#       )
 
-      id, node, signal = circuit.resolve(id, signal) # DISCUSS: pass id and node?
+#       id, node, signal = circuit.resolve(id, signal) # DISCUSS: pass id and node?
 
-      return lib_ctx, flow_options, signal unless node
-      # unless ()
+#       return lib_ctx, flow_options, signal unless node
+#       # unless ()
 
-        # raise_illegal_signal_error!(task, signal, @map[task], **circuit_options)
-      # end
-    end
-  end
-end
-
-
-nested_circuit = Trailblazer::Circuit::Builder.Circuit(
-  *((1..10).collect { |i| [i, node: MyTripleKwargsNode[MyTripleKwargsTask]] })
-)
-
-circuit = Trailblazer::Circuit::Builder.Circuit(
-  # *((1..10).collect { |i| [i, node: MyTripleKwargsNode[MyTripleKwargsProcessor.new(nested_circuit)]] })
-  *((1..10).collect { |i| [i, node: MyTripleKwargsNode[MyTripleKwargsProcessor.new(nested_circuit)]] })
-)
-
-triple_kwargs_circuit_node = MyTripleKwargsNode[MyTripleKwargsProcessor.new(circuit)]
-
-# MyTripleKwargsRunner.({}, {runner: MyTripleKwargsRunner}, nil, triple_kwargs_circuit_node, nil)
-my_triple_kwargs_ctx = {exec_context: Module, value: 1}
-MyTripleRunner.(my_triple_kwargs_ctx, MyTripleRunner, nil, triple_kwargs_circuit_node, nil)
+#         # raise_illegal_signal_error!(task, signal, @map[task], **circuit_options)
+#       # end
+#     end
+#   end
+# end
 
 
+# nested_circuit = Trailblazer::Circuit::Builder.Circuit(
+#   *((1..10).collect { |i| [i, node: MyTripleKwargsNode[MyOldTask]] })
+# )
+
+# circuit = Trailblazer::Circuit::Builder.Circuit(
+#   # *((1..10).collect { |i| [i, node: MyTripleKwargsNode[MyTripleKwargsProcessor.new(nested_circuit)]] })
+#   *((1..10).collect { |i| [i, node: MyTripleKwargsNode[MyTripleKwargsProcessor.new(nested_circuit)]] })
+# )
+
+# triple_kwargs_circuit_node = MyTripleKwargsNode[MyTripleKwargsProcessor.new(circuit)]
+
+# # MyTripleKwargsRunner.({}, {runner: MyTripleKwargsRunner}, nil, triple_kwargs_circuit_node, nil)
+# my_triple_kwargs_ctx = {exec_context: Module, value: 1}
+# MyTripleRunner.(my_triple_kwargs_ctx, MyTripleRunner, nil, triple_kwargs_circuit_node, nil)
 
 
 
+
+
+lib_ctx = {target_ctx: {params: {}}, exec_context: 1}
 
 require "benchmark/ips"
 
 Benchmark.ips do |x|
   x.report("cix") {
-    Trailblazer::Circuit::Node::Runner.({}, {}, nil, node: old_circuit_node, runner: Trailblazer::Circuit::Node::Runner)
+    Trailblazer::Circuit::Node::Runner.(lib_ctx, {}, nil, node: old_circuit_node, runner: Trailblazer::Circuit::Node::Runner)
   }
 
   x.report("processor int") {
-    MyRunner.({}, MyRunner, nil, circuit_node, nil)
+    MyRunner.(lib_ctx, MyRunner, nil, circuit_node, nil)
   }
 
   x.report("proce triple") {
-    MyTripleRunner.({}, MyTripleRunner, nil, triple_circuit_node, nil)
+    MyTripleRunner.(lib_ctx, MyTripleRunner, nil, triple_circuit_node, nil)
   }
 
-  x.report("triple kwargs") {
-    MyTripleRunner.(my_triple_kwargs_ctx, MyTripleRunner, nil, triple_kwargs_circuit_node, nil)
-  }
+  # x.report("triple kwargs") {
+  #   MyTripleRunner.(my_triple_kwargs_ctx, MyTripleRunner, nil, triple_kwargs_circuit_node, nil)
+  # }
 
 
   x.compare!
 end
+
+
+# obviously, leaving out the Adapter save 0.06x speed.
+# Comparison:
+#  proce triple:    28419.7 i/s
+# processor int:    26883.5 i/s - 1.06x  slower
+#           cix:    12464.7 i/s - 2.28x  slower
+
 
 
 # (with processor int using flow_options as runner)
