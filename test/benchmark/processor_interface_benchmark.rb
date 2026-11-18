@@ -30,21 +30,21 @@ Trailblazer::Circuit::Node::Runner.({}, {}, nil, node: old_circuit_node, runner:
 # this implementation always uses Adapter
 #
 class MyAdapter
-  def self.call(task, lib_ctx, flow_options, signal, runner, node, id)
+  def self.call(task, lib_ctx, flow_options, signal, runner)
     # with an adapter that doesn't do anything but extracting the node, we don't need tasks.
     return task.(lib_ctx, flow_options, signal)
   end
 end
 
 class MyNode < Trailblazer::Circuit::Node
-  def call(lib_ctx, flow_options, signal, runner, node, id)
-    adapter.(task, lib_ctx, flow_options, signal, runner, node, id)
+  def call(lib_ctx, flow_options, signal, runner)
+    adapter.(task, lib_ctx, flow_options, signal, runner)
   end
 end
 
 class MyProcessor
   # TODO: this can still be optimized for runtime speed, even though I spent days on it already.
-  def self.call(circuit, lib_ctx, flow_options, signal, runner, _, _)
+  def self.call(circuit, lib_ctx, flow_options, signal, runner)
     id, node = circuit.start_tuple # DISCUSS: this could also be done in the "Adapter", and the Processor could be the tas
 
     loop do
@@ -72,7 +72,7 @@ end
 
 class MyRunner
   def self.call(lib_ctx, flow_options, signal, runner, node, id)
-    node.(lib_ctx, flow_options, signal, runner, node, id)
+    node.(lib_ctx, flow_options, signal, runner)
   end
 end
 
@@ -267,11 +267,20 @@ Benchmark.ips do |x|
   x.compare!
 end
 
+
 # Comparison:
-#  proce triple:    31119.3 i/s
-# triple kwargs:    28523.7 i/s - 1.09x  slower
-# processor int:    28382.1 i/s - 1.10x  slower
-#           cix:    13069.6 i/s - 2.38x  slower
+#  proce triple:    30962.7 i/s
+# processor int:    28675.6 i/s - 1.08x  slower
+# triple kwargs:    28612.0 i/s - 1.08x  slower
+#           cix:    12987.7 i/s - 2.38x  slower
+
+
+# Comparison: (before making {processor int} implementation do not pass node, id further down)
+#  proce triple:    29568.1 i/s
+# triple kwargs:    27533.3 i/s - 1.07x  slower
+# processor int:    27161.8 i/s - 1.09x  slower
+#           cix:    12368.9 i/s - 2.39x  slower
+
 
 
 # ==> passing the id as another posarg is not really slower!
