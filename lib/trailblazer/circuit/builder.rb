@@ -3,7 +3,7 @@ module Trailblazer
     def self.Builder(*args, **options_for_node)
       circuit = Builder.Pipeline(*args)
 
-      Node[circuit, Processor, **options_for_node]
+      Builder.Node(circuit, Processor, **options_for_node) # use the Builder.Node builder!
     end
 
     # Helpers for creating runtime objects: Node and Circuit via this mini DSL.
