@@ -14,111 +14,89 @@ class AdapterTest < Minitest::Spec
             options
           ].collect { |obj| obj.inspect }
         )
+
+        return nil
       end
+
     end.new
   end
 
   let(:my_lib_interface_exec_context) do
     Class.new do
-      def my_model_input(ctx, flow_options, signal, **options)
-        ctx = ctx.merge(captured: Captured.new(
+      def my_model_input(lib_ctx, flow_options, signal, **options)
+        lib_ctx = lib_ctx.merge(captured: Captured.new(
           [
-            ctx,
-            flow_options,
+            lib_ctx,
+            flow_options.to_h,
             signal,
             options,
           ]#.collect { |obj| CU.inspect(obj) }
         ))
 
-        return ctx, flow_options, signal
+        return lib_ctx, flow_options, signal
       end
     end.new
   end
 
   def assert_step_interface(node)
-    application_ctx = {params: {id: 1}, slug: 9}
-
-    ctx, flow_options, signal = _A::Circuit::Node::Runner.(
-      {aggregate: [], target_ctx: application_ctx}, # let's assume this is part of the local processing pipeline and from one of the recent steps.
-      {
-        trace_ctx: {stack: []},
-      },
-      nil,
-      runner: _A::Circuit::Node::Runner,
-      node: node,
-      context_implementation: Trailblazer::Circuit::Context,
-    )
+    target_ctx = {params: {id: 1}, slug: 9}
 
     expected_capture = Captured.new([{params: {id: 1}, slug: 9}.inspect, {id: 1}.inspect, {slug: 9}.inspect]).freeze
 
-    assert_equal signal, expected_capture
-    assert_equal ctx, {aggregate: [], target_ctx: application_ctx}
-    assert_equal flow_options, {
-      :trace_ctx=>{:stack=>[]}
-    }
+    lib_ctx, flow_options, signal = assert_run aggregate: [], node: node, target_ctx: target_ctx,
+      expected_target_variables: {
+        model: expected_capture
+      }
+
     # Unfortunately, application_ctx is mutated, that's how step interface works.
-    assert_equal application_ctx, {
+    assert_equal target_ctx, {
       params: {:id=>1},
       slug: 9,
       model:  expected_capture,
     }
   end
 
-  def assert_lib_interface(node, original_ctx:)
-    ctx, flow_options, signal = _A::Circuit::Node::Runner.(
-      {aggregate: []}, # let's assume this is part of the local processing pipeline and from one of the recent steps.
-      {
-        application_ctx: {params: {id: 1}, slug: 9},
-        trace_ctx: {stack: []},
-      },
-      nil,
-      node: node,
-      runner: _A::Circuit::Node::Runner,
-      context_implementation: Trailblazer::Circuit::Context,
-    )
+  def assert_lib_interface(node, expected_lib_ctx_variables:)
+    # target_ctx = {params: {id: 1}, slug: 9}
+    lib_ctx, _ = assert_run node: node, aggregate: [], seq: []
 
-    assert_equal signal, nil
-    assert_equal ctx, {aggregate: [], captured:
-      Captured.new(
+    expected_lib_ctx = {aggregate: [], target_ctx: {seq: []}}.merge(expected_lib_ctx_variables)
+
+    assert_equal lib_ctx, {
+      aggregate: [],
+      target_ctx: {seq: []},
+      captured: Captured.new(
         [
-          original_ctx,
-          {:application_ctx=>{:params=>{:id=>1}, :slug=>9}, :trace_ctx=>{:stack=>[]}},
+          expected_lib_ctx,
+          {},
           nil,
-          original_ctx
+          expected_lib_ctx
         ]
       )
-    }
-
-    assert_equal flow_options, {
-      :application_ctx=>{
-        params: {:id=>1},
-        slug: 9,
-      },
-      :trace_ctx=>{:stack=>[]}
     }
   end
 
   it "StepInterface::InstanceMethod" do
-    node = _A::Circuit::Node::MergeToCircuitOptions[:my_model, _A::Circuit::Task::Adapter::StepInterface::InstanceMethod, merge_to_circuit_options: {exec_context: my_step_interface_exec_context}]
+    node = Trailblazer::Circuit::Builder.Node(:my_model, Trailblazer::Circuit::Task::Adapter::StepInterface::InstanceMethod, exec_context: my_step_interface_exec_context)
 
     assert_step_interface(node)
   end
 
   it "StepInterface" do
-    node = _A::Circuit::Node[my_step_interface_exec_context.method(:my_model), _A::Circuit::Task::Adapter::StepInterface]
+    node = Trailblazer::Circuit::Node[my_step_interface_exec_context.method(:my_model), Trailblazer::Circuit::Task::Adapter::StepInterface]
 
     assert_step_interface(node)
   end
 
   it "LibInterface::InstanceMethod" do
-    node = _A::Circuit::Node::MergeToCircuitOptions[:my_model_input, _A::Circuit::Task::Adapter::LibInterface::InstanceMethod, merge_to_circuit_options: {exec_context: my_lib_interface_exec_context}]
+    node = Trailblazer::Circuit::Builder.Node(:my_model_input, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod, exec_context: my_lib_interface_exec_context, copy_to_outer_ctx: [:captured])
 
-    assert_lib_interface(node, original_ctx: {aggregate: []})
+    assert_lib_interface(node, expected_lib_ctx_variables: {exec_context: my_lib_interface_exec_context})
   end
 
   it "LibInterface" do
-    node = _A::Circuit::Node[my_lib_interface_exec_context.method(:my_model_input), _A::Circuit::Task::Adapter::LibInterface]
+    node = Trailblazer::Circuit::Node[my_lib_interface_exec_context.method(:my_model_input), Trailblazer::Circuit::Task::Adapter::LibInterface]
 
-    assert_lib_interface(node, original_ctx: ctx = {aggregate: []})
+    assert_lib_interface(node, expected_lib_ctx_variables: {})
   end
 end
