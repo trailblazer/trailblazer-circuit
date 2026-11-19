@@ -18,6 +18,54 @@ class NodeRunnerTest < Minitest::Spec
     assert_equal lib_ctx[:target_ctx][:seq], [:a, :b, :c]
   end
 
+  it "empty options in initializer always defaults empty hash" do
+    assert_equal Trailblazer::Circuit::Node::Runner.new.to_h, {}
+  end
+
+  it "#[]" do
+    assert_equal Trailblazer::Circuit::Node::Runner.new(stack: Object)[:stack], Object
+  end
+
+  it "#fetch" do
+    assert_equal Trailblazer::Circuit::Node::Runner.new(stack: Object).fetch(:stack), Object
+  end
+
+  it "#fetch fails" do
+    assert_raises(KeyError) { Trailblazer::Circuit::Node::Runner.new(stack: Object).fetch(:i_dont_exist) }
+  end
+
+  it "#merge" do
+    runner = Trailblazer::Circuit::Node::Runner.new(stack: Object)
+    new_runner = runner.merge(mode: true)
+
+    assert_equal runner.to_h, {stack: Object}
+    assert_equal new_runner.to_h, {stack: Object, mode: true}
+  end
+
+  it "#merge overwrites existing keys" do
+    runner = Trailblazer::Circuit::Node::Runner.new(stack: Object)
+    new_runner = runner.merge(stack: true)
+
+    assert_equal runner.to_h, {stack: Object}
+    assert_equal new_runner.to_h, {stack: true}
+  end
+
+  it "#reverse_merge" do
+    runner = Trailblazer::Circuit::Node::Runner.new(stack: Object)
+    new_runner = runner.reverse_merge(mode: true)
+
+    assert_equal runner.to_h, {stack: Object}
+    assert_equal new_runner.to_h, {stack: Object, mode: true}
+  end
+
+  it "#reverse_merge gets overwriten by existing keys" do
+    runner = Trailblazer::Circuit::Node::Runner.new(stack: Object)
+    new_runner = runner.reverse_merge(stack: true)
+
+    assert_equal runner.to_h, {stack: Object}
+    assert_equal new_runner.to_h, {stack: Object}
+  end
+
   it "{:start_tuple} can be passed which is then used by Processor" do
     skip "we have to build that with an overridden circuit"
     my_pipe = Pipeline(
