@@ -232,6 +232,18 @@ class BuilderTest < Minitest::Spec
     assert_equal my_node.options, {important: true}
   end
 
+  it "accepts {:exec_context} for the top node, because all kwargs are passed to Builder.Node()" do
+    my_exec_context = T.def_tasks(:a, success_signal: nil)
+
+    my_node = Trailblazer::Circuit.Builder(
+      [:a, :a, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod],
+      exec_context: my_exec_context,
+      copy_to_outer_ctx: [:target_ctx]
+    )
+
+    assert_run node: my_node, seq: [:a]
+  end
+
   # it "allows passing the Node class" do
   #   my_node = Trailblazer::Circuit.Builder(
   #     [:a, T.def_task(:a, success_signal: nil)],
