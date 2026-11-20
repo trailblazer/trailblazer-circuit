@@ -31,11 +31,7 @@ class WrapRuntimeTest < Minitest::Spec
     end
   end
 
-  it "the WrapRuntime::Runner executes its {:wrap_runtime} per node, giving us a way to run logic *before* the actual node invocation.
-the extension sees the runner interface.
-we test that we see the correct {lib_ctx, flow_options, signal} in each extension invocation.
-we test the order is correct (extension before task).
-" do
+  def my_pipe
     _, my_pipe = pipe("a|",
       :a,
       pipe("b|",
@@ -46,6 +42,14 @@ we test the order is correct (extension before task).
           :d, helper: Helper), helper: Helper,),
       :e, helper: Helper)
 
+    my_pipe
+  end
+
+  it "the WrapRuntime::Runner executes its {:wrap_runtime} per node, giving us a way to run logic *before* the actual node invocation.
+the extension sees the runner interface.
+(incoming args) we test that we see the correct {lib_ctx, flow_options, signal} in each extension invocation.
+(order) we test the order is correct (extension before task).
+" do
     my_ext = ->(lib_ctx, flow_options, signal, node, id) do
       lib_ctx      = Helper.add_to_seq_in_lib_ctx(lib_ctx, ">#{id}")
       flow_options = Helper.add_to_seq(flow_options, id)
@@ -64,7 +68,44 @@ we test the order is correct (extension before task).
     assert_equal flow_options.to_h[:seq], ["flow_options", :Create, :a, "b|", :b, "c|", :c, "d|", :d, :e]
   end
 
+  it "an extension can see the {node, id} tuple" do
+    my_ext = ->(lib_ctx, flow_options, signal, node, id) do
+      lib_ctx = Helper.add_to_seq_in_lib_ctx(lib_ctx, [id, node])
 
+      return lib_ctx, flow_options, signal, node, id
+    end
+
+    my_pipe     = my_pipe()
+    my_top_node = Trailblazer::Circuit::Node[my_pipe, Trailblazer::Circuit::Processor]
+
+    lib_ctx, flow_options, signal = assert_run nil, :Create, node: my_top_node,
+      flow_options: Trailblazer::Circuit::WrapRuntime::Runner.new(wrap_runtime: my_ext),
+      # expected:
+      seq: [
+        [:Create, my_top_node],
+        [:a, my_pipe.nodes[:a]],
+        :a,
+        ["b|", my_pipe.nodes["b|"]],
+        [:b, my_pipe.nodes["b|"].task.nodes[:b]],
+        :b,
+        ["c|", my_pipe.nodes["b|"].task.nodes["c|"]],
+        [:c, my_pipe.nodes["b|"].task.nodes["c|"].task.nodes[:c]],
+        :c,
+        ["d|", my_pipe.nodes["b|"].task.nodes["d|"]],
+        [:d, my_pipe.nodes["b|"].task.nodes["d|"].task.nodes[:d]],
+        :d,
+        [:e, my_pipe.nodes[:e]],
+        :e,
+      ]
+  end
+
+  it "an extension can change all arguments of the runner interface when returning" do
+
+  end
+
+  it "in a Chain, the next extension sees the args from the predecessor" do
+
+  end
 
 
 
