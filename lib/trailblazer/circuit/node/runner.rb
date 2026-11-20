@@ -22,6 +22,10 @@
           self.class.new(**@options.merge(options))
         end
 
+        def reverse_merge(**options)
+          merge(**options.merge(@options))
+        end
+
         def to_h
           @options
         end
