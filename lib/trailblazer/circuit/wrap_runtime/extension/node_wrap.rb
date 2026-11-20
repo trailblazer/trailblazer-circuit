@@ -29,7 +29,7 @@ module Trailblazer
 
           CONDITION = ->(*, node, _) { ! node.options[:already_wrapped] }
           EXTENSION = WrapRuntime::Extension.new(CONDITION, NodeWrap)
-          USER_CONDITION = ->(*, node:, **) { node.options[:wrap_node] } # use this if you want to live the dream in a WrapNode.
+          USER_CONDITION = ->(*, node, _) { node.options[:wrap_node] } # use this if you want to live the dream in a WrapNode.
         end
       end # Extension
     end
