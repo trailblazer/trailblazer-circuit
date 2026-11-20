@@ -11,7 +11,20 @@ Minitest::Spec.class_eval do
   Right = Class.new
 
   let(:lib_interface) { Trailblazer::Circuit::Task::Adapter::LibInterface }
+
+  def pipe(id, *steps)
+    step_args = steps.collect do |step|
+      step.is_a?(Array) ?
+        [step.first, step.last, Trailblazer::Circuit::Processor] :
+        [step, T.def_task(step, success_signal: Object)]
+    end
+
+    my_pipe = Trailblazer::Circuit::Builder.Pipeline(*step_args)
+
+    return id, my_pipe
+  end
 end
+
 
 # DISCUSS: maybe move to core-utils
 class Capture < Struct.new(:name, :pollute, :return_signal)
