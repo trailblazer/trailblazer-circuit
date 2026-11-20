@@ -25,7 +25,7 @@ module Trailblazer
           def call(*args, node, id) # DISCUSS: *args or explicit? benchmark? this is used quite often?
             # raise id.inspect
             adds_instructions = adds_producer.(node, id) # DISCUSS: move that up to Extension? Do we actually need it outside of here?
-pp adds_instructions
+
             node_attrs = apply(adds_instructions, **node.to_h)
 
             # DISCUSS: the remaining code here could be part of the generic Extension.
