@@ -12,11 +12,11 @@ Minitest::Spec.class_eval do
 
   let(:lib_interface) { Trailblazer::Circuit::Task::Adapter::LibInterface }
 
-  def pipe(id, *steps)
+  def pipe(id, *steps, helper: T)
     step_args = steps.collect do |step|
       step.is_a?(Array) ?
         [step.first, step.last, Trailblazer::Circuit::Processor] :
-        [step, T.def_task(step, success_signal: Object)]
+        [step, helper.def_task(step, success_signal: Object)]
     end
 
     my_pipe = Trailblazer::Circuit::Builder.Pipeline(*step_args)
