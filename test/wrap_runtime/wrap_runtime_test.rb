@@ -99,8 +99,29 @@ the extension sees the runner interface.
       ]
   end
 
-  it "an extension can change all arguments of the runner interface when returning" do
+  it "an extension can return altered arguments, allowing to change the node that is invoked by the Runner" do
+    # the "extended node" adds an ID to seq and then calls the original node.
+    # that's just a test, and shouldn't be done in the wild, but it's also not wrong.
+    my_extension_node_class = Struct.new(:id, :original_node) do
+      def call(lib_ctx, flow_options, signal)
+        lib_ctx = Helper.add_to_seq_in_lib_ctx(lib_ctx, id)
 
+        original_node.call(lib_ctx, flow_options, signal)
+        # return lib_ctx, flow_options, signal
+      end
+    end
+
+    my_ext = ->(lib_ctx, flow_options, signal, node, id) do
+      node = my_extension_node_class.new([id], node)
+
+      # simly replace the current node.
+      return lib_ctx, flow_options, signal, node, id
+    end
+
+    lib_ctx, flow_options, signal = assert_run my_pipe, :Create,
+      flow_options: Trailblazer::Circuit::WrapRuntime::Runner.new(wrap_runtime: my_ext),
+      # expected:
+      seq: [[:Create], [:a], :a, ["b|"], [:b], :b, ["c|"], [:c], :c, ["d|"], [:d], :d, [:e], :e]
   end
 
   it "in a Chain, the next extension sees the args from the predecessor" do
