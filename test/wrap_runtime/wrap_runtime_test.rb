@@ -4,6 +4,71 @@ require "test_helper"
 # add test for specific tasks
 
 class WrapRuntimeTest < Minitest::Spec
+  module Helper
+    module_function
+
+    # pass-through the signal.
+    def def_task(name, *)
+      Module.new do
+        module_function
+        define_method(name) do |lib_ctx, flow_options, signal, target_ctx:, **|
+          target_ctx = target_ctx.merge(seq: target_ctx[:seq] + [name])
+
+          return lib_ctx.merge(target_ctx: target_ctx), flow_options, signal # pass-through the signal.
+        end
+      end
+      .method(name)
+    end
+
+    def add_to_seq_in_lib_ctx(lib_ctx, value)
+      target_ctx = add_to_seq(lib_ctx[:target_ctx], value)
+
+      lib_ctx = lib_ctx.merge(target_ctx: target_ctx)
+    end
+
+    def add_to_seq(hash, value)
+      hash.merge(seq: hash[:seq] + [value])
+    end
+  end
+
+  it "the WrapRuntime::Runner executes its {:wrap_runtime} per node, giving us a way to run logic *before* the actual node invocation.
+the extension sees the runner interface.
+we test that we see the correct {lib_ctx, flow_options, signal} in each extension invocation.
+we test the order is correct (extension before task).
+" do
+    _, my_pipe = pipe("a|",
+      :a,
+      pipe("b|",
+        :b,
+        pipe("c|",
+          :c, helper: Helper),
+        pipe("d|",
+          :d, helper: Helper), helper: Helper,),
+      :e, helper: Helper)
+
+    my_ext = ->(lib_ctx, flow_options, signal, node, id) do
+      lib_ctx      = Helper.add_to_seq_in_lib_ctx(lib_ctx, ">#{id}")
+      flow_options = Helper.add_to_seq(flow_options, id)
+      signal       = Helper.add_to_seq(signal, id)
+
+      return lib_ctx, flow_options, signal, node, id
+    end
+
+    lib_ctx, flow_options, signal = assert_run my_pipe, :Create,
+      flow_options: Trailblazer::Circuit::WrapRuntime::Runner.new(wrap_runtime: my_ext, seq: ["flow_options"]),
+      signal:       {seq: ["signal"]},
+      # expected:
+      seq: [">Create", ">a", :a, ">b|", ">b", :b, ">c|", ">c", :c, ">d|", ">d", :d, ">e", :e],
+      terminus: {seq: ["signal", :Create, :a, "b|", :b, "c|", :c, "d|", :d, :e]}
+
+    assert_equal flow_options.to_h[:seq], ["flow_options", :Create, :a, "b|", :b, "c|", :c, "d|", :d, :e]
+  end
+
+
+
+
+
+
   def assert_stack(actual, expected)
     assert_equal actual.size, expected.size
 
