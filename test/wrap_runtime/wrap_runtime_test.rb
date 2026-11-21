@@ -148,139 +148,73 @@ we place a new step after the b and d pipe" do
   end
 
   it "in a Chain, the next extension sees the args from the predecessor" do
+    my_first_ext = ->(lib_ctx, flow_options, signal, node, id) do
+      lib_ctx      = Helper.add_to_seq_in_lib_ctx(lib_ctx, ">#{id}")
+      flow_options = Helper.add_to_seq(flow_options, id)
+      signal       = Helper.add_to_seq(signal, ">#{id}")
 
-  end
-
-  it "test condition/order: we can simply add steps to a task_wrap pipeline via {:wrap_runtime}" do
-    my_adds_producer = ->(*, id) do
-      [
-        [:capture_before, Trailblazer::Circuit::Node[T.def_task(:"before-#{id}", success_signal: nil), Trailblazer::Circuit::Task::Adapter::LibInterface, options: {already_wrapped: true}], :before, :"task_wrap.call_task"],
-      ]
+      return [lib_ctx], [flow_options], [signal], [node], [id]
     end
 
-    tw_trace_extension = Trailblazer::Circuit::WrapRuntime::Extension(
-      ->(*, node, _id) { node.options[:task_wrap] },
-      adds: my_adds_producer
-    )
+    my_second_ext = ->((lib_ctx, _), (flow_options, _), (signal, _), (node, _), (id, _)) do
+      lib_ctx      = Helper.add_to_seq_in_lib_ctx(lib_ctx, "@#{id}")
+      flow_options = Helper.add_to_seq(flow_options, id)
+      signal       = Helper.add_to_seq(signal, "@#{id}")
 
-    # dispatcher_chain = Trailblazer::Circuit::WrapRuntime::Extension::Chain.new([tw_trace_extension])
-    # Test that we can use a plain Extension instead of Extension::Chain.
-    assert_run nil, :Create, seq: [:"before-Create", :in, :"before-model", :model, :out, :"before-save", :save],
-      node: my_create_node,
-      flow_options: Trailblazer::Circuit::WrapRuntime::Runner.new(wrap_runtime: tw_trace_extension)
-  end
-
-
-
-  def assert_stack(actual, expected)
-    assert_equal actual.size, expected.size
-
-    actual.each_with_index do |capture, i|
-      assert_equal capture, expected[i], "index #{i} mismatch"
-    end
-  end
-
-  Record = Struct.new(:id, :title)
-  def Create_fixture
-    my_io = Class.new do
-      def self.model_input(lib_ctx, flow_options, signal, target_ctx:, **)
-        lib_ctx = lib_ctx.merge(
-          original_application_ctx: target_ctx,
-          target_ctx: target_ctx.fetch(:params) # "effective" ctx
-        )
-
-        return lib_ctx, flow_options, signal
-      end
-
-      def self.model_output(lib_ctx, flow_options, signal, original_application_ctx:, **)
-        lib_ctx = lib_ctx.merge(target_ctx: original_application_ctx)
-
-        return lib_ctx, flow_options, signal
-      end
+      return lib_ctx, flow_options, signal, node, id
     end
 
-    my_activity = Class.new do
-      def compute_signal(lib_ctx, flow_options, signal, **)
-        return lib_ctx, flow_options, Right
-      end
+    dispatcher_chain = Trailblazer::Circuit::WrapRuntime::Extension::Chain.new([my_first_ext, my_second_ext])
 
-      def success(lib_ctx, flow_options, signal, **)
-        return lib_ctx, flow_options, :Success
-      end
+    lib_ctx, flow_options, signal = assert_run my_pipe, :Create,
+      flow_options: Trailblazer::Circuit::WrapRuntime::Runner.new(wrap_runtime: dispatcher_chain, seq: ["flow_options"]),
+      signal:       {seq: ["signal"]},
+      # expected:
+      seq: [">Create", "@Create", ">a", "@a", :a, ">b|", "@b|", ">b", "@b", :b, ">c|", "@c|", ">c", "@c", :c, ">d|", "@d|", ">d", "@d", :d, ">e", "@e", :e],
+      terminus: {seq: ["signal", ">Create", "@Create", ">a", "@a", ">b|", "@b|", ">b", "@b", ">c|", "@c|", ">c", "@c", ">d|", "@d|", ">d", "@d", ">e", "@e"]}
 
-      def failure(lib_ctx, flow_options, signal, **)
-        return lib_ctx, flow_options, :Failure
-      end
-    end.new
-
-    create_instance = Class.new do
-      def find(lib_ctx, flow_options, signal, target_ctx:, **)
-        id = target_ctx[:id]
-
-        target_ctx[:model] = Record.new(id)
-
-        return lib_ctx.merge(target_ctx: target_ctx), flow_options, signal
-      end
-
-      def save(lib_ctx, flow_options, signal, target_ctx:, **)
-        params = target_ctx[:params]
-        puts "@@@@@ #{target_ctx.inspect}"
-
-        params[:model].title = params[:title]
-
-        return lib_ctx, flow_options, signal
-      end
-    end.new
-
-    model_call_pipe = Trailblazer::Circuit::Builder.Pipeline(
-      [:find, :find, Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod],
-      [:compute_signal, my_activity.method(:compute_signal), Trailblazer::Circuit::Task::Adapter::LibInterface],
-    )
-
-    model_tw = Trailblazer::Circuit::Builder.Pipeline(
-      [:input, my_io.method(:model_input), Trailblazer::Circuit::Task::Adapter::LibInterface],
-      [:call_task, model_call_pipe, Trailblazer::Circuit::Processor, options: {traceable: true}],
-      [:output, my_io.method(:model_output), Trailblazer::Circuit::Task::Adapter::LibInterface],
-    )
-
-    save_tw = Trailblazer::Circuit::Builder.Pipeline(
-      # [:input, my_io.method(:model_input), Trailblazer::Circuit::Task::Adapter::LibInterface],
-      [:call_task, :save , Trailblazer::Circuit::Task::Adapter::LibInterface::InstanceMethod],
-      [:compute_signal, my_activity.method(:compute_signal), Trailblazer::Circuit::Task::Adapter::LibInterface],
-      # [:output, my_io.method(:model_output), Trailblazer::Circuit::Task::Adapter::LibInterface],
-    )
-
-    success_pipe = Trailblazer::Circuit::Builder::Pipeline(
-      [:call_task, my_activity.method(:success), Trailblazer::Circuit::Task::Adapter::LibInterface],
-    )
-
-    failure_pipe = Trailblazer::Circuit::Builder::Pipeline(
-      [:call_task, my_activity.method(:failure), Trailblazer::Circuit::Task::Adapter::LibInterface],
-    )
-
-    create_circuit, _ = Trailblazer::Circuit::Builder.Circuit(
-      [:Model, model_tw, Trailblazer::Circuit::Processor, connections: {Right => [:Save, Right], Left => [:failure, Left]}, options: {traceable: true, task_wrap: true}],
-      # [:Validate, validate_circuit, Trailblazer::Circuit::Processor], connections: {Right => :Validate, Left => :failure}]
-      [:Save, save_tw, Trailblazer::Circuit::Processor, connections: {Right => [:success, Right], Left => [:failure, Left]}, options: {traceable: true, task_wrap: true}],
-      [:success, success_pipe, Trailblazer::Circuit::Processor, connections: {:Success => [nil, "Success"]}, options: {traceable: true, task_wrap: true}],
-      [:failure, failure_pipe, Trailblazer::Circuit::Processor, connections: {:Failure => [nil, "Failure"]}, options: {traceable: true, task_wrap: true}]
-    )
-
-    create_tw = Trailblazer::Circuit::Builder.Pipeline(
-      [:call_task, create_circuit, Trailblazer::Circuit::Processor]
-    )
-
-    canonical_node = Trailblazer::Circuit::Node[create_tw, Trailblazer::Circuit::Processor, options: {traceable: true, task_wrap: true}]
-
-    return canonical_node, create_instance
+    assert_equal flow_options.to_h[:seq], ["flow_options", :Create, :Create, :a, :a, "b|", "b|", :b, :b, "c|", "c|", :c, :c, "d|", "d|", :d, :d, :e, :e]
   end
 
-  it "test Create fixture" do
-    my_create_node, create_instance = Create_fixture()
+  it "an Extension has condition chains and an extension chain, the latter is only run when all conditions meet
+we test {Extension.new} here, not the Extension() builder
+" do
+    my_ext = ->(lib_ctx, flow_options, signal, node, id) do
+      lib_ctx      = Helper.add_to_seq_in_lib_ctx(lib_ctx, ">#{id}")
+      flow_options = Helper.add_to_seq(flow_options, id)
+      signal       = Helper.add_to_seq(signal, id)
 
-    assert_run node: my_create_node, exec_context: create_instance, target_ctx: {params: {id: 1, title: "Rancid"}},
-      terminus: "Success",
-      expected_target_variables: {:params=>{:id=>1, title: "Rancid", :model=>Record.new(1, "Rancid")}}
+      return lib_ctx, flow_options, signal, node, id
+    end
+
+    dispatcher_chain = Trailblazer::Circuit::WrapRuntime::Extension::Chain.new([my_ext])
+
+    my_extension = Trailblazer::Circuit::WrapRuntime::Extension.new(
+      ->(*, id) { [:Create, :c].include?(id) },
+      dispatcher_chain
+    )
+
+    lib_ctx, flow_options, signal = assert_run my_pipe, :Create,
+      flow_options: Trailblazer::Circuit::WrapRuntime::Runner.new(wrap_runtime: my_extension, seq: ["flow_options"]),
+      signal:       {seq: ["signal"]},
+      # expected:
+      seq: [">Create", :a, :b, ">c", :c, :d, :e],
+      terminus: {seq: ["signal", :Create, :c]}
+
+    assert_equal flow_options.to_h[:seq], ["flow_options", :Create, :c]
+  end
+
+  it "Conditions chain conditions" do
+    # my_wrap_runtime_resolver = Trailblazer::Circuit::WrapRuntime::Extension.new(
+    #   Trailblazer::Circuit::WrapRuntime::Extension::Conditions.new(
+    #     [
+    #       Trailblazer::Circuit::WrapRuntime::Extension::NodeWrap::CONDITION,
+    #       ->(*, node, _) { node.to_h[:options][:is_circuit] },
+    #     ]
+    #   ),
+    #   my_extensions,
+    # )
+
   end
 
   class MyTrace
@@ -307,39 +241,6 @@ we place a new step after the b and d pipe" do
   end
 
   let(:lib) { Trailblazer::Circuit::Task::Adapter::LibInterface }
-
-  let(:my_create_node) do
-    my_exec_context = Class.new do
-      [:in, :model, :out, :save].each do |name|
-        define_method(name) do |lib_ctx, flow_options, signal, target_ctx:, **|
-          target_ctx = target_ctx.merge(seq: target_ctx[:seq] + [name])
-          return lib_ctx.merge(target_ctx: target_ctx), flow_options, signal # pass-through the signal.
-        end
-      end
-    end.new
-
-    my_model_tw = Trailblazer::Circuit::Builder.Pipeline(
-      [:"variable_mapping.in", my_exec_context.method(:in)],
-      [:"task_wrap.call_task", my_exec_context.method(:model)],
-      [:"variable_mapping.out", my_exec_context.method(:out)],
-    )
-
-    my_save_tw = Trailblazer::Circuit::Builder.Pipeline(
-      [:"task_wrap.call_task", my_exec_context.method(:save)]
-    )
-
-    my_create = Trailblazer::Circuit::Builder.Pipeline(
-      [:model, my_model_tw, Trailblazer::Circuit::Processor, options: {task_wrap: true}],
-      [:save, my_save_tw, Trailblazer::Circuit::Processor, options: {task_wrap: true}],
-    )
-
-    my_canonical_tw = Trailblazer::Circuit::Builder.Pipeline(
-      [:"task_wrap.call_task", my_create, Trailblazer::Circuit::Processor]
-    )
-
-    my_canonical_node = Trailblazer::Circuit::Node[my_canonical_tw, Trailblazer::Circuit::Processor, options: {task_wrap: true}]
-  end
-
 
   it "we can extend with multiple extensions, eg NodeWrap and then tracing. this leverages Extension::Chain" do
     # TODO: extensions after it can see :node, eg.
