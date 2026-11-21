@@ -107,7 +107,6 @@ the extension sees the runner interface.
         lib_ctx = Helper.add_to_seq_in_lib_ctx(lib_ctx, id)
 
         original_node.call(lib_ctx, flow_options, signal)
-        # return lib_ctx, flow_options, signal
       end
     end
 
@@ -124,10 +123,52 @@ the extension sees the runner interface.
       seq: [[:Create], [:a], :a, ["b|"], [:b], :b, ["c|"], [:c], :c, ["d|"], [:d], :d, [:e], :e]
   end
 
+  #
+  # Extension tests
+  #
+
+  it "we can change the current node with a WrapRuntime::Extension with a condition and an {:adds} producer
+we place a new step after the b and d pipe" do
+    my_adds_producer = ->(*, id) do
+      [
+        [
+          :capture_after, Trailblazer::Circuit::Node[T.def_task(:"after-#{id}", success_signal: nil), Trailblazer::Circuit::Task::Adapter::LibInterface, options: {already_wrapped: true}],
+          :after
+        ],
+      ]
+    end
+
+    tw_trace_extension = Trailblazer::Circuit::WrapRuntime::Extension(
+      ->(*, node, id) { ["b|", "d|"].include?(id) },
+      adds: my_adds_producer
+    )
+
+    assert_run my_pipe, :Create, seq: [:a, :b, :c, :d, :"after-d|", :"after-b|", :e],
+      flow_options: Trailblazer::Circuit::WrapRuntime::Runner.new(wrap_runtime: tw_trace_extension)
+  end
+
   it "in a Chain, the next extension sees the args from the predecessor" do
 
   end
 
+  it "test condition/order: we can simply add steps to a task_wrap pipeline via {:wrap_runtime}" do
+    my_adds_producer = ->(*, id) do
+      [
+        [:capture_before, Trailblazer::Circuit::Node[T.def_task(:"before-#{id}", success_signal: nil), Trailblazer::Circuit::Task::Adapter::LibInterface, options: {already_wrapped: true}], :before, :"task_wrap.call_task"],
+      ]
+    end
+
+    tw_trace_extension = Trailblazer::Circuit::WrapRuntime::Extension(
+      ->(*, node, _id) { node.options[:task_wrap] },
+      adds: my_adds_producer
+    )
+
+    # dispatcher_chain = Trailblazer::Circuit::WrapRuntime::Extension::Chain.new([tw_trace_extension])
+    # Test that we can use a plain Extension instead of Extension::Chain.
+    assert_run nil, :Create, seq: [:"before-Create", :in, :"before-model", :model, :out, :"before-save", :save],
+      node: my_create_node,
+      flow_options: Trailblazer::Circuit::WrapRuntime::Runner.new(wrap_runtime: tw_trace_extension)
+  end
 
 
 
@@ -299,187 +340,6 @@ the extension sees the runner interface.
     my_canonical_node = Trailblazer::Circuit::Node[my_canonical_tw, Trailblazer::Circuit::Processor, options: {task_wrap: true}]
   end
 
-  it "testing the {my_create_tw} fixture" do
-    assert_run node: my_create_node, seq: [:in, :model, :out, :save]#, terminus: "Right"
-  end
-
-  it "test condition/order: we can simply add steps to a task_wrap pipeline via {:wrap_runtime}" do
-    my_adds_producer = ->(*, id) do
-      [
-        [:capture_before, Trailblazer::Circuit::Node[T.def_task(:"before-#{id}", success_signal: nil), Trailblazer::Circuit::Task::Adapter::LibInterface, options: {already_wrapped: true}], :before, :"task_wrap.call_task"],
-      ]
-    end
-
-    tw_trace_extension = Trailblazer::Circuit::WrapRuntime::Extension(
-      ->(*, node, _id) { node.options[:task_wrap] },
-      adds: my_adds_producer
-    )
-
-    # dispatcher_chain = Trailblazer::Circuit::WrapRuntime::Extension::Chain.new([tw_trace_extension])
-    # Test that we can use a plain Extension instead of Extension::Chain.
-    assert_run nil, :Create, seq: [:"before-Create", :in, :"before-model", :model, :out, :"before-save", :save],
-      node: my_create_node,
-      flow_options: Trailblazer::Circuit::WrapRuntime::Runner.new(wrap_runtime: tw_trace_extension)
-  end
-
-  it "a basic Extension can see {lib_ctx, flow_options, signal, **circuit_options}" do
-    # In this example, I implement a mini-tracing extension that only traces "before" as an Extension
-    # is invoked before the actual node is run.
-    #
-    # The extension is a simple callable that doesn't involve any Decider, Chain or whatever.
-    #
-    # We record all incoming arguments in {signal} and pass it on.
-    my_basic_extension = ->(lib_ctx, flow_options, signal, node, id) do
-      signal += [[id, lib_ctx.inspect, flow_options, node]]
-
-      return lib_ctx, flow_options, signal, node, id # we have to return {node, id}, too.
-    end
-
-    my_create_node = self.my_create_node
-
-    my_wrap_runtime = ->(*args) { my_basic_extension.(*args) }
-
-    # assert_run nil, :Create, seq: [:in, :model, :out, :save],
-    #   node: my_create_node,
-    #   signal: [] # signal acts as a "stack".
-
-    runner = Trailblazer::Circuit::WrapRuntime::Runner.new(wrap_runtime: my_wrap_runtime)
-    lib_ctx, flow_options, signal = runner.(
-      {target_ctx: {seq: []}},
-      runner,
-      [], # signal acts as a "stack".
-      my_create_node,
-      :Create
-    )
-
-    assert_equal lib_ctx, {target_ctx: {seq: [:in, :model, :out, :save]}}
-
-    # Let's check what each Extension sees as incoming args.
-    assert_equal signal[0], [
-      :Create, # this is the taskWrap.
-      {target_ctx: {seq: []}}.inspect,
-      runner,
-      my_create_node
-    ]
-
-    # this is actually the Create circuit,
-    assert_equal signal[1], [
-      :"task_wrap.call_task",
-      {target_ctx: {seq: []}}.inspect,
-      runner,
-      my_create_node.task.nodes[:"task_wrap.call_task"]
-    ]
-
-    # this is model's taskWrap.
-    assert_equal signal[2], [
-      :model,
-      {target_ctx: {seq: []}}.inspect,
-      runner,
-       my_create_node.task.nodes[:"task_wrap.call_task"].task.nodes[:model]
-    ]
-
-    # this is :in in model's taskWrap..
-    assert_equal signal[3], [
-      :"variable_mapping.in",
-      {target_ctx: {seq: []}}.inspect,
-      runner,
-      my_create_node.task.nodes[:"task_wrap.call_task"].task.nodes[:model].task.nodes[:"variable_mapping.in"]
-    ]
-
-    # this is the actual {#model} method,
-    assert_equal signal[4], [
-      :"task_wrap.call_task",
-      {target_ctx: {seq: [:in]}}.inspect,
-      runner,
-      my_create_node.task.nodes[:"task_wrap.call_task"].task.nodes[:model].task.nodes[:"task_wrap.call_task"]
-    ]
-
-    # this is :out in model's taskWrap..
-    assert_equal signal[5], [
-      :"variable_mapping.out",
-      {target_ctx: {seq: [:in, :model]}}.inspect,
-      runner,
-      my_create_node.task.nodes[:"task_wrap.call_task"].task.nodes[:model].task.nodes[:"variable_mapping.out"]
-    ]
-
-    # this is {:save} taskWrap.
-    assert_equal signal[6], [
-      :save,
-      {target_ctx: {seq: [:in, :model, :out]}}.inspect,
-      runner,
-      my_create_node.task.nodes[:"task_wrap.call_task"].task.nodes[:save]
-    ]
-
-    # this is the actual {#save} method,
-    assert_equal signal[7], [
-      :"task_wrap.call_task",
-      {target_ctx: {seq: [:in, :model, :out]}}.inspect,
-      runner,
-      my_create_node.task.nodes[:"task_wrap.call_task"].task.nodes[:save].task.nodes[:"task_wrap.call_task"]
-    ]
-
-    assert_nil signal[8]
-  end
-
-  # FIXME: this test sucks!
-  it "a basic Extension can change lib_ctx, flow_options, and circuit_options" do
-    skip
-    # TODO: add test that really captures all circuit_options so we can test what we see on each level?
-
-    my_basic_extension = ->(lib_ctx, flow_options, signal, **circuit_options) do
-      lib_ctx = lib_ctx.merge(lib_ctx_stack: lib_ctx[:lib_ctx_stack] + [circuit_options[:id]])
-      flow_options = flow_options.merge(flow_options_stack: flow_options[:flow_options_stack] + [circuit_options[:id]])
-      circuit_options = circuit_options.merge(circuit_options_stack: circuit_options[:circuit_options_stack] + [circuit_options[:id]])
-
-      return lib_ctx, flow_options, signal, circuit_options # we can return {circuit_options}.
-    end
-
-    my_create_node = self.my_create_node
-
-    my_capture_adapter = ->(_, lib_ctx, *args, **circuit_options) {
-      lib_ctx = lib_ctx.merge(captured_circuit_options: circuit_options.dup)
-
-      return lib_ctx, *args
-    }
-
-    my_create_node = Trailblazer::Circuit::Node::Patch.(
-      my_create_node,
-      [:"task_wrap.call_task"],
-      adds: [
-        [
-          :my_capture,
-          Trailblazer::Circuit::Node[nil, my_capture_adapter],
-          :after
-        ]
-      ]
-    )
-
-    my_wrap_runtime = ->(*args) { my_basic_extension.(*args) }
-
-    runner = Trailblazer::Circuit::WrapRuntime::Runner.new(wrap_runtime: my_wrap_runtime)
-
-    lib_ctx, flow_options, signal = runner.(
-      {target_ctx: {seq: []}, lib_ctx_stack: []},
-      runner,
-      [], # signal acts as a "stack".
-      my_create_node,
-      :Create
-    )
-
-    expected_circuit_options = {
-      **circuit_options,
-      id: :my_capture,
-      node: my_create_node.task.nodes[:"task_wrap.call_task"].task.nodes[:my_capture],
-      :circuit_options_stack=>[:Create, :"task_wrap.call_task", :my_capture] # we only see the Create/task_wrap level, not anything from siblings.
-    }
-
-    assert_equal lib_ctx, {
-      target_ctx: {seq: [:in, :model, :out, :save]},
-      :lib_ctx_stack=>[:Create, :"task_wrap.call_task", :model, :"variable_mapping.in", :"task_wrap.call_task", :"variable_mapping.out", :save, :"task_wrap.call_task", :my_capture],
-      :captured_circuit_options => expected_circuit_options,
-    }
-    assert_equal flow_options, {:flow_options_stack=>[:Create, :"task_wrap.call_task", :model, :"variable_mapping.in", :"task_wrap.call_task", :"variable_mapping.out", :save, :"task_wrap.call_task", :my_capture]}
-  end
 
   it "we can extend with multiple extensions, eg NodeWrap and then tracing. this leverages Extension::Chain" do
     # TODO: extensions after it can see :node, eg.
