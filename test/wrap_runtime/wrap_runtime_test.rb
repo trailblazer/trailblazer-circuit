@@ -176,18 +176,20 @@ we place a new step after the b and d pipe" do
     assert_equal flow_options.to_h[:seq], ["flow_options", :Create, :Create, :a, :a, "b|", "b|", :b, :b, "c|", "c|", :c, :c, "d|", "d|", :d, :d, :e, :e]
   end
 
-  it "an Extension has condition chains and an extension chain, the latter is only run when all conditions meet
-we test {Extension.new} here, not the Extension() builder
-" do
-    my_ext = ->(lib_ctx, flow_options, signal, node, id) do
+  let(:my_extension) do
+    ->(lib_ctx, flow_options, signal, node, id) do
       lib_ctx      = Helper.add_to_seq_in_lib_ctx(lib_ctx, ">#{id}")
       flow_options = Helper.add_to_seq(flow_options, id)
       signal       = Helper.add_to_seq(signal, id)
 
       return lib_ctx, flow_options, signal, node, id
     end
+  end
 
-    dispatcher_chain = Trailblazer::Circuit::WrapRuntime::Extension::Chain.new([my_ext])
+  it "an Extension has a condition and an extension chain, the latter is only run when the condition's met
+we test {Extension.new} here, not the Extension() builder
+" do
+    dispatcher_chain = Trailblazer::Circuit::WrapRuntime::Extension::Chain.new([my_extension])
 
     my_extension = Trailblazer::Circuit::WrapRuntime::Extension.new(
       ->(*, id) { [:Create, :c].include?(id) },
@@ -204,17 +206,36 @@ we test {Extension.new} here, not the Extension() builder
     assert_equal flow_options.to_h[:seq], ["flow_options", :Create, :c]
   end
 
-  it "Conditions chain conditions" do
-    # my_wrap_runtime_resolver = Trailblazer::Circuit::WrapRuntime::Extension.new(
-    #   Trailblazer::Circuit::WrapRuntime::Extension::Conditions.new(
-    #     [
-    #       Trailblazer::Circuit::WrapRuntime::Extension::NodeWrap::CONDITION,
-    #       ->(*, node, _) { node.to_h[:options][:is_circuit] },
-    #     ]
-    #   ),
-    #   my_extensions,
-    # )
+  it "Conditions chain conditions, all conditions have to be met" do
+    dispatcher_chain = Trailblazer::Circuit::WrapRuntime::Extension::Chain.new([my_extension])
 
+    my_extension = Trailblazer::Circuit::WrapRuntime::Extension.new(
+      Trailblazer::Circuit::WrapRuntime::Extension::Conditions.new(
+        [
+          ->(*, id) { id.is_a?(String) },
+          ->(*, id) { id.to_s.downcase =~ /c/ }, # :Create, :c and "c|"
+        ]
+      ),
+      dispatcher_chain
+    )
+
+    my_not_applied_extension = Trailblazer::Circuit::WrapRuntime::Extension.new(
+      Trailblazer::Circuit::WrapRuntime::Extension::Conditions.new(
+        [
+          ->(*, id) { false },
+        ]
+      ),
+      ->(*) { raise }
+    )
+
+    top_extension = Trailblazer::Circuit::WrapRuntime::Extension::Chain.new([my_not_applied_extension, my_extension])
+
+    lib_ctx, flow_options, signal = assert_run my_pipe, :Create,
+      flow_options: Trailblazer::Circuit::WrapRuntime::Runner.new(wrap_runtime: top_extension, seq: ["flow_options"]),
+      signal:       {seq: ["signal"]},
+      # expected:
+      seq: [:a, :b, ">c|", :c, :d, :e],
+      terminus: {seq: ["signal", "c|"]}
   end
 
   class MyTrace
