@@ -48,7 +48,7 @@ class WrapRuntimeExtensionTest < Minitest::Spec
       ]
     }
 
-    my_adds_instructions_ext = Trailblazer::Circuit::WrapRuntime.Extension(->(*) { true }, adds: my_adds_ext) # this is run by WrapRuntime::Runner
+    my_adds_instructions_ext = Trailblazer::Circuit::WrapRuntime.Extension(->(*) { true }, adds_producer: my_adds_ext) # this is run by WrapRuntime::Runner
 
     my_set = Trailblazer::Circuit::WrapRuntime::Extension::Chain.new([my_adds_instructions_ext])
 
