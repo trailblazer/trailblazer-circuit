@@ -5,5 +5,5 @@ gemspec
 
 gem "rake", "~> 13.0"
 gem "benchmark-ips"
-gem "trailblazer-core-utils", path: "../trailblazer-core-utils"
+# gem "trailblazer-core-utils", path: "../trailblazer-core-utils"
 # gem "trailblazer-developer", path: "../trailblazer-developer"
