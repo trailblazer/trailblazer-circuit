@@ -4,47 +4,6 @@ require "test_helper"
 # add test for specific tasks
 
 class WrapRuntimeTest < Minitest::Spec
-  module Helper
-    module_function
-
-    # pass-through the signal.
-    def def_task(name, *)
-      Module.new do
-        module_function
-        define_method(name) do |lib_ctx, flow_options, signal, target_ctx:, **|
-          target_ctx = target_ctx.merge(seq: target_ctx[:seq] + [name])
-
-          return lib_ctx.merge(target_ctx: target_ctx), flow_options, signal # pass-through the signal.
-        end
-      end
-      .method(name)
-    end
-
-    def add_to_seq_in_lib_ctx(lib_ctx, value)
-      target_ctx = add_to_seq(lib_ctx[:target_ctx], value)
-
-      lib_ctx = lib_ctx.merge(target_ctx: target_ctx)
-    end
-
-    def add_to_seq(hash, value)
-      hash.merge(seq: hash[:seq] + [value])
-    end
-  end
-
-  def my_pipe
-    _, my_pipe = pipe("a|",
-      :a,
-      pipe("b|",
-        :b,
-        pipe("c|",
-          :c, helper: Helper),
-        pipe("d|",
-          :d, helper: Helper), helper: Helper,),
-      :e, helper: Helper)
-
-    my_pipe
-  end
-
   it "the WrapRuntime::Runner executes its {:wrap_runtime} per node, giving us a way to run logic *before* the actual node invocation.
 the extension sees the runner interface.
 (incoming args) we test that we see the correct {lib_ctx, flow_options, signal} in each extension invocation.
@@ -140,7 +99,7 @@ we place a new step after the b and d pipe" do
 
     tw_trace_extension = Trailblazer::Circuit::WrapRuntime::Extension(
       ->(*, node, id) { ["b|", "d|"].include?(id) },
-      adds: my_adds_producer
+      adds_producer: my_adds_producer
     )
 
     assert_run my_pipe, :Create, seq: [:a, :b, :c, :d, :"after-d|", :"after-b|", :e],
@@ -238,6 +197,16 @@ we test {Extension.new} here, not the Extension() builder
       terminus: {seq: ["signal", "c|"]}
   end
 
+
+
+
+
+
+
+
+
+
+
   class MyTrace
     class Capture < Struct.new(:captured_task, :position)
       def call(lib_ctx, flow_options, signal, target_ctx:, **)
@@ -278,7 +247,7 @@ we test {Extension.new} here, not the Extension() builder
 
     tw_trace_extension = Trailblazer::Circuit::WrapRuntime::Extension(
       ->(*, node, _) { node.options[:wrap_node] },
-      adds: my_adds_producer
+      adds_producer: my_adds_producer
     )
 
     node_wrap_extension = Trailblazer::Circuit::WrapRuntime::Extension::NodeWrap::EXTENSION
@@ -379,7 +348,7 @@ we test {Extension.new} here, not the Extension() builder
     # We record the passed {circuit_options}.
     my_tested_extension = Trailblazer::Circuit::WrapRuntime.Extension(
       ->(*, id:, **) { [:Create, :a].include?(id) },
-      adds: ->(*, **circuit_options) do
+      adds_producer: ->(*, **circuit_options) do
         my_tw_extension  = Struct.new(:options) do
           def call(lib_ctx, *args)
             lib_ctx[:capture] << options
@@ -431,7 +400,7 @@ we test {Extension.new} here, not the Extension() builder
     # DISCUSS: how to merge multiple runtime extensions? canonical invoke!
     my_tracing_ext = Trailblazer::Circuit::WrapRuntime.Extension(
       ->(*, node, _) { node.to_h[:options][:traceable] },
-      adds: MyTrace::Extension
+      adds_producer: MyTrace::Extension
     )
 
      my_create_node, create_instance = Create_fixture()
@@ -464,7 +433,7 @@ end
 class MyRunnerWithExtraNodeTest < Minitest::Spec
   let(:my_extensions) do
     # DISCUSS: how to merge multiple runtime extensions? canonical invoke!
-    my_tracing_ext = Trailblazer::Circuit::WrapRuntime.Extension(adds: WrapRuntimeTest::MyTrace::Extension)
+    my_tracing_ext = Trailblazer::Circuit::WrapRuntime.Extension(adds_producer: WrapRuntimeTest::MyTrace::Extension)
 
     my_extensions = Trailblazer::Circuit::WrapRuntime::Extension::Set.new(
       [

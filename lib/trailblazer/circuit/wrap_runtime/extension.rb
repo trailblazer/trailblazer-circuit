@@ -2,8 +2,8 @@ module Trailblazer
   class Circuit
     module WrapRuntime
       # NOTE: should be the only entry-point to create an extension.
-      def self.Extension(condition, adds:) # currently, we only support ADDS instructions. every thing else, you won't need any {Extension}.
-        callable = Extension::AddsInstructions.new(adds)
+      def self.Extension(condition, adds_producer:) # currently, we only support ADDS instructions. every thing else, you won't need any {Extension}.
+        callable = Extension::AddsInstructions.new(adds_producer)
 
         Extension.new(condition, callable)
       end

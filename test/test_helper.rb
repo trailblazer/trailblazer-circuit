@@ -23,6 +23,48 @@ Minitest::Spec.class_eval do
 
     return id, my_pipe
   end
+
+  # Concrete fixture.
+  def my_pipe
+    _, my_pipe = pipe("a|",
+      :a,
+      pipe("b|",
+        :b,
+        pipe("c|",
+          :c, helper: Helper),
+        pipe("d|",
+          :d, helper: Helper), helper: Helper,),
+      :e, helper: Helper)
+
+    my_pipe
+  end
+
+  module Helper
+    module_function
+
+    # pass-through the signal.
+    def def_task(name, *)
+      Module.new do
+        module_function
+        define_method(name) do |lib_ctx, flow_options, signal, target_ctx:, **|
+          target_ctx = target_ctx.merge(seq: target_ctx[:seq] + [name])
+
+          return lib_ctx.merge(target_ctx: target_ctx), flow_options, signal # pass-through the signal.
+        end
+      end
+      .method(name)
+    end
+
+    def add_to_seq_in_lib_ctx(lib_ctx, value)
+      target_ctx = add_to_seq(lib_ctx[:target_ctx], value)
+
+      lib_ctx = lib_ctx.merge(target_ctx: target_ctx)
+    end
+
+    def add_to_seq(hash, value)
+      hash.merge(seq: hash[:seq] + [value])
+    end
+  end
 end
 
 
