@@ -2,13 +2,12 @@ module Trailblazer
   class Circuit
     class Node
       module Patch
-        def self.call(node, path, adds:)
+        def self.call(node, path, adds:) # the {:adds} is the user's patch.
           # traverse deeper if {path}
           if path.any?
             id, *path = path
 
-            node_for_id = Node::Introspect.find_path(node, [id])
-            # circuit_for_id = node_for_id.task
+            node_for_id = Node::Introspect.find_path(node, Array(id)) # this always has to point to a "Circuit" or anything that likes Adds.
 
             # recurse
             new_node_for_id = call(node_for_id, path, adds: adds)
@@ -23,9 +22,12 @@ module Trailblazer
             ]
           end
 
-          new_circuit = Adds.(node.task, *adds)
+          adds_processor = node.options[:adds] || Circuit::Adds # DISCUSS: there might be other ways to configure the Adds implemenation. I like this best for now.
 
-          node.class.new(**node.to_h, task: new_circuit) # TODO: provide API from Node.
+          new_circuit = adds_processor.(node.task, *adds) # normally, this translates to {Adds.(node.task, *adds)}.
+
+          # Since ADDS is on Circuit-level, we have to create the Node ourselves.
+          node.merge(task: new_circuit)
         end
       end # Patch
     end
