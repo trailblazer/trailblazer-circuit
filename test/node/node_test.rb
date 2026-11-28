@@ -44,11 +44,11 @@ class NodeTest < Minitest::Spec
       assert_equal my_copy, Trailblazer::Circuit::Node[:a, MyInterface, options: {important: true, data: 1}]
     end
 
-    it "accepts {task} and other kwargs" do
-      my_copy = my_node.merge(task: :b, options: {data: 1})
+    it "accepts all properties as kwargs, they simply override their original, expect for {:options}" do
+      my_copy = my_node.merge(task: :b, adapter: Object, options: {data: 1})
 
       assert_equal my_node, Trailblazer::Circuit::Node[:a, MyInterface, options: {important: true}]
-      assert_equal my_copy, Trailblazer::Circuit::Node[:b, MyInterface, options: {important: true, data: 1}]
+      assert_equal my_copy, Trailblazer::Circuit::Node[:b, Object, options: {important: true, data: 1}]
     end
   end
 end

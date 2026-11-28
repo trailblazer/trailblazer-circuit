@@ -12,14 +12,17 @@ module Trailblazer
         end
       end
 
+      # We need to "clone-and-update" nodes in so many places that we provide Node#merge.
       module Merge
-        # node.merge(options: {value: "on"}) will merge the hash into {options}.
-        def merge(task: nil, **hash_properties)
-          properties = to_h
-          properties = properties.merge(task: task) if task # DISCUSS: is this what we want?
-
-          # TODO: this only works for hash properties.
-          properties = properties.merge(hash_properties.collect { |property, value| [property, properties[property].merge(value)] }.to_h)
+        # Example:
+        #   node.merge(options: {value: "on"})
+        #
+        # will merge the hash into {options}.
+        def merge(options: {}, **attributes)
+          properties = to_h # {task:, adapter:, options:}
+          properties = properties.merge(attributes)
+          # properties = properties.merge(properties_from_hash.collect { |property, value| [property, properties[property].merge(value)] }.to_h)
+          properties = properties.merge(options: self.options.merge(options))
 
           self.class.new(**properties)
         end
