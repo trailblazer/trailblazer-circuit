@@ -69,8 +69,6 @@ via :processor_for_adds we can configure how the changes are applied to the curr
 in this example, we only iterate from Topology to Topology. in the dsl gem, this approach is used.
 this tests {Patch.()}'s {:processor_for_adds} option.
 " do
-    my_exec_context = T.def_tasks(:a, :b, :c, :d, :e, :f, :tw_confirm, success_signal: nil)
-
     def my_adds_implementation_for_topology(topology, *adds)
       id, node, action, target = adds[0]
 
@@ -141,7 +139,7 @@ this tests {Patch.()}'s {:processor_for_adds} option.
       adds: [
         [
           :tw_confirm,
-          Trailblazer::Circuit::Node[my_exec_context.method(:tw_confirm), Trailblazer::Circuit::Task::Adapter::LibInterface],
+          Trailblazer::Circuit::Node[T.def_task(:tw_confirm, success_signal: nil), Trailblazer::Circuit::Task::Adapter::LibInterface],
           :before, :tw_verify
         ]
       ],
