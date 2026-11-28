@@ -14,11 +14,12 @@ module Trailblazer
 
       module Merge
         # node.merge(options: {value: "on"}) will merge the hash into {options}.
-        def merge(**hash_properties)
+        def merge(task: nil, **hash_properties)
           properties = to_h
+          properties = properties.merge(task: task) if task # DISCUSS: is this what we want?
 
           # TODO: this only works for hash properties.
-          properties = properties.merge hash_properties.collect { |property, value| [property, properties[property].merge(value)] }.to_h
+          properties = properties.merge(hash_properties.collect { |property, value| [property, properties[property].merge(value)] }.to_h)
 
           self.class.new(**properties)
         end
